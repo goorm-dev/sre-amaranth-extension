@@ -207,9 +207,27 @@
   // ── 휴가 신청 ────────────────────────────────────────────────────────
   let lvState = null;   // 확인 대기 중인 preview
 
+  // 종류를 바꾸면 그 종류의 기본 시작시각·휴게 여부로 되돌린다.
+  function lvSyncType() {
+    const t = GW.leave.TYPES[$('lvType').value];
+    $('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
+    $('lvBreak').checked = t.defBreak;
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const tk = $('lvType').value;
+    const t = GW.leave.TYPES[tk];
+    const sp = GW.leave.span(tk, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
+    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+    $('lvSpan').textContent =
+      `신청 구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${t.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
+    $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null;
+  }
+
   function openLeave() {
     $('leaveSheet').hidden = false;
     $('lvDate').value = T.toKey(new Date());
+    lvSyncType();
     $('lvPreview').hidden = true;
     $('lvActions').hidden = true;
     $('lvMsg').textContent = '';
@@ -222,7 +240,7 @@
     $('lvNext').disabled = true;
     $('lvMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.leave.preview(typeKey, dateKey);
+      const pv = await GW.leave.preview(typeKey, dateKey, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
       const sched = await GW.leave.profile();
       const val = await GW.leave.validate(pv, sched);
       lvState = { pv, sched };
@@ -231,7 +249,8 @@
       $('lvPreview').innerHTML = `
         <div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>
         <div class="r"><span>종류</span><b>${esc(t.name)}</b></div>
-        <div class="r"><span>날짜</span><b>${dateKey}${t.full ? '' : ` ${t.start.slice(0,2)}:${t.start.slice(2)}~${t.end.slice(0,2)}:${t.end.slice(2)}`}</b></div>
+        <div class="r"><span>날짜</span><b>${dateKey} ${pv.span.start.slice(0,2)}:${pv.span.start.slice(2)}~${pv.span.end.slice(0,2)}:${pv.span.end.slice(2)}</b></div>
+        <div class="r"><span>휴게</span><b>${pv.span.withBreak ? '1시간 포함' : '미포함'}</b></div>
         <div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>
         <div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>
         <div class="r"><span>결재선</span><b>기본 결재선 (서버 지정)</b></div>
@@ -251,13 +270,14 @@
     $('lvMsg').textContent = '상신 중…';
     try {
       const res = await GW.leave.submit(lvState.pv, lvState.sched);
-      const ok = res && (res.resultCode === 0 || res.resultCode === 200 || res.appSq || res.linkKey);
-      if (ok || res === undefined || res === null) {
-        $('lvMsg').textContent = '상신 완료. 아마란스에서 결재 진행 상태를 확인하세요.';
+      // 응답을 믿지 않고 신청 목록을 다시 조회해 실제 생성됐는지 확인한다.
+      const made = await GW.leave.confirmCreated(lvState.pv);
+      if (made) {
+        $('lvMsg').textContent = `상신됨 — ${made.name} ${made.stateNm || ''}`.trim();
         $('lvActions').hidden = true;
-        setTimeout(() => { $('leaveSheet').hidden = true; load({ useCache: false }); }, 1500);
+        setTimeout(() => { $('leaveSheet').hidden = true; load({ useCache: false }); }, 1800);
       } else {
-        $('lvMsg').textContent = '상신 응답: ' + JSON.stringify(res).slice(0, 300);
+        $('lvMsg').textContent = '신청이 확인되지 않았습니다.\n응답: ' + JSON.stringify(res).slice(0, 400);
         $('lvSubmit').disabled = false;
       }
     } catch (e) {
@@ -266,6 +286,9 @@
     }
   }
   $('leaveBtn').onclick = openLeave;
+  $('lvType').onchange = lvSyncType;
+  $('lvStart').onchange = lvSyncSpan;
+  $('lvBreak').onchange = lvSyncSpan;
   $('lvNext').onclick = leavePreview;
   $('lvSubmit').onclick = leaveSubmit;
   $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };

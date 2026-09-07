@@ -13,20 +13,41 @@
   // 종류별 atCd·시간대. calculateApplicationDays 로 연차차감(yc)을 검증했다.
   //   종일 09:00~18:00(yc 1.0) / 오전반차 09:00~14:00(0.5) / 오후반차 15:00~19:00(0.5)
   //   보상(연차보상)은 +4 오프셋 코드. 반차 4종은 실제 이력, 종일 2종은 yc=1 로 확인.
+  // hours = 실제 휴가 시간. 신청 구간은 hours + (휴게 포함 시 60분).
+  //   오전반차 09:00~14:00(5시간 구간) → 인정 240분   ← 휴게 포함
+  //   오후반차 15:00~19:00(4시간 구간) → 인정 240분   ← 휴게 없음
+  // 시작 시각과 휴게 포함 여부는 사용자가 정한다. defStart/defBreak 는 기본값일 뿐이다.
   const TYPES = {
-    annual:    { atCd: '1101', name: '연차',        start: '0900', end: '1800', timeSetFg: 'ALL', full: true },
-    amHalf:    { atCd: '1102', name: '오전반차',    start: '0900', end: '1400', timeSetFg: 'AM' },
-    pmHalf:    { atCd: '1103', name: '오후반차',    start: '1500', end: '1900', timeSetFg: 'PM' },
-    annualComp:{ atCd: '1105', name: '연차(보상)',  start: '0900', end: '1800', timeSetFg: 'ALL', full: true },
-    amHalfComp:{ atCd: '1106', name: '오전반차(보상)', start: '0900', end: '1400', timeSetFg: 'AM' },
-    pmHalfComp:{ atCd: '1107', name: '오후반차(보상)', start: '1500', end: '1900', timeSetFg: 'PM' },
+    annual:    { atCd: '1101', name: '연차',           hours: 8, defStart: '0900', defBreak: true,  timeSetFg: 'ALL', full: true },
+    amHalf:    { atCd: '1102', name: '오전반차',       hours: 4, defStart: '0900', defBreak: true,  timeSetFg: 'AM' },
+    pmHalf:    { atCd: '1103', name: '오후반차',       hours: 4, defStart: '1500', defBreak: false, timeSetFg: 'PM' },
+    annualComp:{ atCd: '1105', name: '연차(보상)',     hours: 8, defStart: '0900', defBreak: true,  timeSetFg: 'ALL', full: true },
+    amHalfComp:{ atCd: '1106', name: '오전반차(보상)', hours: 4, defStart: '0900', defBreak: true,  timeSetFg: 'AM' },
+    pmHalfComp:{ atCd: '1107', name: '오후반차(보상)', hours: 4, defStart: '1500', defBreak: false, timeSetFg: 'PM' },
   };
+
+  // "0900" + 300분 → "1400"
+  function addMin(hhmmStr, mins) {
+    const t = Number(hhmmStr.slice(0, 2)) * 60 + Number(hhmmStr.slice(2)) + mins;
+    const h = Math.floor(t / 60) % 24;
+    return String(h).padStart(2, '0') + String(t % 60).padStart(2, '0');
+  }
+
+  // 선택한 시작 시각·휴게 포함 여부로 신청 구간을 만든다.
+  function span(typeKey, opts) {
+    const t = TYPES[typeKey];
+    const o = opts || {};
+    const start = (o.startTm || t.defStart).replace(':', '');
+    const withBreak = o.includeBreak == null ? t.defBreak : !!o.includeBreak;
+    return { start, end: addMin(start, t.hours * 60 + (withBreak ? 60 : 0)), withBreak };
+  }
   const LINK_AT = '1010';   // 연차휴가 그룹
 
   const api = () => GW.api;
   const P_CALC = '/human/common/attendapplication/calculateApplicationDays';
   const P_VALID = '/human/attendapplication/validateNew';
-  const P_CREATE = '/human/attendapplication/create';
+  const P_SAVE = '/human/attendapplication/0hr00011';   // 신청완료 — 근태신청 레코드 저장
+  const P_CREATE = '/human/attendapplication/create';    // 결재문서 생성
   const MENU = 'HPD0110';
 
   // 신청자 정보 + 근무 스케줄 필드. 최근 근무일 행에서 가져온다.
@@ -56,17 +77,18 @@
   const hhmm = (t) => (/^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : (t || ''));
 
   // 미리보기(확인 화면)에 필요한 값을 서버 계산으로 채운다. 상신은 하지 않는다.
-  async function preview(typeKey, dateKey, empNmHint) {
+  async function preview(typeKey, dateKey, opts) {
     const t = TYPES[typeKey];
     if (!t) throw new Error('지원하지 않는 휴가 종류입니다.');
+    const sp = span(typeKey, opts);
     const d = await api().call(P_CALC, {
       startDate: apiDate(dateKey), endDate: apiDate(dateKey),
-      startTime: t.start, endTime: t.end, atCd: t.atCd, linkAtCd: LINK_AT,
+      startTime: sp.start, endTime: sp.end, atCd: t.atCd, linkAtCd: LINK_AT,
       empCd: undefined, appRmkDc: '', calculateOption: 'HOLIDAY_EXCLUSION',
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
     return {
-      typeKey, type: t, dateKey,
+      typeKey, type: t, dateKey, span: sp,
       coCd: d.coCd, empCd: d.empCd, empNm: d.empNm, deptCd: d.deptCd, deptNm: d.deptNm,
       appDy: d.applicationDaysCnt != null ? d.applicationDaysCnt : d.daysCnt,
       appTm: d.applicationMinutes != null ? d.applicationMinutes : d.dailyAppTm,
@@ -84,7 +106,7 @@
       atDt: apiDate(pv.dateKey), baseAtDt: null,
       startDt: apiDate(pv.dateKey), endDt: apiDate(pv.dateKey),
       comeStTm: sched.comeStTm, leaveStTm: sched.leaveStTm,
-      startTm: t.start, endTm: t.end,
+      startTm: pv.span.start, endTm: pv.span.end,
       actStartTm: null, actEndTm: null,
       appDyFg: t.dayFg, appDy: String(pv.appDy), appTm: pv.appTm, appRmkDc: '',
       ycUseCnt: pv.ycUseCnt, ycGrantCnt: 0,
@@ -97,7 +119,7 @@
   function title(pv) {
     const [, m, d] = pv.dateKey.split('-');
     const t = pv.type;
-    const range = t.full ? '' : ` (${hhmm(t.start)}~${hhmm(t.end)})`;
+    const range = t.full ? '' : ` (${hhmm(pv.span.start)}~${hhmm(pv.span.end)})`;
     return `[${pv.deptNm} ${pv.empNm}]  ${m}-${d}${range}(${Number(pv.appDy).toFixed(1)}일)${t.name}신청서`;
   }
 
@@ -128,17 +150,36 @@
   }
 
   // 결재상신 (쓰기). 확인 화면에서 사용자가 누른 뒤에만 호출할 것.
+  //
+  // 실제 화면의 순서를 그대로 따른다:
+  //   0hr00011 (근태신청 저장) → create (결재문서 생성)
+  // create 만 호출하면 붙일 신청 레코드가 없어 아무것도 만들어지지 않는다.
   async function submit(pv, sched) {
     const item = buildItem(pv, sched);
     const emp = [{ empCd: pv.empCd, korNm: pv.empNm, deptCd: pv.deptCd, deptNm: pv.deptNm, divNm: '' }];
-    const res = await api().call(P_CREATE, {
+
+    const saved = await api().call(P_SAVE, { applicationList: [item], employeeList: emp }, MENU);
+
+    const created = await api().call(P_CREATE, {
       coCd: '', appDt: '', appEmpCd: pv.empCd, deptCd: '',
       titleDc: title(pv), approLineId: '', calLinkKey: '', linkKey: '',
       approState: '', fileGroup: 0, version: 'v2',
       employeeList: emp, applicationList: [item],
     }, MENU);
-    return res;
+
+    return { saved, created };
   }
 
-  GW.leave = { TYPES, preview, validate, submit, title, profile, buildItem };
+  // 상신 후 실제로 생성됐는지 신청 목록(사용일 기준)으로 확인한다.
+  // 응답 형식이 서버 버전마다 달라 응답만 보고 판단하면 조용히 실패할 수 있다.
+  async function confirmCreated(pv) {
+    try {
+      const rows = await api().getLeaveList(pv.dateKey, pv.dateKey);
+      return rows.find((r) => r.startKey === pv.dateKey) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  GW.leave = { TYPES, preview, validate, submit, title, profile, buildItem, confirmCreated, span, addMin };
 })(window);

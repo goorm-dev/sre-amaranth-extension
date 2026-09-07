@@ -247,9 +247,25 @@
   // ── 휴가 신청 ────────────────────────────────────────────────────────
   let lvState = null;
   const lv = (id) => document.getElementById(id);
+  function lvSyncType() {
+    const t = GW.leave.TYPES[lv('lvType').value];
+    lv('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
+    lv('lvBreak').checked = t.defBreak;
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const tk = lv('lvType').value;
+    const t = GW.leave.TYPES[tk];
+    const sp = GW.leave.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
+    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+    lv('lvSpan').textContent =
+      `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${t.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
+    lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null;
+  }
   function lvOpen() {
     lv('leaveSheet').hidden = false;
     lv('lvDate').value = T.toKey(new Date());
+    lvSyncType();
     lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lv('lvMsg').textContent = ''; lvState = null;
   }
   async function lvPreview() {
@@ -257,7 +273,7 @@
     if (!dk) { lv('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
     lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.leave.preview(tk, dk);
+      const pv = await GW.leave.preview(tk, dk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
       const sched = await GW.leave.profile();
       const val = await GW.leave.validate(pv, sched);
       lvState = { pv, sched };
@@ -265,6 +281,7 @@
       lv('lvPreview').hidden = false;
       lv('lvPreview').innerHTML =
         `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>` +
+        `<div class="r"><span>구간</span><b>${pv.span.start.slice(0,2)}:${pv.span.start.slice(2)}~${pv.span.end.slice(0,2)}:${pv.span.end.slice(2)}${pv.span.withBreak ? ' (휴게 포함)' : ''}</b></div>` +
         `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>` +
         `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>` +
         `<div class="r"><span>결재선</span><b>기본 (서버 지정)</b></div>` +
@@ -280,13 +297,22 @@
     lv('lvSubmit').disabled = true; lv('lvMsg').textContent = '상신 중…';
     try {
       const res = await GW.leave.submit(lvState.pv, lvState.sched);
-      const ok = !res || res.resultCode === 0 || res.resultCode === 200 || res.appSq || res.linkKey;
-      if (ok) { lv('lvMsg').textContent = '상신 완료. 아마란스에서 확인하세요.'; lv('lvActions').hidden = true;
-        setTimeout(() => { lv('leaveSheet').hidden = true; load({ useCache: false }); }, 1500); }
-      else { lv('lvMsg').textContent = '응답: ' + JSON.stringify(res).slice(0, 200); lv('lvSubmit').disabled = false; }
+      // 상신 여부는 응답을 믿지 않고 신청 목록을 다시 조회해 확인한다.
+      const made = await GW.leave.confirmCreated(lvState.pv);
+      if (made) {
+        lv('lvMsg').textContent = `상신됨 — ${made.name} ${made.stateNm || ''}`.trim();
+        lv('lvActions').hidden = true;
+        setTimeout(() => { lv('leaveSheet').hidden = true; load({ useCache: false }); }, 1800);
+      } else {
+        lv('lvMsg').textContent = '신청이 확인되지 않았습니다.\n응답: ' + JSON.stringify(res).slice(0, 400);
+        lv('lvSubmit').disabled = false;
+      }
     } catch (e) { lv('lvMsg').textContent = '상신 실패: ' + (e.message || ''); lv('lvSubmit').disabled = false; }
   }
   lv('lvOpen').onclick = lvOpen;
+  lv('lvType').onchange = lvSyncType;
+  lv('lvStart').onchange = lvSyncSpan;
+  lv('lvBreak').onchange = lvSyncSpan;
   lv('lvNext').onclick = lvPreview;
   lv('lvSubmit').onclick = lvSubmit;
   lv('lvBack').onclick = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };
