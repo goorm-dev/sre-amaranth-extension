@@ -1,13 +1,43 @@
-(()=>{const R=[];const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
-const cls=e=>[...e.classList].slice(0,3).join('.');
-const lbl=e=>(e.getAttribute('aria-label')||e.getAttribute('placeholder')||e.getAttribute('title')||'').trim();
-const own=e=>[...e.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent.trim()).join(' ').slice(0,40);
-document.querySelectorAll('input,select,textarea,button,[role="button"],[role="combobox"],[role="tab"]').forEach(e=>{
- if(!vis(e))return;const r=e.getBoundingClientRect();
- R.push({tag:e.tagName.toLowerCase(),type:e.type||e.getAttribute('role')||'',id:e.id||'',
-  cls:cls(e),label:lbl(e),val:(e.value!==undefined?String(e.value):'').slice(0,30),
-  text:own(e)||e.textContent.trim().slice(0,30),x:Math.round(r.x),y:Math.round(r.y)});});
-R.sort((a,b)=>a.y-b.y||a.x-b.x);
-const out=['URL: '+location.href,'요소 '+R.length+'개','',
- ...R.map(o=>`${o.tag}[${o.type}] id="${o.id}" .${o.cls} label="${o.label}" val="${o.val}" text="${o.text}" @${o.x},${o.y}`)].join('\n');
-copy(out);console.log(out);console.log('%c클립보드에 복사됨','color:green;font-weight:bold');})()
+// 근태 화면 구조 덤프. gw.goorm.io 콘솔에 붙여 실행하면 클립보드로 복사된다.
+//
+//   1) 근태 화면에서 한 번   → 좌측 [연차휴가신청서] 를 어떻게 찾는지 알아내려고
+//   2) 신청서를 연 뒤 한 번   → 종류 버튼 · 날짜 · 시간 · [신청완료] 를 잡으려고
+//
+// 출력: 태그 | class | type/placeholder | 값 또는 글자 | x,y
+(() => {
+  const SEL = [
+    'input', 'textarea', 'select',
+    'button', 'a', '[role="button"]', '[role="menuitem"]', '[role="treeitem"]', '[role="tab"]',
+    'li', '[class*="btn" i]', '[class*="button" i]', '[class*="menu" i]', '[class*="tree" i]',
+  ].join(',');
+
+  const docs = [document];
+  for (const f of document.querySelectorAll('iframe')) {
+    try { if (f.contentDocument) docs.push(f.contentDocument); } catch (_) { /* 교차 출처 */ }
+  }
+
+  const out = [];
+  for (const d of docs) {
+    for (const el of d.querySelectorAll(SEL)) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (el.closest('#gw-work-panel,#gw-leave-toast')) continue;   // 우리가 그린 것
+      if (el.querySelector(SEL)) continue;                          // 가장 안쪽만
+      const isField = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+      const txt = String(isField ? el.value : el.textContent).trim().replace(/\s+/g, ' ').slice(0, 40);
+      if (!txt && !isField) continue;
+      out.push([
+        el.tagName.toLowerCase(),
+        String(el.className).slice(0, 60),
+        [el.type, el.placeholder].filter(Boolean).join(' ').slice(0, 24),
+        txt,
+        `${Math.round(r.left)},${Math.round(r.top)}`,
+      ].join(' | '));
+    }
+  }
+
+  const s = `문서 ${docs.length} · 해시 ${location.hash}\n` + out.join('\n');
+  console.log(s);
+  try { copy(s); } catch (_) { /* copy 는 콘솔에서만 있다 */ }
+  return `${out.length}개 — 클립보드에 복사했습니다`;
+})();
