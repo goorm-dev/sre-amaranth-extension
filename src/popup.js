@@ -48,7 +48,7 @@
       } else if (past) {
         cls.push('done');
         // 월 집계와 같은 값이어야 한다 — 미반영 휴게를 뺀 실질 인정근무 + 휴가 크레딧
-        value = short(r.netWorkedMin + r.creditMin);
+        value = short(r.workedMin + r.creditMin);
       } else if (r.planMin != null) {
         cls.push('plan');
         value = short(r.planMin);
@@ -59,13 +59,11 @@
         value = short(s.avgNeededMin);
       }
       // 휴게·외출은 필요 근무시간을 바꾸지 않고 퇴근만 밀리므로, 값 대신 표식으로 알린다.
-      if (r.extraBreakMin > 0) cls.push('brk');
       if (key === s.todayKey) cls.push('today');
       if (key === selectedKey) cls.push('sel');
 
       const tip = [
         r.holidayNm || null,
-        r.extraBreakMin > 0 ? `${(r.breakNames || ['휴게']).join(', ')} ${T.fmtDuration(r.extraBreakMin)} 제외` : null,
         r.leaveNames ? `${r.leaveNames.join(', ')} ${T.fmtDuration(r.creditMin)} 인정` : null,
       ].filter(Boolean).join(' · ');
       const title = tip ? ` title="${esc(tip)}"` : '';
@@ -82,8 +80,7 @@
     box.hidden = false;
     const d = T.fromKey(selectedKey);
     const r = s.rows.find((x) => x.key === selectedKey) || {};
-    $('editDay').innerHTML = esc(T.label(d))
-      + (r.extraBreakMin > 0 ? ` <em class="ebrk">휴게 ${esc(T.fmtDuration(r.extraBreakMin))}</em>` : '');
+    $('editDay').innerHTML = esc(T.label(d));
     const fallback = r.planMin != null ? r.planMin
       : (r.creditMin > 0 ? Math.max(0, r.standardMin - r.creditMin) : (s.avgNeededMin ?? s.dailyMin));
     $('editHours').value = (fallback / 60).toFixed(1);
@@ -169,7 +166,6 @@
            <i class="pe">${T.fmtDuration(plan.elapsedMin)} 경과</i>
          </div>
          ${plan.creditMin ? `<div class="planleave">${plan.leaveNames.join(' + ')} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
-           ${plan.extraBreakMin ? `<div class="planleave brk">${plan.breakNames.join(' + ')} ${T.fmtDuration(plan.extraBreakMin)} 제외</div>` : ''}
          ${plan.singleTarget
            ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
            : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
@@ -235,24 +231,39 @@
     try { return (await chrome.tabs.sendMessage(tabId, 'ping')) === 'pong'; } catch (_) { return false; }
   }
 
+  // 어느 탭으로 갈지. 지금 창의 활성 탭이 1순위다. tabs.query 는 결재 팝업 같은
+  // 창의 탭도 돌려주므로, 그냥 첫 번째를 집으면 엉뚱한 창을 움직이게 된다.
+  async function pickTab() {
+    const match = { url: 'https://gw.goorm.io/*' };
+    const [active] = await chrome.tabs.query(Object.assign({ active: true, currentWindow: true }, match));
+    if (active) return active;
+    const tabs = await chrome.tabs.query(match);
+    for (const t of tabs) {
+      try { if ((await chrome.windows.get(t.windowId)).type === 'normal') return t; } catch (_) {}
+    }
+    return tabs[0] || null;
+  }
+
   // needScript: 자동 입력처럼 콘텐츠 스크립트가 반드시 있어야 하는 이동.
   // 살아 있으면 해시만 바꿔 SPA 안에서 이동하고(빠르고, 화면도 확실히 그려진다),
   // 죽어 있을 때만 새로 읽는다.
   async function openUrl(url, { needScript = false } = {}) {
-    const [tab] = await chrome.tabs.query({ url: 'https://gw.goorm.io/*' });
-    if (tab) {
-      const alive = needScript ? await scriptAlive(tab.id) : true;
-      await chrome.tabs.update(tab.id, { url, active: true });
-      if (!alive) await chrome.tabs.reload(tab.id);
-      try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_) {}
-    } else {
+    const tab = await pickTab();
+    if (!tab) {
       await chrome.tabs.create({ url });
+      return null;
     }
-    window.close();
+    const alive = needScript ? await scriptAlive(tab.id) : true;
+    await chrome.tabs.update(tab.id, { url, active: true });
+    if (!alive) await chrome.tabs.reload(tab.id);
+    try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_) {}
+    return { tab, alive };
   }
-  document.querySelector('.links').onclick = (ev) => {
+  document.querySelector('.links').onclick = async (ev) => {
     const b = ev.target.closest('[data-open]');
-    if (b) openScreen(GW.screens[b.dataset.open]);
+    if (!b) return;
+    await openScreen(GW.screens[b.dataset.open]);
+    window.close();
   };
 
   // ── 휴가 신청 ────────────────────────────────────────────────────────
@@ -262,14 +273,13 @@
   function lvSyncType() {
     const t = GW.leaveform.TYPES[lv('lvType').value];
     lv('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
-    lv('lvBreak').checked = t.defBreak;
     lvSyncSpan();
   }
   function lvSyncSpan() {
     const tk = lv('lvType').value;
-    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
+    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value });
     const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
-    lv('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${sp.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
+    lv('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${sp.hours}시간`;
   }
   lv('lvOpen').onclick = () => {
     lv('leaveSheet').hidden = false;
@@ -278,18 +288,21 @@
   };
   lv('lvType').onchange = lvSyncType;
   lv('lvStart').onchange = lvSyncSpan;
-  lv('lvBreak').onchange = lvSyncSpan;
   lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
   lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
   lv('lvGo').onclick = async () => {
     const tk = lv('lvType').value;
     const dk = lv('lvDate').value;
     if (!dk) return;
-    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
-    await chrome.storage.local.set({
-      pendingLeave: { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() },
-    });
-    openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { needScript: true });
+    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value });
+    const req = { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() };
+    // 새로 읽히는 경우엔 부팅하면서 저장소에서 집어 간다.
+    await chrome.storage.local.set({ pendingLeave: req });
+    const r = await openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { needScript: true });
+    // 살아 있으면 그 탭에만 직접 보낸다. 저장소로 뿌리면 열려 있는 모든 gw 탭이
+    // 받아서, 이동하지 않은 탭들이 저마다 실패를 띄운다.
+    if (r && r.alive) { try { await chrome.tabs.sendMessage(r.tab.id, { type: 'leave', req }); } catch (_) {} }
+    window.close();
   };
 
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };

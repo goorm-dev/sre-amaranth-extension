@@ -240,7 +240,6 @@
              <i class="pe">${T.fmtDuration(plan.elapsedMin)} 경과</i>
            </div>
            ${plan.creditMin ? `<div class="gwp-plan-leave">${plan.leaveNames.join(' + ')} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
-           ${plan.extraBreakMin ? `<div class="gwp-plan-leave brk">${plan.breakNames.join(' + ')} ${T.fmtDuration(plan.extraBreakMin)} 제외</div>` : ''}
            ${plan.singleTarget
              ? `<div class="gwp-plan-row gwp-hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
              : `<div class="gwp-plan-row"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
@@ -439,13 +438,10 @@
     // 팝업이 "이 탭에 스크립트가 살아 있나" 를 물어본다. 대답이 없으면 팝업이
     // 탭을 새로 읽는다 — 확장을 새로고침한 뒤 고아가 된 탭을 걸러내기 위한 것.
     chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
-      if (msg === 'ping') reply('pong');
-    });
-
-    chrome.storage.onChanged.addListener((changes, area) => {
-      const c = area === 'local' && changes.pendingLeave;
-      if (!c || !c.newValue) return;
-      claimLeave(c.newValue);
+      if (msg === 'ping') { reply('pong'); return; }
+      // 팝업이 이 탭을 지목해서 보낸 것. 저장소로 뿌리면 열려 있는 모든 gw 탭이
+      // 받아서, 이동하지 않은 탭들이 저마다 실패를 띄운다.
+      if (msg && msg.type === 'leave') claimLeave(msg.req);
     });
   })();
 })();

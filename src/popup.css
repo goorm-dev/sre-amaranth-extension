@@ -97,16 +97,7 @@ footer span { font-size: 11px; color: #9ca3af; }
 .links .go:hover { background: #f5f7fb; }
 .links .go.primary { background: #1e63d8; border-color: #1e63d8; color: #fff; }
 .links .go.primary:hover { background: #1a55ba; }
-.planleave.brk { color: #d97706; }
 
-/* 휴게·외출 신청이 있는 날 — 필요 근무시간은 그대로고 퇴근만 밀리므로 표식만 단다 */
-.cal button { position: relative; }
-.cal button.brk::after {
-  content: ''; position: absolute; top: 3px; right: 3px;
-  width: 5px; height: 5px; border-radius: 50%; background: #d97706;
-}
-.callegend .lg-brk { background: #d97706; border-radius: 50%; width: 7px; height: 7px; }
-.caledit .ebrk { font-style: normal; font-size: 10px; font-weight: 600; color: #d97706; margin-left: 4px; }
 .updatebar { margin: 10px 12px 0; padding: 8px 10px; border-radius: 8px; font-size: 12px;
   background: #eef4ff; border: 1px solid #d6e4ff; color: #1e40af; display: flex; align-items: center; gap: 6px; }
 .updatebar a { color: #1e63d8; font-weight: 700; }
@@ -116,8 +107,6 @@ footer span { font-size: 11px; color: #9ca3af; }
 .lvcard > b { display: block; font-size: 14px; margin-bottom: 10px; }
 .lvcard select, .lvcard input[type=date], .lvcard input[type=time] { width: 100%; font: inherit; padding: 9px;
   margin-bottom: 8px; border: 1px solid #d5dae4; border-radius: 8px; box-sizing: border-box; }
-.lvcard label.lvchk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4b5563; margin-bottom: 8px; }
-.lvcard label.lvchk input { width: auto; margin: 0; }
 .lvspan { font-size: 11.5px; color: #6b7280; margin-bottom: 10px; }
 .lvcard .primary { width: 100%; padding: 10px; }
 .lvnote { font-size: 11px; color: #6b7280; margin-top: 8px; text-align: center; }

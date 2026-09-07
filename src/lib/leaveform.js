@@ -20,15 +20,15 @@
 (function (root) {
   const GW = (root.GW = root.GW || {});
 
-  // 종류별 기본 시간대. 신청 구간 = 휴가시간 + (휴게 포함 시 1시간).
-  //   오전반차 09:00~14:00(5시간, 휴게 포함) / 오후반차 15:00~19:00(4시간, 미포함)
+  // 종류별 기본 시간대. 신청 구간에는 점심을 물고 있으면 휴게 1시간이 끼어 있다.
+  //   오전반차 09:00~14:00(5시간) / 오후반차 15:00~19:00(4시간)
   const TYPES = {
-    annual:     { hours: 8, defStart: '0900', defBreak: true,  full: true },
-    amHalf:     { hours: 4, defStart: '0900', defBreak: true },
-    pmHalf:     { hours: 4, defStart: '1500', defBreak: false },
-    annualComp: { hours: 8, defStart: '0900', defBreak: true,  full: true },
-    amHalfComp: { hours: 4, defStart: '0900', defBreak: true },
-    pmHalfComp: { hours: 4, defStart: '1500', defBreak: false },
+    annual:     { hours: 8, defStart: '0900', pad: 60 },
+    amHalf:     { hours: 4, defStart: '0900', pad: 60 },
+    pmHalf:     { hours: 4, defStart: '1500', pad: 0 },
+    annualComp: { hours: 8, defStart: '0900', pad: 60 },
+    amHalfComp: { hours: 4, defStart: '0900', pad: 60 },
+    pmHalfComp: { hours: 4, defStart: '1500', pad: 0 },
   };
 
   function addMin(hhmm, mins) {
@@ -38,10 +38,8 @@
 
   function span(typeKey, opts) {
     const t = TYPES[typeKey];
-    const o = opts || {};
-    const start = (o.startTm || t.defStart).replace(':', '');
-    const withBreak = o.includeBreak == null ? t.defBreak : !!o.includeBreak;
-    return { start, end: addMin(start, t.hours * 60 + (withBreak ? 60 : 0)), withBreak, hours: t.hours };
+    const start = ((opts || {}).startTm || t.defStart).replace(':', '');
+    return { start, end: addMin(start, t.hours * 60 + t.pad), hours: t.hours };
   }
 
   const TYPE_LABELS = {

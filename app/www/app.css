@@ -57,7 +57,6 @@ header span { flex: 1; text-align: center; font-size: 17px; }
 .planline b { font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
 .planline.hl b { color: var(--blue); font-size: 21px; font-weight: 800; }
 .planleave { font-size: 12.5px; font-weight: 600; color: var(--blue); text-align: center; padding: 3px 0 5px; }
-.planleave.brk { color: var(--amber); }
 
 /* 집계 */
 .rows { margin: 0 14px; }
@@ -86,19 +85,15 @@ header span { flex: 1; text-align: center; font-size: 17px; }
 .cal button.plan .v { color: var(--blue); font-weight: 700; }
 .cal button.today { outline: 2px solid var(--amber); outline-offset: -2px; }
 .cal button.sel { border-color: var(--fg); }
-.cal button.brk::after { content: ''; position: absolute; top: 4px; right: 4px;
-  width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
 .caledit { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
 .caledit #editDay { flex: 1; font-size: 14px; font-weight: 600; }
 .caledit input { width: 66px; font: inherit; padding: 7px; border: 1px solid var(--softline);
   border-radius: 8px; background: var(--card); color: var(--fg); }
 .caledit .unit { font-size: 13px; color: var(--dim); }
-.caledit .ebrk { font-style: normal; font-size: 11px; font-weight: 600; color: var(--amber); margin-left: 5px; }
 .callegend { display: flex; gap: 11px; margin-top: 10px; font-size: 11.5px; color: var(--dim); }
 .callegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .lg-plan { background: var(--card); border: 1px solid var(--blue); }
 .lg-leave { background: #e8f0fe; }
-.lg-brk { background: var(--amber); border-radius: 50% !important; width: 8px !important; height: 8px !important; }
 .lg-done { background: color-mix(in srgb, var(--dim) 25%, transparent); }
 
 .hint { margin: 14px; font-size: 13px; color: var(--amber);

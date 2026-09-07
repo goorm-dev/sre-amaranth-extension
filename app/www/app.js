@@ -129,7 +129,6 @@
       : `<div class="ptop"><span class="pl">오늘 출근</span><b class="pt">${plan.inAt}</b>
            <i class="pe">${T.fmtDuration(plan.elapsedMin)} 경과</i></div>
          ${plan.creditMin ? `<div class="planleave">${esc(plan.leaveNames.join(' + '))} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
-         ${plan.extraBreakMin ? `<div class="planleave brk">${esc(plan.breakNames.join(' + '))} ${T.fmtDuration(plan.extraBreakMin)} 제외</div>` : ''}
          ${plan.singleTarget
            ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
            : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
@@ -166,11 +165,10 @@
       const past = key < s.todayKey;
       const cls = []; let value = '';
       if (!r.standardMin) cls.push('off');
-      else if (past) { cls.push('done'); value = short(r.netWorkedMin + r.creditMin); }
+      else if (past) { cls.push('done'); value = short(r.workedMin + r.creditMin); }
       else if (r.planMin != null) { cls.push('plan'); value = short(r.planMin); }
       else if (r.creditMin > 0) { cls.push('leave'); value = short(Math.max(0, r.standardMin - r.creditMin)); }
       else if (s.avgNeededMin != null) value = short(s.avgNeededMin);
-      if (r.extraBreakMin > 0) cls.push('brk');
       if (key === s.todayKey) cls.push('today');
       if (key === selectedKey) cls.push('sel');
       const dis = !r.standardMin || past ? ' disabled' : '';
@@ -185,8 +183,7 @@
     if (!selectedKey) { box.hidden = true; return; }
     box.hidden = false;
     const r = s.rows.find((x) => x.key === selectedKey) || {};
-    $('editDay').innerHTML = esc(T.label(T.fromKey(selectedKey)))
-      + (r.extraBreakMin > 0 ? ` <em class="ebrk">휴게 ${esc(T.fmtDuration(r.extraBreakMin))}</em>` : '');
+    $('editDay').innerHTML = esc(T.label(T.fromKey(selectedKey)));
     const fb = r.planMin != null ? r.planMin
       : (r.creditMin > 0 ? Math.max(0, r.standardMin - r.creditMin) : (s.avgNeededMin ?? s.dailyMin));
     $('editHours').value = (fb / 60).toFixed(1);

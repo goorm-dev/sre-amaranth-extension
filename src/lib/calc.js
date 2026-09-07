@@ -54,21 +54,6 @@
     return out;
   }
 
-  // 휴게·외출 신청을 날짜별 분으로. 근로시간에서 빠지므로 퇴근이 그만큼 밀린다.
-  function breaksByDate(leaves) {
-    const out = {};
-    for (const lv of leaves || []) {
-      if (lv.kind !== 'break' || !lv.spanMin) continue;
-      for (const d of GW.time.eachDay(GW.time.fromKey(lv.startKey), GW.time.fromKey(lv.endKey))) {
-        const key = GW.time.toKey(d);
-        const cur = out[key] || { min: 0, names: [] };
-        cur.min += lv.spanMin;
-        cur.names.push(lv.name);
-        out[key] = cur;
-      }
-    }
-    return out;
-  }
 
   function hhmmToMin(t) {
     const [h, m] = String(t).split(':').map(Number);
@@ -97,7 +82,6 @@
     //
     // 그래서 "마감 여부"가 아니라 "서버가 그 휴가를 반영했는지"로 판단한다.
     const credits = leaveCreditsByDate(leaves, dailyMin, settings.breakMinutes);
-    const extraBreaks = breaksByDate(leaves);
 
     // 아직 배치가 안 돈 날은 추정치를 채운다.
     const month = raw.map((r) => {
@@ -111,14 +95,7 @@
       // 사용자가 "이 날은 N시간만 하겠다"고 정해둔 날. 마감 전이고 근무일일 때만 의미가 있다.
       const planned = (plans || {})[r.key];
       const planMin = (!settled && isWorkday && planned != null) ? planned : null;
-      // 서버가 이미 뺀 추가 휴게(exceptworkTm 이 기본 휴게보다 큰 만큼)는 다시 빼지 않는다.
-      // 결재진행 중이면 마감된 날이어도 서버가 안 뺐으므로, 인정근무에서 우리가 뺀다.
-      // (휴가와 대칭 — 휴가는 더하고 휴게는 뺀다)
-      const b = extraBreaks[r.key] || null;
-      const serverExtra = Math.max(0, (r.breakMin || 0) - (settings.breakMinutes || 0));
-      const extraBreakMin = b ? Math.max(0, b.min - serverExtra) : 0;
-      const netWorkedMin = Math.max(0, r.workedMin - extraBreakMin);
-
+      // 휴게·외출 신청은 건드리지 않는다. 결재가 끝나면 서버가 인정근무에 반영한다.
       return {
         ...r,
         standardMin,
@@ -127,16 +104,13 @@
         planMin,
         leaveBreakMin: c ? c.breakUsed : 0,   // 휴가 구간이 이미 흡수한 휴게시간
         leaveNames: c ? c.names : null,
-        extraBreakMin,
-        netWorkedMin,                         // 미반영 휴게를 뺀 실질 인정근무
-        breakNames: b ? b.names : null,
         holidayNm: standardMin ? null : GW.holidays.holidayName(r.key, settings, holidays),
       };
     });
     const estimatedCount = month.filter((r) => r.estimated).length;
 
     const requiredMin = month.reduce((a, r) => a + r.standardMin, 0);
-    const workedMin = month.reduce((a, r) => a + r.netWorkedMin, 0);
+    const workedMin = month.reduce((a, r) => a + r.workedMin, 0);
     const creditMin = month.reduce((a, r) => a + r.creditMin, 0);
     const fulfilledMin = workedMin + creditMin;
     const remainingMin = requiredMin - fulfilledMin;
@@ -147,7 +121,7 @@
     const remaining = workdays.filter((r) => r.key >= todayKey && r.creditMin < r.standardMin);
 
     // 그룹웨어 화면의 "N월 누적 …초과달성" 과 같은 값 (마감된 날 기준).
-    const paceMin = closed.reduce((a, r) => a + (r.netWorkedMin + r.creditMin - r.standardMin), 0);
+    const paceMin = closed.reduce((a, r) => a + (r.workedMin + r.creditMin - r.standardMin), 0);
     const leaveDays = month.filter((r) => r.creditMin > 0);
 
     // 근태 이상: 타각은 남아 있는데 인정근무가 0인 날.
@@ -233,8 +207,7 @@
     const inMin = hm(inAt);
     // 휴게는 하루 한 번. 휴가 구간(예: 오전반차 09:00~14:00)이 이미 썼으면 또 빼지 않는다.
     // 여기에 휴게·외출 신청분을 더한다 — 근로시간에서 빠지므로 퇴근이 그만큼 밀린다.
-    const extraBreakMin = (row && row.extraBreakMin) || 0;
-    const brk = Math.max(0, (settings.breakMinutes || 0) - ((row && row.leaveBreakMin) || 0)) + extraBreakMin;
+    const brk = Math.max(0, (settings.breakMinutes || 0) - ((row && row.leaveBreakMin) || 0));
 
     // 반차를 썼으면 그만큼 오늘 채워야 할 시간이 줄어든다.
     const creditMin = (row && row.creditMin) || 0;
@@ -246,8 +219,8 @@
 
     if (outAt) {
       // 집계된 인정근무가 있으면 그 값을, 없으면 타각 기준으로 환산한다.
-      const workedMin = row && row.netWorkedMin > 0
-        ? row.netWorkedMin
+      const workedMin = row && row.workedMin > 0
+        ? row.workedMin
         : Math.max(0, hm(outAt) - inMin - brk);
       return { done: true, inAt, outAt, workedMin };
     }
@@ -267,8 +240,6 @@
       elapsedMin,
       creditMin,
       leaveNames: (row && row.leaveNames) || null,
-      extraBreakMin,
-      breakNames: (row && row.breakNames) || null,
       minNeedMin,
       needMin,
       singleTarget: minNeedMin === needMin,   // 반차 날은 최소=정량이라 한 줄로 보여준다
