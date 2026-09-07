@@ -1,0 +1,135 @@
+#gw-work-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  width: 296px;
+  background: #fff;
+  color: #1f2937;
+  border: 1px solid #e2e6ee;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(17, 24, 39, .14);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  overflow: hidden;
+}
+#gw-work-panel * { box-sizing: border-box; }
+
+#gw-work-panel .gwp-head {
+  display: flex; align-items: center; gap: 4px;
+  padding: 9px 10px;
+  background: #1e63d8; color: #fff;
+}
+#gw-work-panel .gwp-title { flex: 1; text-align: center; font-weight: 700; font-size: 13px; }
+#gw-work-panel .gwp-nav,
+#gw-work-panel .gwp-toggle {
+  background: rgba(255,255,255,.16); border: 0; color: #fff;
+  width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0;
+}
+#gw-work-panel .gwp-nav:hover,
+#gw-work-panel .gwp-toggle:hover { background: rgba(255,255,255,.3); }
+
+#gw-work-panel .gwp-body { padding: 12px; }
+#gw-work-panel.gwp-collapsed .gwp-body { display: none; }
+#gw-work-panel.gwp-collapsed { width: 220px; }
+#gw-work-panel.gwp-collapsed .gwp-toggle { transform: rotate(180deg); }
+
+#gw-work-panel .gwp-hero { text-align: center; padding: 4px 0 12px; }
+#gw-work-panel .gwp-hero-label { font-size: 11px; color: #6b7280; }
+#gw-work-panel .gwp-hero-value { font-size: 27px; font-weight: 800; letter-spacing: -.4px; margin-top: 2px; }
+#gw-work-panel .gwp-hero-value.ok { color: #0f9d58; }
+#gw-work-panel .gwp-hero-sub { font-size: 11.5px; margin-top: 5px; color: #6b7280; }
+#gw-work-panel .gwp-hero-sub.ok { color: #0f9d58; }
+#gw-work-panel .gwp-hero-sub.warn { color: #d97706; }
+#gw-work-panel .gwp-hero-sub.bad { color: #dc2626; }
+
+#gw-work-panel .gwp-rows { border-top: 1px solid #eef1f6; }
+#gw-work-panel .gwp-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid #f3f5f9;
+}
+#gw-work-panel .gwp-row span { color: #6b7280; font-size: 12px; }
+#gw-work-panel .gwp-row b { font-weight: 700; font-size: 12.5px; }
+#gw-work-panel .gwp-row b i { font-style: normal; font-weight: 500; color: #9ca3af; }
+#gw-work-panel .gwp-row b.ok { color: #0f9d58; }
+#gw-work-panel .gwp-row b.bad { color: #dc2626; }
+#gw-work-panel .gwp-sub span, #gw-work-panel .gwp-sub b { color: #8b93a1; }
+#gw-work-panel .gwp-tag {
+  font-size: 10px; background: #eef2ff; color: #4351b8;
+  border-radius: 4px; padding: 1px 4px; font-weight: 600;
+}
+
+#gw-work-panel .gwp-note { margin-top: 9px; font-size: 11.5px; border-radius: 7px; padding: 6px 8px; }
+#gw-work-panel .gwp-note.gwp-warn { background: #fff7e6; color: #a15c00; }
+
+#gw-work-panel .gwp-actions { display: flex; gap: 6px; margin-top: 11px; }
+#gw-work-panel .gwp-btn {
+  flex: 1; padding: 7px 6px; border-radius: 7px; cursor: pointer;
+  border: 1px solid #d5dae4; background: #fff; color: #374151;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+}
+#gw-work-panel .gwp-btn:hover { background: #f5f7fb; }
+#gw-work-panel .gwp-btn.gwp-primary { background: #1e63d8; border-color: #1e63d8; color: #fff; }
+#gw-work-panel .gwp-btn.gwp-primary:hover { background: #1a55ba; }
+#gw-work-panel .gwp-btn:disabled { opacity: .55; cursor: default; }
+
+#gw-work-panel .gwp-status {
+  margin-top: 8px; font-size: 11px; color: #9ca3af;
+  text-align: center; min-height: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  #gw-work-panel { background: #1b1f27; color: #e5e7eb; border-color: #2c323d; }
+  #gw-work-panel .gwp-rows { border-top-color: #2c323d; }
+  #gw-work-panel .gwp-row { border-bottom-color: #262b34; }
+  #gw-work-panel .gwp-btn { background: #232833; border-color: #363d4a; color: #d7dae0; }
+  #gw-work-panel .gwp-btn:hover { background: #2b313d; }
+}
+
+/* 오늘 퇴근 시각 */
+#gw-work-panel .gwp-plan { margin-top: 10px; background: #eef4ff; border: 1px solid #d6e4ff; border-radius: 10px; padding: 9px 10px; }
+
+/* 출근 시각 — 한눈에 들어와야 하는 값이라 크게 세운다 */
+#gw-work-panel .gwp-ptop { display: grid; grid-template-columns: 1fr auto; align-items: baseline;
+  padding-bottom: 6px; margin-bottom: 5px; border-bottom: 1px solid #d6e4ff; }
+#gw-work-panel .gwp-ptop .pl { font-size: 11.5px; font-weight: 600; color: #4b5563; }
+#gw-work-panel .gwp-ptop .pt { font-size: 24px; font-weight: 800; letter-spacing: -.5px; color: #1e63d8;
+  font-variant-numeric: tabular-nums; line-height: 1.1; }
+#gw-work-panel .gwp-ptop .pt.done { color: #0f9d58; font-size: 20px; }
+#gw-work-panel .gwp-ptop .pe { grid-column: 1 / -1; text-align: right; font-style: normal;
+  font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+#gw-work-panel .gwp-plan-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; padding: 2px 0; color: #4b5563; }
+#gw-work-panel .gwp-plan-row b { font-weight: 700; color: #374151; font-variant-numeric: tabular-nums; }
+#gw-work-panel .gwp-plan-row.gwp-hl span { font-weight: 600; color: #1f2937; }
+#gw-work-panel .gwp-plan-row.gwp-hl b { color: #1e63d8; font-size: 16px; font-weight: 800; }
+
+/* 디버그 액션 */
+
+
+
+
+@media (prefers-color-scheme: dark) {
+  #gw-work-panel .gwp-plan { background: #1a2333; border-color: #2b3a55; }
+  #gw-work-panel .gwp-ptop { border-bottom-color: #2b3a55; }
+  #gw-work-panel .gwp-ptop .pl { color: #9aa3b2; }
+  #gw-work-panel .gwp-ptop .pt { color: #7aa7f0; }
+  #gw-work-panel .gwp-ptop .pt.done { color: #4ade80; }
+  #gw-work-panel .gwp-plan-row.gwp-hl span { color: #e5e7eb; }
+  #gw-work-panel .gwp-plan-row.gwp-hl b { color: #7aa7f0; }
+  #gw-work-panel .gwp-plan-row b { color: #e5e7eb; }
+}
+
+/* 오늘 출근 시각 입력 */
+
+#gw-work-panel .gwp-note.gwp-bad { background: #fef2f2; color: #b91c1c; }
+#gw-work-panel .gwp-actions { justify-content: center; }
+#gw-work-panel .gwp-actions .gwp-btn { flex: 0 0 auto; padding: 6px 18px; }
+
+@media (prefers-color-scheme: dark) {
+  #gw-work-panel .gwp-note.gwp-bad { background: #331d1d; color: #fca5a5; }
+}
+#gw-work-panel .gwp-plan-leave { font-size: 11px; font-weight: 600; color: #1e63d8; text-align: center; padding: 2px 0 4px; }
+
+#gw-work-panel .gwp-status.gwp-stopped { color: #dc2626; }
+#gw-work-panel .gwp-plan-leave.brk { color: #d97706; }

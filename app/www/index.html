@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>구름 근무시간</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- 로그인 -->
+<section id="loginView" class="view">
+  <div class="loginbox">
+    <h1>구름 근무시간</h1>
+    <p class="sub">아마란스 계정으로 로그인합니다</p>
+    <input id="loginId" type="text" placeholder="아이디" autocapitalize="none" autocorrect="off" autocomplete="username">
+    <input id="loginPw" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <label class="remember"><input id="remember" type="checkbox" checked> 로그인 상태 유지</label>
+    <button id="loginBtn" class="primary">로그인</button>
+    <div id="loginMsg" class="msg"></div>
+    <details id="diag" hidden>
+      <summary>진단 정보</summary>
+      <pre id="diagBody"></pre>
+    </details>
+  </div>
+</section>
+
+<!-- 근무시간 -->
+<section id="mainView" class="view" hidden>
+  <header>
+    <button id="prevM" class="nav">‹</button>
+    <span id="monthLabel">—</span>
+    <button id="nextM" class="nav">›</button>
+    <button id="menuBtn" class="nav">⋯</button>
+  </header>
+
+  <div class="scroll">
+    <section class="hero">
+      <div class="lbl">남은 근무시간</div>
+      <div class="val" id="remaining">—</div>
+      <div class="sub" id="feasibility"></div>
+    </section>
+
+    <section class="plan" id="plan"></section>
+    <section class="rows" id="rows"></section>
+
+    <section class="planner">
+      <div class="calbar"><span>근무 계획</span><button id="clearPlans" class="link">전체 해제</button></div>
+      <div class="calhead"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="cal" id="cal"></div>
+      <div class="caledit" id="caledit" hidden>
+        <span id="editDay"></span>
+        <input id="editHours" type="number" step="0.5" min="0" max="16" inputmode="decimal">
+        <span class="unit">시간</span>
+        <button id="editApply" class="primary">적용</button>
+        <button id="editClear">해제</button>
+      </div>
+      <div class="callegend">
+        <span><i class="lg-plan"></i>계획</span>
+        <span><i class="lg-leave"></i>휴가</span>
+        <span><i class="lg-brk"></i>휴게</span>
+        <span><i class="lg-done"></i>마감</span>
+      </div>
+    </section>
+
+    <p class="hint" id="hint"></p>
+    <footer><span id="stamp"></span></footer>
+  </div>
+</section>
+
+<!-- 설정 -->
+<section id="sheet" class="sheet" hidden>
+  <div class="sheetcard">
+    <h2>설정</h2>
+    <label>하루 소정근로 <input id="daily" type="number" step="0.5" min="1" max="12" inputmode="decimal"> 시간</label>
+    <label>유연근무 최소 <input id="minFlex" type="number" step="0.5" min="0" max="12" inputmode="decimal"> 시간</label>
+    <label>휴게시간 <input id="breakMin" type="number" step="10" min="0" max="180" inputmode="numeric"> 분</label>
+    <div class="btns">
+      <button id="save" class="primary">저장</button>
+      <button id="closeSheet">닫기</button>
+    </div>
+    <button id="logout" class="danger">로그아웃</button>
+  </div>
+</section>
+
+<script src="lib/time.js"></script>
+<script src="lib/holidays.js"></script>
+<script src="lib/store.js"></script>
+<script src="lib/gwapi.js"></script>
+<script src="lib/calc.js"></script>
+<script src="lib/auth.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

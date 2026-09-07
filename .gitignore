@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+
+# Capacitor 네이티브 프로젝트는 www 에서 생성되므로 커밋하지 않는다
+app/android/
+app/ios/
+app/node_modules/
+
+# 빌드 산출물 (릴리스로 배포)
+dist/

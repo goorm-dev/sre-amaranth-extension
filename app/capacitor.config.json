@@ -1,0 +1,10 @@
+{
+  "appId": "io.goorm.worktime",
+  "appName": "구름 근무시간",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "CapacitorCookies": { "enabled": true }
+  }
+}
