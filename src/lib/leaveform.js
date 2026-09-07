@@ -1,8 +1,12 @@
 // 근태신청서(HPD0110) 폼 자동 입력.
 //
-// 상신은 절대 하지 않는다. 종류 버튼을 누르고 날짜·시간만 채운 뒤 멈춘다.
-// 사용자가 내용을 확인하고 [신청완료] → [결재상신] 을 직접 누른다.
-// 실패해도 폼이 안 채워질 뿐이라 데이터가 만들어지지 않는다.
+// fill() 은 종류·날짜·시간만 채우고 멈춘다. 아무것도 저장하지 않는다.
+// submit() 은 [신청완료] 를 눌러 결재 팝업을 띄운다 — approkey 는 SPA 가 이때
+// 만들어 window.open 에 실어 보내므로, 팝업을 띄우려면 이 버튼을 눌러야 한다.
+//
+// submit() 은 반드시 사용자의 실제 클릭 안에서 불러야 한다. 스크립트가 스스로
+// 누르면 transient activation 이 없어 window.open 이 팝업 차단에 걸린다.
+// 결재 팝업까지 뜨고 나서도 [결재상신] 은 사용자가 직접 누른다.
 //
 // 클래스명에 빌드 해시가 붙으므로(OBTDatePickerRebuild_inputYMD__PtxMy)
 // 접두사 부분일치로 찾는다.
@@ -131,5 +135,10 @@
     return steps;
   }
 
-  GW.leaveform = { fill, waitForForm, TYPES, TYPE_LABELS, span, to12h, setValue };
+  // [신청완료]. 여기서 초안이 만들어지고 결재 팝업이 열린다.
+  function submit() {
+    return clickButton('신청완료');
+  }
+
+  GW.leaveform = { fill, submit, waitForForm, TYPES, TYPE_LABELS, span, to12h, setValue };
 })(typeof window !== 'undefined' ? window : globalThis);

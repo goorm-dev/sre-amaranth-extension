@@ -307,20 +307,32 @@
   // 채우기만 하고 [신청완료]·[결재상신] 은 누르지 않는다.
   const LEAVE_TTL = 3 * 60 * 1000;
 
-  function toast(html, tone) {
+  function toast(html, tone, action) {
     const el = document.createElement('div');
     el.id = 'gw-leave-toast';
     el.style.cssText = 'position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:2147483647;'
-      + 'max-width:420px;padding:12px 16px;border-radius:10px;font:13px/1.5 -apple-system,'
+      + 'max-width:440px;padding:12px 16px;border-radius:10px;font:13px/1.5 -apple-system,'
       + '"Apple SD Gothic Neo","Malgun Gothic",sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.18);'
       + (tone === 'bad' ? 'background:#fef2f2;color:#991b1b;border:1px solid #fecaca;'
                         : 'background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;');
     el.innerHTML = html;
-    const old = document.getElementById('gw-leave-toast');
-    if (old) old.remove();
+    const prev = document.getElementById('gw-leave-toast');
+    if (prev) prev.remove();
+
+    if (action) {
+      const b = document.createElement('button');
+      b.textContent = action.label;
+      b.style.cssText = 'display:block;width:100%;margin-top:10px;padding:9px;border:0;border-radius:8px;'
+        + 'background:#1e63d8;color:#fff;font:inherit;font-weight:700;cursor:pointer;';
+      // 실제 클릭 안에서 눌러야 window.open 이 팝업 차단에 걸리지 않는다.
+      b.addEventListener('click', () => { el.remove(); action.run(); });
+      el.appendChild(b);
+    } else {
+      el.addEventListener('click', () => el.remove());
+      setTimeout(() => el.remove(), 20000);
+    }
     document.body.appendChild(el);
-    el.addEventListener('click', () => el.remove());
-    setTimeout(() => el.remove(), 20000);
+    return el;
   }
 
   let leaveBusy = false;
@@ -369,7 +381,15 @@
     try {
       const steps = await GW.leaveform.fill(req);
       toast('<b>휴가 신청서를 채웠습니다.</b><br>' + esc(steps.join(' · '))
-        + '<br><span style="opacity:.75">내용을 확인하고 [신청완료] → [결재상신] 을 직접 누르세요.</span>');
+        + '<br><span style="opacity:.75">내용을 확인하고 아래를 누르면 결재창이 뜹니다.'
+        + ' [결재상신] 은 그 창에서 직접 누르세요.</span>',
+        null,
+        {
+          label: '신청완료 → 결재창 열기',
+          run: () => {
+            if (!GW.leaveform.submit()) toast('<b>[신청완료] 버튼을 찾지 못했습니다.</b>', 'bad');
+          },
+        });
     } catch (e) {
       toast('<b>자동 입력 실패</b><br>' + esc(e.message)
         + (e.steps && e.steps.length ? '<br>진행: ' + esc(e.steps.join(' · ')) : '')
