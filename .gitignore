@@ -8,3 +8,7 @@ app/node_modules/
 
 # 빌드 산출물 (릴리스로 배포)
 dist/
+
+# 릴리스 자산 (GitHub Release 로 배포)
+*.zip
+*.apk

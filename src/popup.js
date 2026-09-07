@@ -244,6 +244,43 @@
     if (b) openScreen(GW.screens[b.dataset.open]);
   };
 
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  // 요청을 저장하고 근태신청서로 이동한다. 페이지의 콘텐츠 스크립트가 그 요청을
+  // 읽어 폼을 채운다. 상신은 하지 않는다.
+  const lv = (id) => document.getElementById(id);
+  function lvSyncType() {
+    const t = GW.leaveform.TYPES[lv('lvType').value];
+    lv('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
+    lv('lvBreak').checked = t.defBreak;
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const tk = lv('lvType').value;
+    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
+    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+    lv('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${sp.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
+  }
+  lv('lvOpen').onclick = () => {
+    lv('leaveSheet').hidden = false;
+    lv('lvDate').value = T.toKey(new Date());
+    lvSyncType();
+  };
+  lv('lvType').onchange = lvSyncType;
+  lv('lvStart').onchange = lvSyncSpan;
+  lv('lvBreak').onchange = lvSyncSpan;
+  lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
+  lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
+  lv('lvGo').onclick = async () => {
+    const tk = lv('lvType').value;
+    const dk = lv('lvDate').value;
+    if (!dk) return;
+    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
+    await chrome.storage.local.set({
+      pendingLeave: { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() },
+    });
+    openScreen(GW.screens.LEAVE_APPLY);
+  };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   $('refresh').onclick = () => load({ useCache: false });

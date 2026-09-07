@@ -302,6 +302,75 @@
       </div>`;
   }
 
+  // ── 휴가 신청 자동 입력 ──────────────────────────────────────────────
+  // 팝업이 chrome.storage 에 남긴 요청을 읽어 근태신청서 폼을 대신 채운다.
+  // 채우기만 하고 [신청완료]·[결재상신] 은 누르지 않는다.
+  const LEAVE_TTL = 3 * 60 * 1000;
+
+  function toast(html, tone) {
+    const el = document.createElement('div');
+    el.id = 'gw-leave-toast';
+    el.style.cssText = 'position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:2147483647;'
+      + 'max-width:420px;padding:12px 16px;border-radius:10px;font:13px/1.5 -apple-system,'
+      + '"Apple SD Gothic Neo","Malgun Gothic",sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.18);'
+      + (tone === 'bad' ? 'background:#fef2f2;color:#991b1b;border:1px solid #fecaca;'
+                        : 'background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;');
+    el.innerHTML = html;
+    const old = document.getElementById('gw-leave-toast');
+    if (old) old.remove();
+    document.body.appendChild(el);
+    el.addEventListener('click', () => el.remove());
+    setTimeout(() => el.remove(), 20000);
+  }
+
+  let leaveBusy = false;
+
+  // SPA 라 해시만 바뀌면 페이지가 다시 뜨지 않는다. 신청서 화면으로 옮겨갈
+  // 때까지 기다렸다가 채운다.
+  async function waitForScreen(code, timeout) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      if (location.hash.includes(code)) return true;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return false;
+  }
+
+  async function claimLeave(req) {
+    if (leaveBusy || !req) return;
+    if (Date.now() - req.at > LEAVE_TTL) return;
+    leaveBusy = true;
+    try {
+      if (!(await waitForScreen(GW.screens.LEAVE_APPLY, 10000))) return;
+      await fillLeave(req);
+    } finally {
+      leaveBusy = false;
+    }
+  }
+
+  async function runPendingLeave() {
+    let req;
+    try {
+      ({ pendingLeave: req } = await chrome.storage.local.get('pendingLeave'));
+      if (!req) return;
+      // 한 번 집으면 바로 지운다. 실패해도 새로고침마다 다시 채우지 않게.
+      await chrome.storage.local.remove('pendingLeave');
+    } catch (_) { return; }
+    await claimLeave(req);
+  }
+
+  async function fillLeave(req) {
+    try {
+      const steps = await GW.leaveform.fill(req);
+      toast('<b>휴가 신청서를 채웠습니다.</b><br>' + esc(steps.join(' · '))
+        + '<br><span style="opacity:.75">내용을 확인하고 [신청완료] → [결재상신] 을 직접 누르세요.</span>');
+    } catch (e) {
+      toast('<b>자동 입력 실패</b><br>' + esc(e.message)
+        + (e.steps && e.steps.length ? '<br>진행: ' + esc(e.steps.join(' · ')) : '')
+        + '<br><span style="opacity:.75">직접 입력해 주세요. 저장된 내용은 없습니다.</span>', 'bad');
+    }
+  }
+
   // 근태신청서·결재 같은 별도 팝업 창에는 띄우지 않는다.
   // 아마란스가 window.open() 으로 여는 창이라 opener 가 잡힌다.
   // (Chrome 88+ 는 target="_blank" 에 noopener 를 기본 적용하므로, opener 가 있으면
@@ -314,5 +383,15 @@
     if (collapsed) panel.classList.add('gwp-collapsed');
     load(viewMonth);
     startAuto();
+    runPendingLeave();
+
+    // 팝업이 같은 탭의 해시만 바꾸면 이 스크립트는 다시 뜨지 않는다.
+    // 그래서 요청이 들어오는 것도 직접 지켜본다.
+    chrome.storage.onChanged.addListener((changes, area) => {
+      const c = area === 'local' && changes.pendingLeave;
+      if (!c || !c.newValue) return;
+      chrome.storage.local.remove('pendingLeave');
+      claimLeave(c.newValue);
+    });
   })();
 })();
