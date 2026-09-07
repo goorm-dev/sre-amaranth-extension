@@ -3,14 +3,16 @@
 // 실제 신청서가 만드는 요청을 캡처해 재현했다. 흐름:
 //   1) calculateApplicationDays  — 서버가 일수·시간·연차차감을 계산 (읽기)
 //   2) validateNew               — 서버가 중복·잔여연차 등을 검증 (읽기)
-//   3) 0hr00011                  — 신청완료. 근태신청 레코드 저장
-//   4) create                    — 결재문서(초안) 생성. approLineId 를 비우면 서버 기본 결재선
-//   5) #/popup?...&approkey=…    — 결재 팝업. 여기서 사용자가 결재상신을 누른다
+//   3) 0hr00011                  — 신청 확정. 응답이 결재문서 제목이다
+//   4) create                    — 결재문서(초안) 생성 → appSq/appDt/coCd, approState "2"
+//   5) GetLinkKey                 — 우리가 만든 approKey 를 등록하고 linkKey 를 받는다
+//   6) SetEnageGroup              — 그 approKey 에 양식·제목·본문조회API 를 붙인다
+//   7) saveLinkKey                — linkKey 를 방금 만든 초안(appSq)에 묶는다
+//   8) /#popup?...&approkey=…     — 결재 팝업. 여기서 사용자가 결재상신을 누른다
 //
-// approkey 가 핵심이다. 팝업의 연동(HP_HPD0110_00011)이 그 키로 초안을 찾아 본문을
-// 채운다. 예전엔 create 에 linkKey:'' 를 보내 놓고 팝업 URL 에는 그 자리에서 만든
-// 난수를 넣어서, 서버가 등록된 적 없는 키를 찾다가 "연동본문 데이터 조회 실패" 로
-// 떨어졌다. 같은 값을 create 에 실어 보내야 한다.
+// 5~7 이 핵심이다. approkey 는 클라이언트가 만드는 난수(ERP_<uuid>)지만 그냥 만들어
+// 쓰는 값이 아니라 서버에 등록해야 하는 값이다. 이 세 단계를 빠뜨리면 팝업이
+// "연동본문 데이터 조회 실패 / HP_HPD0110_00011" 로 떨어진다.
 //
 // atCd/시간대는 아마란스 코드 그대로. 결재선은 앱이 만들지 않는다(서버 기본선 사용).
 (function (root) {
@@ -53,7 +55,20 @@
   const P_VALID = '/human/attendapplication/validateNew';
   const P_SAVE = '/human/attendapplication/0hr00011';   // 신청완료 — 근태신청 레코드 저장
   const P_CREATE = '/human/attendapplication/create';    // 결재문서 생성
+  const P_GETLINKKEY = '/system/apiUtilEap/GetLinkKey';  // approKey 등록 → linkKey 발급
+  const P_SETENAGE = '/system/apiUtilEap/SetEnageGroup'; // approKey 에 양식·본문조회API 연결
+  const P_SAVELINK = '/human/openapi/attendapplication/saveLinkKey';  // linkKey ↔ 초안
   const MENU = 'HPD0110';
+
+  // 연차휴가신청서 결재 양식. /eap/eap096A45 (searchFormDTp: HPD0110) 로 조회되는 목록의
+  // 한 항목이고, 값이 고정이라 굳이 매번 조회하지 않는다.
+  const FORM = {
+    id: '249',
+    dTp: 'HP_HPD0110_00011',
+    nm: '연차휴가신청서',
+    contentsApi: '/human/attendapplication/interlock/getInterlockFormContents',
+    statusApi: '/human/attendapplication/interlock/setInterlockSync',
+  };
 
   // 신청자 정보 + 근무 스케줄 필드. 최근 근무일 행에서 가져온다.
   async function profile() {
@@ -163,61 +178,52 @@
         return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
       }));
 
-  // 응답 어딘가에 서버가 정한 연동키가 실려 올 수 있다. 있으면 그게 우선이다.
-  // 우리가 보낸 키를 그대로 쓰면 되는 경우와, 서버가 새로 발급하는 경우를 모두 받는다.
-  function findLinkKey(obj, depth) {
-    if (obj == null || (depth || 0) > 6) return null;
-    if (typeof obj === 'string') return /^ERP_/.test(obj) ? obj : null;
-    if (Array.isArray(obj)) {
-      for (const v of obj) { const hit = findLinkKey(v, (depth || 0) + 1); if (hit) return hit; }
-      return null;
-    }
-    if (typeof obj !== 'object') return null;
-    // 이름이 맞는 것부터 본다
-    for (const k of ['linkKey', 'approKey', 'approkey', 'calLinkKey']) {
-      if (typeof obj[k] === 'string' && obj[k]) return obj[k];
-    }
-    for (const v of Object.values(obj)) { const hit = findLinkKey(v, (depth || 0) + 1); if (hit) return hit; }
-    return null;
-  }
-
-  // 초안 생성 (쓰기). 확인 화면에서 사용자가 누른 뒤에만 호출할 것.
-  //
-  // 실제 화면의 순서를 그대로 따른다:
-  //   0hr00011 (근태신청 저장) → create (결재문서 생성) → 결재 팝업
-  // create 만 호출하면 붙일 신청 레코드가 없어 아무것도 만들어지지 않는다.
-  //
-  // 결재 팝업의 approkey 는 우리가 만들어 create 에 함께 보낸다. 팝업의 연동
-  // (HP_HPD0110_00011)이 그 키로 방금 만든 초안을 찾아 본문을 채운다.
-  // approState 는 "2"(미상신 초안)로 돌아오는 게 정상이다 — 상신은 팝업에서 한다.
+  // 초안 생성 + 결재 연동 등록 (쓰기). 확인 화면에서 사용자가 누른 뒤에만 호출할 것.
+  // 상신은 하지 않는다 — 팝업을 열어 주고 사용자가 거기서 [결재상신] 을 누른다.
   async function submit(pv, sched) {
     const item = buildItem(pv, sched);
     const emp = [{ empCd: pv.empCd, korNm: pv.empNm, deptCd: pv.deptCd, deptNm: pv.deptNm, divNm: '' }];
-    const linkKey = `ERP_${uuid()}`;
 
+    // 신청 확정. 응답이 결재문서 제목이다 — 우리가 조립하지 않고 서버 값을 쓴다.
     const saved = await api().call(P_SAVE, { applicationList: [item], employeeList: emp }, MENU);
+    const titleDc = typeof saved === 'string' && saved ? saved : title(pv);
 
     const created = await api().call(P_CREATE, {
       coCd: '', appDt: '', appEmpCd: pv.empCd, deptCd: '',
-      titleDc: title(pv), approLineId: '',
-      calLinkKey: linkKey, linkKey,
+      titleDc, approLineId: '', calLinkKey: '', linkKey: '',
       approState: '', fileGroup: 0, version: 'v2',
       employeeList: emp, applicationList: [item],
     }, MENU);
+    if (!created || !created.appSq) {
+      throw new Error('결재문서 초안이 만들어지지 않았습니다.');
+    }
+    const { appSq, appDt } = created;
+    const coCd = created.coCd || pv.coCd;
 
-    const approKey = findLinkKey(created) || findLinkKey(saved) || linkKey;
+    // approKey 는 우리가 만들지만 서버에 등록해야 쓸 수 있다.
+    const approKey = `ERP_${uuid()}`;
+    const link = await api().call(P_GETLINKKEY,
+      { menuCode: MENU, approKey, vPCoCd: coCd, coCd }, MENU);
+    const linkKey = link && link.linkKey;
+    if (!linkKey) throw new Error('연동 키를 발급받지 못했습니다.');
+
+    await api().call(P_SETENAGE, {
+      approKey, formDTp: FORM.dTp, formId: FORM.id, linkKey, formNm: FORM.nm,
+      docTitle: titleDc, contents: '',
+      contentsApi: FORM.contentsApi, statusApi: FORM.statusApi,
+      dummy1: '', link: '', vPCoCd: coCd, coCd,
+    }, MENU);
+
+    await api().call(P_SAVELINK, { linkKey, appSq, coCd, appDt }, MENU);
+
     const q = new URLSearchParams({
       MicroModuleCode: 'eap', appLineId: '', appLineList: '[]',
       approkey: approKey, fileList: '[]',
-      formId: '249', callComp: 'UBAP001', popupUUID: uuid(),
+      formId: FORM.id, callComp: 'UBAP001', popupUUID: uuid(),
     });
 
-    return {
-      saved, created, linkKey, approKey,
-      sentKey: linkKey === approKey,          // 우리 키가 그대로 쓰였는지
-      approvalHash: `#/popup?${q.toString()}`,
-    };
+    return { titleDc, appSq, appDt, coCd, approKey, linkKey, approvalHash: `#popup?${q}` };
   }
 
-  GW.leave = { TYPES, preview, validate, submit, title, profile, buildItem, span, addMin, findLinkKey };
+  GW.leave = { TYPES, FORM, preview, validate, submit, title, profile, buildItem, span, addMin };
 })(window);

@@ -367,31 +367,54 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 
 ### 휴가 신청
 
-`휴가 신청` 은 신청서 화면을 열지 않고 **API 로 초안을 만든 뒤 결재 화면을 새 탭으로
-엽니다.** 상신은 그 화면에서 사용자가 직접 누릅니다.
+신청서 화면을 열지 않고 **API 로 초안을 만든 뒤 결재 화면을 새 탭으로 엽니다.**
+상신은 그 화면에서 사용자가 직접 누릅니다.
 
 ```
-calculateApplicationDays  일수·인정시간·연차차감을 서버가 계산 (읽기)
-validateNew               중복·잔여연차 검증 (읽기)
+calculateApplicationDays   일수·인정시간·연차차감을 서버가 계산 (읽기)
+validateNew                중복·잔여연차 검증 (읽기)
         ↓ 확인 화면
-0hr00011                  근태신청 레코드 저장
-create                    결재문서 초안 생성 → approState "2" (미상신)
-#/popup?…&approkey=…      결재 화면. 여기서 결재상신
+0hr00011                   신청 확정. 응답이 곧 결재문서 제목이다
+create                     초안 생성 → appSq / appDt / coCd, approState "2"
+GetLinkKey                 approKey 를 등록하고 linkKey 를 받는다
+SetEnageGroup              approKey 에 양식·제목·본문조회API 를 붙인다
+saveLinkKey                linkKey 를 방금 만든 초안(appSq)에 묶는다
+/#popup?…&approkey=…       결재 화면. 여기서 결재상신
 ```
 
-**`approkey` 가 전부입니다.** 결재 화면의 연동(`HP_HPD0110_00011`)이 그 키로 방금
-만든 초안을 찾아 본문을 채웁니다. 그래서 **키를 우리가 만들어 `create` 의 `linkKey`·
-`calLinkKey` 에 실어 보내고, 같은 값을 팝업 URL 에 씁니다.**
+**`approkey` 등록이 전부입니다.** `ERP_<uuid>` 는 클라이언트가 만드는 난수지만
+**그냥 만들어 쓰는 값이 아니라 서버에 등록해야 하는 값**입니다.
 
-> 예전에 `연동본문 데이터 조회 실패 / HP_HPD0110_00011` 이 났던 이유가 이겁니다 —
-> `create` 에는 `linkKey: ''` 를 보내 놓고 팝업 URL 에는 그 자리에서 만든 난수를
-> 넣었습니다. 서버가 등록된 적 없는 키를 찾고 있었던 겁니다.
+```
+POST /system/apiUtilEap/GetLinkKey
+  { menuCode: "HPD0110", approKey: "ERP_<uuid>", vPCoCd: coCd, coCd }
+→ { approKey, linkKey: "1000_HPD0110_20260907_2023030702_0008" }
 
-서버가 자기 키를 발급하는 경우도 있을 수 있어, `create`·`0hr00011` 응답에서
-`linkKey`/`approKey` 나 `ERP_` 로 시작하는 문자열을 찾아 **있으면 그쪽을 우선**합니다.
+POST /system/apiUtilEap/SetEnageGroup
+  { approKey, linkKey, formDTp: "HP_HPD0110_00011", formId: "249",
+    formNm: "연차휴가신청서", docTitle,
+    contentsApi: "/human/attendapplication/interlock/getInterlockFormContents",
+    statusApi:   "/human/attendapplication/interlock/setInterlockSync",
+    contents: "", dummy1: "", link: "", vPCoCd: coCd, coCd }
+
+POST /human/openapi/attendapplication/saveLinkKey
+  { linkKey, appSq, coCd, appDt }
+```
+
+> `연동본문 데이터 조회 실패 / HP_HPD0110_00011` 은 이 세 단계를 빠뜨렸을 때 나옵니다.
+> 서버에 등록된 적 없는 approkey 로 본문을 찾으니 당연히 없습니다.
+>
+> 가설 두 개를 먼저 틀렸습니다 — `create` 의 `linkKey` 에 실어 보내는 것도 아니고
+> (실제 요청도 `""` 입니다), `create` 응답에 실려 오는 것도 아니고
+> (`linkKey: ""`, `calLinkKey: "20260902.1"`), 스토리지로 넘기는 것도 아닙니다
+> (`ERP_` 키가 local·session 어디에도 없습니다). 네트워크 타임라인을 찍어
+> `create` 와 `window.open` 사이를 보고서야 등록 단계 셋이 드러났습니다.
 
 `approState:"2"` 는 정상입니다 — 초안 상태이고 상신은 결재 화면에서 일어납니다.
 (미상신 초안은 개인근태신청현황에 뜨지 않으니 목록 조회로 성공 판정을 하면 안 됩니다)
+
+제목은 `0hr00011` 응답을 그대로 씁니다 — 화면도 그렇게 합니다.
+`[SRE팀 오세준]  09-11 (15:00~19:00)(1.0일)오후반차신청서`
 
 | 종류 | atCd | 구간 |
 |---|---|---|
@@ -405,8 +428,9 @@ create                    결재문서 초안 생성 → approState "2" (미상�
 점심을 물고 있는 구간에는 휴게 1시간이 끼어 있습니다 — 종류가 정하므로 고르지 않습니다.
 시작시각만 바꿀 수 있습니다.
 
-응답은 `lastLeave` 로 저장되고 팝업의 **마지막 신청 결과**에서 볼 수 있습니다.
-결재 화면이 본문을 못 불러오면 그 내용이 진단 자료입니다.
+흐름을 다시 확인해야 하면 [tools/capture.js](tools/capture.js) 를 gw 콘솔에 붙여
+실행한 뒤 실제 신청을 하고 `__capDump()` 를 부르면 됩니다. 결재 팝업 안의 요청까지
+같이 잡힙니다.
 
 ## 알려진 한계
 

@@ -310,9 +310,9 @@
       // 결재 화면이 본문을 못 불러오는 경우를 대비해 응답을 남긴다.
       // 팝업의 "마지막 신청 결과" 에서 그대로 복사할 수 있다.
       await chrome.storage.local.set({
-        lastLeave: { at: Date.now(), title: GW.leave.title(lvState.pv),
-                     approKey: r.approKey, sentKey: r.sentKey,
-                     saved: r.saved, created: r.created },
+        lastLeave: { at: Date.now(), title: r.titleDc, appSq: r.appSq, appDt: r.appDt,
+                     coCd: r.coCd, approKey: r.approKey, linkKey: r.linkKey,
+                     url: r.approvalHash },
       });
       await chrome.tabs.create({ url: GW.screens.ORIGIN + '/' + r.approvalHash });
       window.close();
