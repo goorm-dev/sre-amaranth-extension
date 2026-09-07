@@ -100,10 +100,11 @@
     url: (code) => `${GW.screens.ORIGIN}/#/HP/${code}/${code}`,
     hash: (code) => `#/HP/${code}/${code}`,
 
-    // 연차 신청 팝업을 딥링크로 바로 열 수는 없다.
-    // /#/popup?...&approkey=ERP_<uuid>&formId=249&callComp=UBAP001 형태인데,
-    // approkey 는 근태신청서 화면이 문서를 준비할 때 만드는 실제 식별자다.
-    // 임의로 만들면 결재 팝업이 연동본문(HP_HPD0110_00011)을 못 찾아
-    // "연동본문 데이터 조회 실패" 로 떨어진다. 그래서 신청서 화면까지만 연다.
+    // 휴가 신청은 화면을 열어 주기만 한다. 자동화는 접었다 —
+    //  - 결재 팝업은 /#/popup?...&approkey=ERP_<uuid>&formId=249 형태인데 approkey 는
+    //    화면이 문서를 준비할 때 만드는 식별자라 합성할 수 없다("연동본문 데이터 조회 실패").
+    //  - API 로 만든 초안은 approState "2"(미상신)에서 멈추고 상신 단계를 찾지 못했다.
+    //  - DOM 자동화는 HPD0110 이 캘린더와 신청서를 같은 해시에서 갈아 끼우고 양식 목록
+    //    항목이 태그·클래스 없이 그려져 안정적으로 잡히지 않았다.
   };
 })(typeof window !== 'undefined' ? window : globalThis);

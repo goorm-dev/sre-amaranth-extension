@@ -113,7 +113,6 @@ footer { text-align: center; font-size: 12px; color: var(--dim); padding: 10px; 
   border-radius: 8px; background: var(--bg); color: var(--fg); }
 .btns { display: flex; gap: 8px; margin-top: 6px; }
 .btns button { flex: 1; padding: 13px; }
-header .nav#leaveBtn { font-size: 22px; }
 .sheetcard select { width: 100%; font: inherit; padding: 11px; border: 1px solid var(--softline);
   border-radius: 8px; background: var(--bg); color: var(--fg); }
 .sheetcard label { display: block; }

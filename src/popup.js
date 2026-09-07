@@ -225,12 +225,6 @@
   // 이미 열려 있는 gw.goorm.io 탭이 있으면 그 탭을 재사용한다.
   const openScreen = (code) => openUrl(GW.screens.url(code));
 
-  // 그 탭에 콘텐츠 스크립트가 살아 있는가. 확장을 새로고침하면 열려 있던 탭의
-  // 스크립트는 고아가 되어 아무 이벤트도 못 받는다.
-  async function scriptAlive(tabId) {
-    try { return (await chrome.tabs.sendMessage(tabId, 'ping')) === 'pong'; } catch (_) { return false; }
-  }
-
   // 어느 탭으로 갈지. 지금 창의 활성 탭이 1순위다. tabs.query 는 결재 팝업 같은
   // 창의 탭도 돌려주므로, 그냥 첫 번째를 집으면 엉뚱한 창을 움직이게 된다.
   async function pickTab() {
@@ -244,64 +238,19 @@
     return tabs[0] || null;
   }
 
-  // needScript: 자동 입력처럼 콘텐츠 스크립트가 반드시 있어야 하는 이동.
-  // 살아 있으면 해시만 바꿔 SPA 안에서 이동하고(빠르고, 화면도 확실히 그려진다),
-  // 죽어 있을 때만 새로 읽는다.
-  async function openUrl(url, { needScript = false } = {}) {
+  async function openUrl(url) {
     const tab = await pickTab();
     if (!tab) {
       await chrome.tabs.create({ url });
-      return null;
+      return;
     }
-    const alive = needScript ? await scriptAlive(tab.id) : true;
     await chrome.tabs.update(tab.id, { url, active: true });
-    if (!alive) await chrome.tabs.reload(tab.id);
     try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_) {}
-    return { tab, alive };
   }
   document.querySelector('.links').onclick = async (ev) => {
     const b = ev.target.closest('[data-open]');
     if (!b) return;
     await openScreen(GW.screens[b.dataset.open]);
-    window.close();
-  };
-
-  // ── 휴가 신청 ────────────────────────────────────────────────────────
-  // 요청을 저장하고 근태신청서로 이동한다. 페이지의 콘텐츠 스크립트가 그 요청을
-  // 읽어 폼을 채운다. 상신은 하지 않는다.
-  const lv = (id) => document.getElementById(id);
-  function lvSyncType() {
-    const t = GW.leaveform.TYPES[lv('lvType').value];
-    lv('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
-    lvSyncSpan();
-  }
-  function lvSyncSpan() {
-    const tk = lv('lvType').value;
-    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value });
-    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
-    lv('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${sp.hours}시간`;
-  }
-  lv('lvOpen').onclick = () => {
-    lv('leaveSheet').hidden = false;
-    lv('lvDate').value = T.toKey(new Date());
-    lvSyncType();
-  };
-  lv('lvType').onchange = lvSyncType;
-  lv('lvStart').onchange = lvSyncSpan;
-  lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
-  lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
-  lv('lvGo').onclick = async () => {
-    const tk = lv('lvType').value;
-    const dk = lv('lvDate').value;
-    if (!dk) return;
-    const sp = GW.leaveform.span(tk, { startTm: lv('lvStart').value });
-    const req = { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() };
-    // 새로 읽히는 경우엔 부팅하면서 저장소에서 집어 간다.
-    await chrome.storage.local.set({ pendingLeave: req });
-    const r = await openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { needScript: true });
-    // 살아 있으면 그 탭에만 직접 보낸다. 저장소로 뿌리면 열려 있는 모든 gw 탭이
-    // 받아서, 이동하지 않은 탭들이 저마다 실패를 띄운다.
-    if (r && r.alive) { try { await chrome.tabs.sendMessage(r.tab.id, { type: 'leave', req }); } catch (_) {} }
     window.close();
   };
 
