@@ -259,73 +259,7 @@
     }
   }
 
-  // 휴가 신청: 초안을 만든 뒤 결재 화면을 연다. 상신은 그 화면에서 사용자가 누른다.
-  let lvState = null;
-  function lvSyncType() {
-    const t = GW.leave.TYPES[$('lvType').value];
-    $('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
-    $('lvBreak').checked = t.defBreak;
-    lvSyncSpan();
-  }
-  function lvSyncSpan() {
-    const tk = $('lvType').value;
-    const t = GW.leave.TYPES[tk];
-    const sp = GW.leave.span(tk, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
-    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
-    $('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${t.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
-    $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null;
-  }
-  $('leaveBtn').onclick = () => {
-    $('leaveSheet').hidden = false;
-    $('lvDate').value = T.toKey(new Date());
-    lvSyncType();
-    $('lvMsg').textContent = '';
-  };
-  $('lvType').onchange = lvSyncType;
-  $('lvStart').onchange = lvSyncSpan;
-  $('lvBreak').onchange = lvSyncSpan;
-  $('lvNext').onclick = async () => {
-    const tk = $('lvType').value, dk = $('lvDate').value;
-    if (!dk) { $('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
-    $('lvNext').disabled = true; $('lvMsg').textContent = '확인 중…';
-    try {
-      const pv = await GW.leave.preview(tk, dk, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
-      const sched = await GW.leave.profile();
-      const val = await GW.leave.validate(pv, sched);
-      lvState = { pv, sched };
-      const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
-      $('lvPreview').hidden = false;
-      $('lvPreview').innerHTML =
-        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>` +
-        `<div class="r"><span>구간</span><b>${f(pv.span.start)}~${f(pv.span.end)}${pv.span.withBreak ? ' (휴게 포함)' : ''}</b></div>` +
-        `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>` +
-        `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>` +
-        (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
-      $('lvActions').hidden = false;
-      $('lvSubmit').disabled = !val.ok;
-      $('lvMsg').textContent = val.ok ? '신청서를 만들고 결재 화면을 엽니다. 상신은 그 화면에서 누르세요.' : '검증 경고로 진행할 수 없습니다.';
-    } catch (e) { $('lvMsg').textContent = e.message || '확인 실패'; }
-    finally { $('lvNext').disabled = false; }
-  };
-  $('lvSubmit').onclick = async () => {
-    if (!lvState) return;
-    $('lvSubmit').disabled = true; $('lvMsg').textContent = '신청서 만드는 중…';
-    try {
-      const r = await GW.leave.submit(lvState.pv, lvState.sched);
-      if (!r.created || !r.created.appSq) {
-        $('lvMsg').textContent = '신청서가 만들어지지 않았습니다.\n' + JSON.stringify(r).slice(0, 300);
-        $('lvSubmit').disabled = false;
-        return;
-      }
-      await openAmaranth(r.approvalHash);
-    } catch (e) {
-      $('lvMsg').textContent = '실패: ' + (e.message || '');
-      $('lvSubmit').disabled = false;
-    }
-  };
-  $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
-  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
-  $('leaveSheet').onclick = (e) => { if (e.target === $('leaveSheet')) $('leaveSheet').hidden = true; };
+  $('leaveBtn').onclick = () => openAmaranth(GW.screens.hash(GW.screens.LEAVE_APPLY));
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
