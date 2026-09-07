@@ -1,4 +1,7 @@
 body { margin: 0; width: 344px; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: #1f2937; background: #fff; }
+/* hidden 속성은 UA 스타일(display:none)이라 .lvsheet{display:flex} 같은 작성자 규칙에
+   그냥 진다. 명시적으로 이겨 준다 — 없으면 hidden 이 걸린 요소가 계속 보인다. */
+[hidden] { display: none !important; }
 .wrap { padding: 0 0 10px; }
 header { display: flex; align-items: center; gap: 4px; padding: 9px 10px; background: #1e63d8; color: #fff; font-weight: 700; }
 header span { flex: 1; text-align: center; }
