@@ -137,6 +137,12 @@
       holiday: r.holiYn === 'Y',
       empCd: r.empCd,
       coCd: r.coCd,
+      deptCd: r.deptCd,
+      groupCd: r.groupCd,
+      workTp: r.workTp,
+      comeStTm: r.comeStTm,   // 스케줄 하한(자율출퇴근) — 없을 수 있음
+      leaveStTm: r.leaveStTm,
+      timeCd: r.timeCd,
     }));
   }
 

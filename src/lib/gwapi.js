@@ -135,6 +135,9 @@
       statusNm: r.worktmNm || null,                   // 승인 / 대기
       holiday: r.holiYn === 'Y',
       workTypeNm: r.workNm || null,                   // 자율출퇴근
+      empCd: r.empCd, coCd: r.coCd, deptCd: r.deptCd,
+      groupCd: r.groupCd, workTp: r.workTp,
+      comeStTm: r.comeStTm, leaveStTm: r.leaveStTm, timeCd: r.timeCd,
     }));
   }
 

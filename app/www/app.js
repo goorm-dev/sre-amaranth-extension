@@ -204,6 +204,74 @@
     });
   }
 
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  let lvState = null;   // 확인 대기 중인 preview
+
+  function openLeave() {
+    $('leaveSheet').hidden = false;
+    $('lvDate').value = T.toKey(new Date());
+    $('lvPreview').hidden = true;
+    $('lvActions').hidden = true;
+    $('lvMsg').textContent = '';
+    lvState = null;
+  }
+  async function leavePreview() {
+    const typeKey = $('lvType').value;
+    const dateKey = $('lvDate').value;
+    if (!dateKey) { $('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    $('lvNext').disabled = true;
+    $('lvMsg').textContent = '확인 중…';
+    try {
+      const pv = await GW.leave.preview(typeKey, dateKey);
+      const sched = await GW.leave.profile();
+      const val = await GW.leave.validate(pv, sched);
+      lvState = { pv, sched };
+      const t = GW.leave.TYPES[typeKey];
+      $('lvPreview').hidden = false;
+      $('lvPreview').innerHTML = `
+        <div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>
+        <div class="r"><span>종류</span><b>${esc(t.name)}</b></div>
+        <div class="r"><span>날짜</span><b>${dateKey}${t.full ? '' : ` ${t.start.slice(0,2)}:${t.start.slice(2)}~${t.end.slice(0,2)}:${t.end.slice(2)}`}</b></div>
+        <div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>
+        <div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>
+        <div class="r"><span>결재선</span><b>기본 결재선 (서버 지정)</b></div>
+        ${val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`}`;
+      $('lvActions').hidden = false;
+      $('lvSubmit').disabled = !val.ok;
+      $('lvMsg').textContent = val.ok ? '' : '검증 경고가 있어 상신할 수 없습니다.';
+    } catch (e) {
+      $('lvMsg').textContent = e.message || '확인에 실패했습니다.';
+    } finally {
+      $('lvNext').disabled = false;
+    }
+  }
+  async function leaveSubmit() {
+    if (!lvState) return;
+    $('lvSubmit').disabled = true;
+    $('lvMsg').textContent = '상신 중…';
+    try {
+      const res = await GW.leave.submit(lvState.pv, lvState.sched);
+      const ok = res && (res.resultCode === 0 || res.resultCode === 200 || res.appSq || res.linkKey);
+      if (ok || res === undefined || res === null) {
+        $('lvMsg').textContent = '상신 완료. 아마란스에서 결재 진행 상태를 확인하세요.';
+        $('lvActions').hidden = true;
+        setTimeout(() => { $('leaveSheet').hidden = true; load({ useCache: false }); }, 1500);
+      } else {
+        $('lvMsg').textContent = '상신 응답: ' + JSON.stringify(res).slice(0, 300);
+        $('lvSubmit').disabled = false;
+      }
+    } catch (e) {
+      $('lvMsg').textContent = '상신 실패: ' + (e.message || '');
+      $('lvSubmit').disabled = false;
+    }
+  }
+  $('leaveBtn').onclick = openLeave;
+  $('lvNext').onclick = leavePreview;
+  $('lvSubmit').onclick = leaveSubmit;
+  $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
+  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
+  $('leaveSheet').onclick = (e) => { if (e.target === $('leaveSheet')) $('leaveSheet').hidden = true; };
+
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };

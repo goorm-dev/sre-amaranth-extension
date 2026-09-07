@@ -244,6 +244,55 @@
     if (b) openScreen(GW.screens[b.dataset.open]);
   };
 
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  let lvState = null;
+  const lv = (id) => document.getElementById(id);
+  function lvOpen() {
+    lv('leaveSheet').hidden = false;
+    lv('lvDate').value = T.toKey(new Date());
+    lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lv('lvMsg').textContent = ''; lvState = null;
+  }
+  async function lvPreview() {
+    const tk = lv('lvType').value, dk = lv('lvDate').value;
+    if (!dk) { lv('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
+    try {
+      const pv = await GW.leave.preview(tk, dk);
+      const sched = await GW.leave.profile();
+      const val = await GW.leave.validate(pv, sched);
+      lvState = { pv, sched };
+      const t = GW.leave.TYPES[tk];
+      lv('lvPreview').hidden = false;
+      lv('lvPreview').innerHTML =
+        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>` +
+        `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>` +
+        `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>` +
+        `<div class="r"><span>결재선</span><b>기본 (서버 지정)</b></div>` +
+        (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
+      lv('lvActions').hidden = false;
+      lv('lvSubmit').disabled = !val.ok;
+      lv('lvMsg').textContent = val.ok ? '' : '검증 경고로 상신할 수 없습니다.';
+    } catch (e) { lv('lvMsg').textContent = e.message || '확인 실패'; }
+    finally { lv('lvNext').disabled = false; }
+  }
+  async function lvSubmit() {
+    if (!lvState) return;
+    lv('lvSubmit').disabled = true; lv('lvMsg').textContent = '상신 중…';
+    try {
+      const res = await GW.leave.submit(lvState.pv, lvState.sched);
+      const ok = !res || res.resultCode === 0 || res.resultCode === 200 || res.appSq || res.linkKey;
+      if (ok) { lv('lvMsg').textContent = '상신 완료. 아마란스에서 확인하세요.'; lv('lvActions').hidden = true;
+        setTimeout(() => { lv('leaveSheet').hidden = true; load({ useCache: false }); }, 1500); }
+      else { lv('lvMsg').textContent = '응답: ' + JSON.stringify(res).slice(0, 200); lv('lvSubmit').disabled = false; }
+    } catch (e) { lv('lvMsg').textContent = '상신 실패: ' + (e.message || ''); lv('lvSubmit').disabled = false; }
+  }
+  lv('lvOpen').onclick = lvOpen;
+  lv('lvNext').onclick = lvPreview;
+  lv('lvSubmit').onclick = lvSubmit;
+  lv('lvBack').onclick = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };
+  lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
+  lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   $('refresh').onclick = () => load({ useCache: false });
