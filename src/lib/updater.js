@@ -1,16 +1,19 @@
-// 자동 업데이트 확인. 압축해제 확장은 스토어 자동갱신이 없으므로,
-// GitHub 최신 릴리스의 태그와 manifest 버전을 비교해 새 버전을 안내한다.
-// (설치는 사용자가 직접 — .zip 을 받아 chrome://extensions 에서 교체)
+// 업데이트 확인.
+//
+// 저장소가 private 이라 확장에서 익명 GitHub API 를 호출할 수 없다(토큰을 넣으면 유출된다).
+// 대신 정해둔 버전 파일(공개 raw 또는 사내 경로)에서 최신 버전만 읽고,
+// 실제 다운로드/설치는 사용자가 릴리스 페이지에서 하도록 링크를 연다.
+//
+// VERSION_URL 은 팀 상황에 맞게 바꾼다:
+//   - 저장소를 public 으로 돌리면 raw.githubusercontent.com/<repo>/main/latest.json
+//   - private 유지 시 사내 정적 호스팅에 latest.json 을 올려 그 URL 을 지정
 (function (root) {
   const GW = (root.GW = root.GW || {});
-  const REPO = 'goorm-dev/sre-amaranth-extension';
-  const API = `https://api.github.com/repos/${REPO}/releases/latest`;
-  const CHECK_TTL = 6 * 60 * 60 * 1000;   // 6시간에 한 번만 확인
+  const RELEASES_URL = 'https://github.com/goorm-dev/sre-amaranth-extension/releases/latest';
+  const VERSION_URL = '';   // 예: 'https://raw.githubusercontent.com/goorm-dev/sre-amaranth-extension/main/latest.json'
+  const CHECK_TTL = 6 * 60 * 60 * 1000;
 
-  function parseVer(v) {
-    return String(v).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
-  }
-  // a < b 이면 -1
+  const parseVer = (v) => String(v).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
   function cmp(a, b) {
     const x = parseVer(a); const y = parseVer(b);
     for (let i = 0; i < Math.max(x.length, y.length); i++) {
@@ -22,40 +25,32 @@
 
   async function check(force) {
     const current = chrome.runtime.getManifest().version;
+    const base = { current, releasesUrl: RELEASES_URL, hasUpdate: false };
+    if (!VERSION_URL) return base;   // 버전 파일이 설정되지 않으면 확인을 건너뛴다
+
     let cache = {};
     try { cache = (await chrome.storage.local.get('updateCheck')).updateCheck || {}; } catch (_) {}
+    if (!force && cache.at && Date.now() - cache.at < CHECK_TTL) return decorate(cache, base);
 
-    if (!force && cache.at && Date.now() - cache.at < CHECK_TTL) {
-      return decorate(cache, current);
-    }
     try {
-      const res = await fetch(API, { headers: { 'Accept': 'application/vnd.github+json' } });
+      const res = await fetch(`${VERSION_URL}?_=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
-      const rel = await res.json();
-      const info = {
-        at: Date.now(),
-        latest: (rel.tag_name || '').replace(/^v/, ''),
-        url: rel.html_url,
-        asset: (rel.assets || []).find((a) => a.name.endsWith('.zip'))?.browser_download_url || rel.html_url,
-        notes: (rel.body || '').slice(0, 500),
-      };
+      const j = await res.json();   // { version: "1.1.0", url?: "..." }
+      const info = { at: Date.now(), latest: String(j.version || '').replace(/^v/, ''), url: j.url || RELEASES_URL };
       try { await chrome.storage.local.set({ updateCheck: info }); } catch (_) {}
-      return decorate(info, current);
+      return decorate(info, base);
     } catch (_) {
-      return decorate(cache, current);   // 실패 시 캐시(있으면)로
+      return decorate(cache, base);
     }
   }
 
-  function decorate(info, current) {
-    if (!info || !info.latest) return { current, hasUpdate: false };
-    return {
-      current,
+  function decorate(info, base) {
+    if (!info || !info.latest) return base;
+    return Object.assign({}, base, {
       latest: info.latest,
-      url: info.url,
-      asset: info.asset,
-      notes: info.notes,
-      hasUpdate: cmp(current, info.latest) < 0,
-    };
+      url: info.url || RELEASES_URL,
+      hasUpdate: cmp(base.current, info.latest) < 0,
+    });
   }
 
   async function dismissed(latest) {
@@ -66,5 +61,5 @@
     try { await chrome.storage.local.set({ updateDismissed: latest }); } catch (_) {}
   }
 
-  GW.updater = { check, dismiss, dismissed, cmp };
+  GW.updater = { check, dismiss, dismissed, cmp, RELEASES_URL };
 })(typeof window !== 'undefined' ? window : globalThis);
