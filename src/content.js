@@ -340,8 +340,14 @@
     if (leaveBusy || !req) return;
     if (Date.now() - req.at > LEAVE_TTL) return;
     leaveBusy = true;
+    // 요청을 받았다는 것부터 보여 준다. 이게 안 뜨면 콘텐츠 스크립트까지
+    // 요청이 오지 않은 것이고, 뜨는데 멈추면 폼 쪽 문제다.
+    toast('휴가 신청서를 채우는 중…');
     try {
-      if (!(await waitForScreen(GW.screens.LEAVE_APPLY, 10000))) return;
+      if (!(await waitForScreen(GW.screens.LEAVE_APPLY, 10000))) {
+        toast('<b>자동 입력 중단</b><br>근태신청서 화면으로 이동하지 못했습니다.', 'bad');
+        return;
+      }
       await fillLeave(req);
     } finally {
       leaveBusy = false;

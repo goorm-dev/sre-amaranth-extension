@@ -229,10 +229,13 @@
   // 이미 열려 있는 gw.goorm.io 탭이 있으면 그 탭을 재사용한다.
   const openScreen = (code) => openUrl(GW.screens.url(code));
 
-  async function openUrl(url) {
+  async function openUrl(url, { reload = false } = {}) {
     const [tab] = await chrome.tabs.query({ url: 'https://gw.goorm.io/*' });
     if (tab) {
       await chrome.tabs.update(tab.id, { url, active: true });
+      // 해시만 다르면 같은 문서 안에서 이동해 버려 콘텐츠 스크립트가 다시 뜨지 않는다.
+      // 자동 입력처럼 스크립트가 반드시 있어야 하는 경우엔 새로 읽힌다.
+      if (reload) await chrome.tabs.reload(tab.id);
       try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_) {}
     } else {
       await chrome.tabs.create({ url });
@@ -278,7 +281,7 @@
     await chrome.storage.local.set({
       pendingLeave: { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() },
     });
-    openScreen(GW.screens.LEAVE_APPLY);
+    openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { reload: true });
   };
 
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
@@ -297,6 +300,22 @@
     setTimeout(() => ($('saved').textContent = ''), 1500);
     render();
   };
+
+  // 업데이트 안내. VERSION_URL 이 비어 있으면 check() 가 hasUpdate:false 로 돌아온다.
+  async function checkUpdate() {
+    let info;
+    try { info = await GW.updater.check(); } catch (_) { return; }
+    if (!info.hasUpdate || await GW.updater.dismissed(info.latest)) return;
+    const bar = $('updateBar');
+    bar.innerHTML = `새 버전 <b>v${esc(info.latest)}</b> 이 있습니다 `
+      + `<a href="${esc(info.url)}" target="_blank" rel="noreferrer">받기</a>`
+      + '<button title="닫기">×</button>';
+    bar.querySelector('button').onclick = async () => {
+      await GW.updater.dismiss(info.latest);
+      bar.hidden = true;
+    };
+    bar.hidden = false;
+  }
 
   load();
   checkUpdate();
