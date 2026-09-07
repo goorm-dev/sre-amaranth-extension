@@ -1,8 +1,11 @@
 // 근태신청서 폼 자동 입력.
 //
-// HPD0110 은 신청서가 아니라 부서 근태일정 캘린더다. 거기 [휴가 신청] 을 눌러야
-// 신청서가 열린다. (진단: 해시 #/HP/HPD0110/HPD0110 · 날짜칸 0 · 버튼 13:
-//  부서 근태일정, 새로고침, 이번달, 기본, 부서, 대리신청, 확대, 도움말, ‹, ›, ▾, 휴가 신청)
+// HPD0110 은 두 가지를 같은 해시에서 보여 준다. 처음엔 부서 근태일정 캘린더가 뜨고,
+// 왼쪽 양식 목록(검색칸 placeholder "양식명을 입력하세요.")에서 [연차휴가신청서] 를
+// 누르면 그 자리에 신청서가 그려진다. 팝업도 라우팅도 아니다.
+//
+// 양식 목록 항목은 태그·클래스로 잡히지 않아 글자로 찾는다. 나머지(종류 버튼,
+// [신청완료])는 span.OBTButton_labelText__… 이라 class 부분일치로 잡힌다.
 //
 // fill() 은 종류·날짜·시간만 채우고 멈춘다. 아무것도 저장하지 않는다.
 // submit() 은 [신청완료] 를 눌러 결재 팝업을 띄운다 — approkey 는 SPA 가 이때
@@ -108,16 +111,46 @@
     return false;
   }
 
-  // 신청서를 여는 것. 화면마다 이름이 조금씩 다르다.
-  const OPENERS = ['휴가 신청', '휴가신청', '근태 신청', '근태신청', '신청'];
-  const findOpener = () => {
-    const c = clickables();
-    for (const t of OPENERS) {
-      const hit = c.find((b) => b.textContent.trim() === t);
-      if (hit) return { el: hit, label: t };
+  // 글자가 정확히 일치하는 것 중 가장 안쪽. 문서 순서상 자손이 뒤에 오므로
+  // 마지막 것이 가장 깊다. 클릭은 위로 버블링하니 안쪽을 눌러도 된다.
+  function findByText(text) {
+    for (const d of docs()) {
+      if (!d.body) continue;
+      const w = d.createTreeWalker(d.body, NodeFilter.SHOW_ELEMENT);
+      let best = null;
+      while (w.nextNode()) {
+        const el = w.currentNode;
+        if (el.textContent.trim() === text && visible(el) && !ours(el)) best = el;
+      }
+      if (best) return best;
     }
     return null;
-  };
+  }
+
+  const OPEN_LABEL = '연차휴가신청서';
+  const searchBox = () => all('input').find((i) => (i.placeholder || '').includes('양식명'));
+
+  // 양식 목록에서 연차휴가신청서를 찾아 연다.
+  async function openForm() {
+    let el = findByText(OPEN_LABEL);
+    if (!el) {
+      // 목록이 길면 검색으로 걸러 낸다
+      const q = searchBox();
+      if (q) {
+        setValue(q, OPEN_LABEL);
+        q.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        await sleep(900);
+        el = findByText(OPEN_LABEL);
+      }
+    }
+    if (!el) return false;
+
+    el.click();
+    if (await waitForForm(6000)) return true;
+    // 목록 위젯이 더블클릭을 요구하기도 한다
+    el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+    return waitForForm(20000);
+  }
 
   // "1500" → { ampm: '오후', hh: '03', mm: '00' }
   function to12h(hhmm) {
@@ -145,12 +178,12 @@
     return false;
   }
 
-  // 신청서가 이미 떠 있으면 'ready', 캘린더면 'needOpen'.
+  // 신청서가 이미 떠 있으면 'ready', 양식 목록까지 그려졌으면 'needOpen'.
   async function awaitScreen(timeout) {
     const deadline = Date.now() + (timeout || 45000);
     while (Date.now() < deadline) {
       if (formReady()) return 'ready';
-      if (findOpener()) return 'needOpen';
+      if (findByText(OPEN_LABEL) || searchBox()) return 'needOpen';
       await sleep(300);
     }
     return 'none';
@@ -165,6 +198,8 @@
       `날짜칸 ${dateInputs().length}`,
       `시간칸 ${timeInputs().length}`,
       `입력칸 ${all('input').length}`,
+      `양식검색 ${searchBox() ? '있음' : '없음'}`,
+      `${OPEN_LABEL} ${findByText(OPEN_LABEL) ? '있음' : '없음'}`,
       `누를것 ${c.length}${c.length ? ': ' + c.slice(0, 24).join(' / ') : ''}`,
     ].join(' · ');
   }
@@ -177,10 +212,8 @@
     const screen = await awaitScreen();
     if (screen === 'none') fail(`근태 화면을 찾지 못했습니다.\n${diagnose()}`);
     if (screen === 'needOpen') {
-      const opener = findOpener();   // 캘린더에서 신청서를 연다
-      opener.el.click();
-      steps.push(`신청서 열기: ${opener.label}`);
-      if (!(await waitForForm())) fail(`신청서가 열리지 않았습니다.\n${diagnose()}`);
+      if (!(await openForm())) fail(`[${OPEN_LABEL}] 을 열지 못했습니다.\n${diagnose()}`);
+      steps.push('신청서 열기');
     }
     steps.push('폼 확인');
 
@@ -224,5 +257,5 @@
     return clickButton('신청완료');
   }
 
-  GW.leaveform = { fill, submit, waitForForm, awaitScreen, formReady, diagnose, TYPES, TYPE_LABELS, span, to12h, setValue };
+  GW.leaveform = { fill, submit, openForm, waitForForm, awaitScreen, formReady, diagnose, findByText, TYPES, TYPE_LABELS, span, to12h, setValue };
 })(typeof window !== 'undefined' ? window : globalThis);
