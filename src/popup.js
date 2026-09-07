@@ -229,13 +229,21 @@
   // 이미 열려 있는 gw.goorm.io 탭이 있으면 그 탭을 재사용한다.
   const openScreen = (code) => openUrl(GW.screens.url(code));
 
-  async function openUrl(url, { reload = false } = {}) {
+  // 그 탭에 콘텐츠 스크립트가 살아 있는가. 확장을 새로고침하면 열려 있던 탭의
+  // 스크립트는 고아가 되어 아무 이벤트도 못 받는다.
+  async function scriptAlive(tabId) {
+    try { return (await chrome.tabs.sendMessage(tabId, 'ping')) === 'pong'; } catch (_) { return false; }
+  }
+
+  // needScript: 자동 입력처럼 콘텐츠 스크립트가 반드시 있어야 하는 이동.
+  // 살아 있으면 해시만 바꿔 SPA 안에서 이동하고(빠르고, 화면도 확실히 그려진다),
+  // 죽어 있을 때만 새로 읽는다.
+  async function openUrl(url, { needScript = false } = {}) {
     const [tab] = await chrome.tabs.query({ url: 'https://gw.goorm.io/*' });
     if (tab) {
+      const alive = needScript ? await scriptAlive(tab.id) : true;
       await chrome.tabs.update(tab.id, { url, active: true });
-      // 해시만 다르면 같은 문서 안에서 이동해 버려 콘텐츠 스크립트가 다시 뜨지 않는다.
-      // 자동 입력처럼 스크립트가 반드시 있어야 하는 경우엔 새로 읽힌다.
-      if (reload) await chrome.tabs.reload(tab.id);
+      if (!alive) await chrome.tabs.reload(tab.id);
       try { await chrome.windows.update(tab.windowId, { focused: true }); } catch (_) {}
     } else {
       await chrome.tabs.create({ url });
@@ -281,7 +289,7 @@
     await chrome.storage.local.set({
       pendingLeave: { typeKey: tk, dateKey: dk, start: sp.start, end: sp.end, at: Date.now() },
     });
-    openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { reload: true });
+    openUrl(GW.screens.url(GW.screens.LEAVE_APPLY), { needScript: true });
   };
 
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };

@@ -50,7 +50,18 @@
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   };
-  const all = (sel) => [...document.querySelectorAll(sel)].filter(visible);
+
+  // 아마란스는 마이크로모듈을 같은 출처 iframe 안에 그리기도 한다. 본문과
+  // 읽을 수 있는 iframe 을 모두 뒤진다.
+  function docs() {
+    const out = [document];
+    for (const f of document.querySelectorAll('iframe')) {
+      try { if (f.contentDocument) out.push(f.contentDocument); } catch (_) { /* 교차 출처 */ }
+    }
+    return out;
+  }
+
+  const all = (sel) => docs().flatMap((d) => [...d.querySelectorAll(sel)]).filter(visible);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // React 제어 입력이라 value 를 직접 넣으면 무시된다.
@@ -82,14 +93,30 @@
   const dateInputs = () => all('[class*="OBTDatePickerRebuild_inputYMD"]');
   const timeInputs = () => all('[class*="OBTTimePicker2_input"]');
 
-  // 폼이 그려질 때까지 기다린다.
+  const hasSubmit = () => all('button').some((b) => b.textContent.trim() === '신청완료');
+  const formReady = () => dateInputs().length >= 2 && hasSubmit();
+
+  // 폼이 그려질 때까지 기다린다. 콜드 로딩이면 마이크로모듈까지 내려받느라
+  // 꽤 걸린다.
   async function waitForForm(timeout) {
-    const deadline = Date.now() + (timeout || 15000);
+    const deadline = Date.now() + (timeout || 45000);
     while (Date.now() < deadline) {
-      if (dateInputs().length >= 2 && all('button').some((b) => b.textContent.trim() === '신청완료')) return true;
+      if (formReady()) return true;
       await sleep(300);
     }
     return false;
+  }
+
+  // 실패했을 때 화면에 무엇이 있었는지. 추측 대신 이걸 보고 고친다.
+  function diagnose() {
+    const btns = all('button').map((b) => b.textContent.trim()).filter(Boolean);
+    return [
+      `해시 ${location.hash || '(없음)'}`,
+      `문서 ${docs().length}`,
+      `날짜칸 ${dateInputs().length}`,
+      `시간칸 ${timeInputs().length}`,
+      `버튼 ${btns.length}${btns.length ? ': ' + btns.slice(0, 12).join(', ') : ''}`,
+    ].join(' · ');
   }
 
   // req: { typeKey, dateKey, start, end }   start/end 는 "HHMM"
@@ -97,7 +124,7 @@
     const steps = [];
     const fail = (msg) => { const e = new Error(msg); e.steps = steps; throw e; };
 
-    if (!(await waitForForm())) fail('근태신청서 폼을 찾지 못했습니다.');
+    if (!(await waitForForm())) fail(`근태신청서 폼을 찾지 못했습니다.\n${diagnose()}`);
     steps.push('폼 확인');
 
     const label = TYPE_LABELS[req.typeKey];
@@ -140,5 +167,5 @@
     return clickButton('신청완료');
   }
 
-  GW.leaveform = { fill, submit, waitForForm, TYPES, TYPE_LABELS, span, to12h, setValue };
+  GW.leaveform = { fill, submit, waitForForm, formReady, diagnose, TYPES, TYPE_LABELS, span, to12h, setValue };
 })(typeof window !== 'undefined' ? window : globalThis);

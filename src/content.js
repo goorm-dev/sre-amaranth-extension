@@ -329,7 +329,8 @@
       el.appendChild(b);
     } else {
       el.addEventListener('click', () => el.remove());
-      setTimeout(() => el.remove(), 20000);
+      // 실패 안내는 읽고 옮겨 적을 시간이 필요하다. 누를 때까지 둔다.
+      if (tone !== 'bad') setTimeout(() => el.remove(), 20000);
     }
     document.body.appendChild(el);
     return el;
@@ -391,7 +392,7 @@
           },
         });
     } catch (e) {
-      toast('<b>자동 입력 실패</b><br>' + esc(e.message)
+      toast('<b>자동 입력 실패</b><br>' + esc(e.message).replace(/\n/g, '<br>')
         + (e.steps && e.steps.length ? '<br>진행: ' + esc(e.steps.join(' · ')) : '')
         + '<br><span style="opacity:.75">직접 입력해 주세요. 저장된 내용은 없습니다.</span>', 'bad');
     }
@@ -413,6 +414,12 @@
 
     // 팝업이 같은 탭의 해시만 바꾸면 이 스크립트는 다시 뜨지 않는다.
     // 그래서 요청이 들어오는 것도 직접 지켜본다.
+    // 팝업이 "이 탭에 스크립트가 살아 있나" 를 물어본다. 대답이 없으면 팝업이
+    // 탭을 새로 읽는다 — 확장을 새로고침한 뒤 고아가 된 탭을 걸러내기 위한 것.
+    chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+      if (msg === 'ping') reply('pong');
+    });
+
     chrome.storage.onChanged.addListener((changes, area) => {
       const c = area === 'local' && changes.pendingLeave;
       if (!c || !c.newValue) return;
