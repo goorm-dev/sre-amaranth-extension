@@ -204,43 +204,31 @@
     });
   }
 
-  // ── 아마란스 화면 임베드 ─────────────────────────────────────────────
+  // ── 아마란스 화면 열기 ───────────────────────────────────────────────
   //
   // 휴가 상신은 앱이 직접 하지 않는다. 결재선·검증이 화면 안에 있어서
-  // API 로 흉내내면 잘못된 문서가 만들어질 수 있다.
-  // 대신 앱이 가진 세션을 쿠키로 심고 진짜 신청서 화면을 띄운다.
-  // (gw.goorm.io 는 X-Frame-Options / CSP frame-ancestors 가 없어 임베드가 된다)
-  async function injectSession() {
-    const s = GW.api.getSession();
-    if (!s) throw new Error('로그인이 필요합니다.');
-    const C = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorCookies;
-    if (!C) return;   // 웹에서 테스트할 땐 이미 쿠키가 있다
-    const url = GW.api.ORIGIN;
-    for (const [key, value] of [
-      ['oAuthToken', s.token], ['signKey', s.signKey],
-      ['BIZCUBE_AT', s.token], ['BIZCUBE_HK', s.signKey], ['BIZCUBE_TYPE', 'WEB'],
-    ]) await C.setCookie({ url, key, value });
-  }
-
-  async function openAmaranth(hash, label) {
+  // API 로 흉내내면 미상신 초안만 쌓인다. 대신 세션을 쿠키로 심고 진짜 화면을 연다.
+  //
+  // iframe 은 쓰지 않는다 — 앱 WebView 출처(localhost)와 교차 출처라
+  // Android WebView 가 서드파티 쿠키를 막아 로그인이 풀린 채로 뜬다.
+  // WebView 자체를 이동시키면 1st-party 라 쿠키가 정상 적용된다.
+  // (capacitor.config.json 의 server.allowNavigation 으로 허용)
+  // 쿠키를 앱이 직접 심지 않는다. 서버에 loginType=set-cookie 로 토큰을 넘기면
+  // 서버가 Set-Cookie 로 심어주고, 그 쿠키가 네이티브 CookieManager 에 저장돼
+  // WebView 와 공유된다. 플러그인 이름·도메인 추측이 필요 없다.
+  async function openAmaranth(hash) {
+    const btn = $('leaveBtn');
+    btn.disabled = true;
     try {
-      await injectSession();
+      await GW.api.establishWebSession();
+      window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 앱 복귀
     } catch (e) {
-      alert(e.message);
-      return;
+      alert(e.message || '화면을 열지 못했습니다.');
+      btn.disabled = false;
     }
-    $('wvTitle').textContent = label || '아마란스';
-    $('wvFrame').src = `${GW.api.ORIGIN}/${hash}`;
-    $('webview').hidden = false;
   }
 
-  $('leaveBtn').onclick = () => openAmaranth('#/HP/HPD0110/HPD0110', '근태신청서');
-  $('wvClose').onclick = () => {
-    $('webview').hidden = true;
-    $('wvFrame').src = 'about:blank';
-    load({ useCache: false });   // 신청 후 돌아오면 다시 조회
-  };
-  $('wvReload').onclick = () => { $('wvFrame').src = $('wvFrame').src; };
+  $('leaveBtn').onclick = () => openAmaranth('#/HP/HPD0110/HPD0110');
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };

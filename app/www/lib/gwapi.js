@@ -214,8 +214,26 @@
     return { year: Number(year), days, complete: Object.keys(days).length >= 8 };
   }
 
+  // 보관 중인 토큰으로 서버가 gw.goorm.io 쿠키를 심게 한다.
+  // 응답의 Set-Cookie 가 네이티브 CookieManager 에 저장되고, WebView 가 이를 공유하므로
+  // 이후 gw.goorm.io 로 이동하면 로그인된 상태로 열린다.
+  // (form-urlencoded 필수 — JSON 으로 보내면 resultCode -1)
+  async function establishWebSession() {
+    if (!session || !session.token) throw new AuthError('로그인이 필요합니다.');
+    const r = await callUncert('/gw/gw050A02', {
+      loginType: 'set-cookie',
+      oAuthToken: session.token,
+      signKey: session.signKey,
+      a10Domain: ORIGIN,
+    }, { form: true });
+    if (!r.json || r.json.resultCode !== 0) {
+      throw new Error((r.json && r.json.resultMsg) || `세션 전달 실패 (${r.status})`);
+    }
+    return true;
+  }
+
   GW.api = {
-    ORIGIN, AuthError, callUncert, call, request, uncertSign,
+    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession,
     setSession, getSession,
     getWorkTimeList, getMonth, getLeaveList, getMonthLeaves, getComeLeave, getHolidays,
   };

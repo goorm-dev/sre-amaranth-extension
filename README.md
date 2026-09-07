@@ -327,9 +327,20 @@ POST https://gw.goorm.io/human/common/judgeTimeManagement/getTodayComeLeaveInfo
 | 확장 팝업 | **휴가 신청** → `#/HP/HPD0110/HPD0110` 로 이동 |
 | 앱 | 상단 **＋** → 세션을 쿠키로 심고 근태신청서를 **앱 안에 임베드** |
 
-앱은 `CapacitorCookies` 로 `oAuthToken`/`signKey` 를 `gw.goorm.io` 쿠키에 넣은 뒤
-iframe 으로 신청서를 엽니다. `httponly: false` 라 가능하고, 서버에 `X-Frame-Options` 나
-CSP `frame-ancestors` 가 없어 임베드가 허용됩니다. 닫으면 근무시간을 다시 조회합니다.
+앱은 **서버에 세션을 넘겨 쿠키를 받게** 합니다.
+
+```
+POST /gw/gw050A02 (form)  loginType=set-cookie&oAuthToken=…&signKey=…
+  → Set-Cookie: oAuthToken, signKey, BIZCUBE_AT, BIZCUBE_HK, BIZCUBE_TYPE  (5개)
+```
+
+CapacitorHttp 가 네이티브로 요청하므로 이 쿠키는 **WebView 와 공유되는 네이티브
+CookieManager** 에 저장됩니다. 그 뒤 WebView 를 `gw.goorm.io` 로 이동시키면
+로그인된 상태로 열립니다. 뒤로가기로 앱에 돌아옵니다.
+
+**iframe 은 쓰지 않습니다.** 앱 WebView 출처(localhost)와 교차 출처라 Android WebView 가
+서드파티 쿠키를 막아 로그인이 풀린 채로 뜹니다. WebView 자체를 이동시키면 1st-party 라
+쿠키가 정상 적용됩니다 (`server.allowNavigation` 으로 허용).
 
 ### 왜 API 로 직접 상신하지 않나
 
