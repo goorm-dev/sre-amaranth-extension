@@ -324,8 +324,18 @@ POST https://gw.goorm.io/human/common/judgeTimeManagement/getTodayComeLeaveInfo
 
 | | |
 |---|---|
-| 확장 팝업 | **휴가 신청** → `#/HP/HPD0110/HPD0110` 로 이동 |
-| 앱 | 상단 **＋** → 세션을 쿠키로 심고 근태신청서를 **앱 안에 임베드** |
+| 확장 팝업 | **휴가 신청** → 연차 신청 팝업으로 **바로 이동** |
+| 앱 | 상단 **＋** → 세션을 쿠키로 심고 같은 화면으로 이동 |
+
+연차 신청서를 빈 문서로 여는 딥링크입니다.
+
+```
+/#/popup?MicroModuleCode=eap&callComp=UBAP001&formId=249
+        &approkey=ERP_<uuid>&popupUUID=<uuid>&appLineId=&appLineList=[]&fileList=[]
+```
+
+`callComp=UBAP001` 이 새 문서, `formId=249` 가 연차휴가 신청서입니다.
+`approkey`/`popupUUID` 는 클라이언트가 만드는 식별자라 열 때마다 새로 생성합니다.
 
 앱은 **서버에 세션을 넘겨 쿠키를 받게** 합니다.
 

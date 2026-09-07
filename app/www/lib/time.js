@@ -99,5 +99,30 @@
     CONSENT: 'HPD0220',       // 개인근무시간동의
     url: (code) => `${GW.screens.ORIGIN}/#/HP/${code}/${code}`,
     hash: (code) => `#/HP/${code}/${code}`,
+
+    // 연차휴가 신청서를 빈 문서로 바로 여는 딥링크.
+    //   callComp=UBAP001 = 새 문서 (UBAP002 는 기존 문서 조회)
+    //   formId=249       = 연차휴가 신청서
+    //   approkey/popupUUID 는 클라이언트가 만드는 식별자라 매번 새로 생성한다.
+    LEAVE_FORM_ID: 249,
+    leaveFormHash: () => {
+      const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          }));
+      const q = new URLSearchParams({
+        MicroModuleCode: 'eap',
+        appLineId: '',
+        appLineList: '[]',
+        approkey: `ERP_${uuid()}`,
+        fileList: '[]',
+        formId: String(GW.screens.LEAVE_FORM_ID),
+        callComp: 'UBAP001',
+        popupUUID: uuid(),
+      });
+      return `#/popup?${q.toString()}`;
+    },
+    leaveFormUrl: () => `${GW.screens.ORIGIN}/${GW.screens.leaveFormHash()}`,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

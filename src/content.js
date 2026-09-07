@@ -200,7 +200,7 @@
     else if (act === 'reload') location.reload();
     else if (act === 'refresh') { auto.resume(); load(viewMonth, { useCache: false }); }
     // 확장은 읽기 전용이다. 신청서 작성은 그룹웨어 화면에서 하도록 이동만 시킨다.
-    else if (act === 'apply-leave') location.hash = GW.screens.hash(GW.screens.LEAVE_APPLY);
+    else if (act === 'apply-leave') location.hash = GW.screens.leaveFormHash();
     else if (act === 'toggle') {
       panel.classList.toggle('gwp-collapsed');
       chrome.storage.local.set({ collapsed: panel.classList.contains('gwp-collapsed') });

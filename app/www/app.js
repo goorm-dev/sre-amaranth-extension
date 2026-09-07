@@ -213,22 +213,53 @@
   // Android WebView 가 서드파티 쿠키를 막아 로그인이 풀린 채로 뜬다.
   // WebView 자체를 이동시키면 1st-party 라 쿠키가 정상 적용된다.
   // (capacitor.config.json 의 server.allowNavigation 으로 허용)
-  // 쿠키를 앱이 직접 심지 않는다. 서버에 loginType=set-cookie 로 토큰을 넘기면
-  // 서버가 Set-Cookie 로 심어주고, 그 쿠키가 네이티브 CookieManager 에 저장돼
-  // WebView 와 공유된다. 플러그인 이름·도메인 추측이 필요 없다.
+  // 세션을 gw.goorm.io 쿠키로 심는다.
+  //
+  // Capacitor 의 document.cookie 세터는 문자열의 domain= 을 파싱해
+  // CapacitorCookiesAndroidInterface.setCookie(domain, val) 로 넘긴다.
+  // 즉 domain 을 명시하면 앱 출처(localhost)와 무관하게 gw.goorm.io 쿠키를
+  // WebView 가 쓰는 네이티브 CookieManager 에 직접 쓸 수 있다.
+  // (플러그인 객체 이름을 추측할 필요가 없고, 서드파티 쿠키 차단도 우회한다)
+  function setGwCookie(key, value) {
+    document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
+  }
+
+  function injectSessionCookies() {
+    const s = GW.api.getSession();
+    if (!s || !s.token) throw new Error('로그인이 필요합니다.');
+    setGwCookie('oAuthToken', s.token);
+    setGwCookie('signKey', s.signKey);
+    setGwCookie('BIZCUBE_AT', s.token);
+    setGwCookie('BIZCUBE_HK', s.signKey);
+    setGwCookie('BIZCUBE_TYPE', 'WEB');
+  }
+
   async function openAmaranth(hash) {
     const btn = $('leaveBtn');
     btn.disabled = true;
     try {
-      await GW.api.establishWebSession();
+      // 앱 세션이 살아있는지 먼저 확인한다.
+      // 이래야 "쿠키가 안 실렸다" 와 "앱 세션이 만료됐다" 를 구분할 수 있다.
+      await GW.api.getHolidays(new Date().getFullYear());
+
+      injectSessionCookies();
+      // 서버가 심어주는 경로도 함께 태운다 (둘 중 하나만 통해도 로그인 유지).
+      try { await GW.api.establishWebSession(); } catch (_) {}
       window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 앱 복귀
     } catch (e) {
-      alert(e.message || '화면을 열지 못했습니다.');
+      if (e instanceof GW.api.AuthError) {
+        alert('앱 세션이 만료되었습니다. 다시 로그인해 주세요.');
+        await GW.auth.logout();
+        clearInterval(tick);
+        show('loginView');
+      } else {
+        alert(e.message || '화면을 열지 못했습니다.');
+      }
       btn.disabled = false;
     }
   }
 
-  $('leaveBtn').onclick = () => openAmaranth('#/HP/HPD0110/HPD0110');
+  $('leaveBtn').onclick = () => openAmaranth(GW.screens.leaveFormHash());
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
