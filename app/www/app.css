@@ -123,10 +123,10 @@ header .nav#leaveBtn { font-size: 22px; }
   border-radius: 8px; background: var(--bg); color: var(--fg); }
 .sheetcard label { display: block; }
 .sheetcard label > select, .sheetcard label > input[type=date] { margin-top: 6px; }
-.lvprev { margin: 12px 0; padding: 12px; background: var(--soft); border: 1px solid var(--softline); border-radius: 10px; font-size: 14px; }
-.lvprev .r { display: flex; justify-content: space-between; padding: 3px 0; }
-.lvprev .r span { color: var(--dim); } .lvprev .r b { font-variant-numeric: tabular-nums; }
-.lvprev .warn { color: var(--amber); font-size: 12.5px; margin-top: 6px; }
-.sheetcard label.lvchk { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
-.sheetcard label.lvchk input { width: auto; }
-.lvspan { font-size: 12.5px; color: var(--dim); margin: -4px 0 10px; }
+
+/* 아마란스 화면 임베드 */
+.wv { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg); }
+.wvbar { display: flex; align-items: center; gap: 6px;
+  padding: calc(8px + env(safe-area-inset-top)) 10px 8px; background: var(--blue); color: #fff; }
+.wvbar span { flex: 1; font-size: 15px; font-weight: 700; }
+.wv iframe { flex: 1; width: 100%; border: 0; background: #fff; }

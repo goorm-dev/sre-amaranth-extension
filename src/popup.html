@@ -43,32 +43,6 @@
 
   <p class="hint" id="hint"></p>
 
-  <div id="leaveSheet" class="lvsheet" hidden>
-    <div class="lvcard">
-      <b>휴가 신청</b>
-      <select id="lvType">
-        <option value="annual">연차 (종일)</option>
-        <option value="amHalf">오전반차</option>
-        <option value="pmHalf">오후반차</option>
-        <option value="annualComp">연차(보상) 종일</option>
-        <option value="amHalfComp">오전반차(보상)</option>
-        <option value="pmHalfComp">오후반차(보상)</option>
-      </select>
-      <input id="lvDate" type="date">
-      <input id="lvStart" type="time">
-      <label class="lvchk"><input id="lvBreak" type="checkbox"> 휴게 1시간 포함</label>
-      <div id="lvSpan" class="lvspan"></div>
-      <button id="lvNext" class="primary">확인</button>
-      <div id="lvPreview" class="lvprev" hidden></div>
-      <div class="lvbtns" id="lvActions" hidden>
-        <button id="lvSubmit" class="primary">결재상신</button>
-        <button id="lvBack">취소</button>
-      </div>
-      <div id="lvMsg" class="lvmsg"></div>
-      <button id="lvClose" class="lvx">닫기</button>
-    </div>
-  </div>
-
   <details id="settings">
     <summary>설정</summary>
     <label>하루 소정근로 <input id="daily" type="number" step="0.5" min="1" max="12"> 시간</label>
@@ -85,7 +59,7 @@
   </details>
 
   <section class="links">
-    <button id="lvOpen" class="go primary">휴가 신청</button>
+    <button data-open="LEAVE_APPLY" class="go primary">휴가 신청</button>
     <button data-open="LEAVE_LIST" class="go">신청 현황</button>
     <button data-open="WORKTIME" class="go">근무시간</button>
   </section>
@@ -103,5 +77,4 @@
 <script src="lib/store.js"></script>
 <script src="lib/calc.js"></script>
 <script src="lib/updater.js"></script>
-<script src="lib/leave.js"></script>
 <script src="popup.js"></script>

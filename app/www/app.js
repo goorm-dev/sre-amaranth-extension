@@ -204,96 +204,43 @@
     });
   }
 
-  // ── 휴가 신청 ────────────────────────────────────────────────────────
-  let lvState = null;   // 확인 대기 중인 preview
-
-  // 종류를 바꾸면 그 종류의 기본 시작시각·휴게 여부로 되돌린다.
-  function lvSyncType() {
-    const t = GW.leave.TYPES[$('lvType').value];
-    $('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
-    $('lvBreak').checked = t.defBreak;
-    lvSyncSpan();
-  }
-  function lvSyncSpan() {
-    const tk = $('lvType').value;
-    const t = GW.leave.TYPES[tk];
-    const sp = GW.leave.span(tk, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
-    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
-    $('lvSpan').textContent =
-      `신청 구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${t.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
-    $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null;
+  // ── 아마란스 화면 임베드 ─────────────────────────────────────────────
+  //
+  // 휴가 상신은 앱이 직접 하지 않는다. 결재선·검증이 화면 안에 있어서
+  // API 로 흉내내면 잘못된 문서가 만들어질 수 있다.
+  // 대신 앱이 가진 세션을 쿠키로 심고 진짜 신청서 화면을 띄운다.
+  // (gw.goorm.io 는 X-Frame-Options / CSP frame-ancestors 가 없어 임베드가 된다)
+  async function injectSession() {
+    const s = GW.api.getSession();
+    if (!s) throw new Error('로그인이 필요합니다.');
+    const C = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorCookies;
+    if (!C) return;   // 웹에서 테스트할 땐 이미 쿠키가 있다
+    const url = GW.api.ORIGIN;
+    for (const [key, value] of [
+      ['oAuthToken', s.token], ['signKey', s.signKey],
+      ['BIZCUBE_AT', s.token], ['BIZCUBE_HK', s.signKey], ['BIZCUBE_TYPE', 'WEB'],
+    ]) await C.setCookie({ url, key, value });
   }
 
-  function openLeave() {
-    $('leaveSheet').hidden = false;
-    $('lvDate').value = T.toKey(new Date());
-    lvSyncType();
-    $('lvPreview').hidden = true;
-    $('lvActions').hidden = true;
-    $('lvMsg').textContent = '';
-    lvState = null;
-  }
-  async function leavePreview() {
-    const typeKey = $('lvType').value;
-    const dateKey = $('lvDate').value;
-    if (!dateKey) { $('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
-    $('lvNext').disabled = true;
-    $('lvMsg').textContent = '확인 중…';
+  async function openAmaranth(hash, label) {
     try {
-      const pv = await GW.leave.preview(typeKey, dateKey, { startTm: $('lvStart').value, includeBreak: $('lvBreak').checked });
-      const sched = await GW.leave.profile();
-      const val = await GW.leave.validate(pv, sched);
-      lvState = { pv, sched };
-      const t = GW.leave.TYPES[typeKey];
-      $('lvPreview').hidden = false;
-      $('lvPreview').innerHTML = `
-        <div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>
-        <div class="r"><span>종류</span><b>${esc(t.name)}</b></div>
-        <div class="r"><span>날짜</span><b>${dateKey} ${pv.span.start.slice(0,2)}:${pv.span.start.slice(2)}~${pv.span.end.slice(0,2)}:${pv.span.end.slice(2)}</b></div>
-        <div class="r"><span>휴게</span><b>${pv.span.withBreak ? '1시간 포함' : '미포함'}</b></div>
-        <div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>
-        <div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>
-        <div class="r"><span>결재선</span><b>기본 결재선 (서버 지정)</b></div>
-        ${val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`}`;
-      $('lvActions').hidden = false;
-      $('lvSubmit').disabled = !val.ok;
-      $('lvMsg').textContent = val.ok ? '' : '검증 경고가 있어 상신할 수 없습니다.';
+      await injectSession();
     } catch (e) {
-      $('lvMsg').textContent = e.message || '확인에 실패했습니다.';
-    } finally {
-      $('lvNext').disabled = false;
+      alert(e.message);
+      return;
     }
+    $('wvTitle').textContent = label || '아마란스';
+    $('wvFrame').src = `${GW.api.ORIGIN}/${hash}`;
+    $('webview').hidden = false;
   }
-  async function leaveSubmit() {
-    if (!lvState) return;
-    $('lvSubmit').disabled = true;
-    $('lvMsg').textContent = '상신 중…';
-    try {
-      const res = await GW.leave.submit(lvState.pv, lvState.sched);
-      // 응답을 믿지 않고 신청 목록을 다시 조회해 실제 생성됐는지 확인한다.
-      const made = await GW.leave.confirmCreated(lvState.pv);
-      if (made) {
-        $('lvMsg').textContent = `상신됨 — ${made.name} ${made.stateNm || ''}`.trim();
-        $('lvActions').hidden = true;
-        setTimeout(() => { $('leaveSheet').hidden = true; load({ useCache: false }); }, 1800);
-      } else {
-        $('lvMsg').textContent = '신청이 확인되지 않았습니다.\n응답: ' + JSON.stringify(res).slice(0, 400);
-        $('lvSubmit').disabled = false;
-      }
-    } catch (e) {
-      $('lvMsg').textContent = '상신 실패: ' + (e.message || '');
-      $('lvSubmit').disabled = false;
-    }
-  }
-  $('leaveBtn').onclick = openLeave;
-  $('lvType').onchange = lvSyncType;
-  $('lvStart').onchange = lvSyncSpan;
-  $('lvBreak').onchange = lvSyncSpan;
-  $('lvNext').onclick = leavePreview;
-  $('lvSubmit').onclick = leaveSubmit;
-  $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
-  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
-  $('leaveSheet').onclick = (e) => { if (e.target === $('leaveSheet')) $('leaveSheet').hidden = true; };
+
+  $('leaveBtn').onclick = () => openAmaranth('#/HP/HPD0110/HPD0110', '근태신청서');
+  $('wvClose').onclick = () => {
+    $('webview').hidden = true;
+    $('wvFrame').src = 'about:blank';
+    load({ useCache: false });   // 신청 후 돌아오면 다시 조회
+  };
+  $('wvReload').onclick = () => { $('wvFrame').src = $('wvFrame').src; };
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };

@@ -1,6 +1,6 @@
 {
   "name": "goorm-worktime-app",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "description": "구름 근무시간 모바일 앱",
   "dependencies": {
