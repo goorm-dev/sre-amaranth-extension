@@ -244,6 +244,85 @@
     if (b) openScreen(GW.screens[b.dataset.open]);
   };
 
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  //
+  // 상신까지 자동으로 하지 않는다. 초안을 만든 뒤 결재 팝업을 열어 주고,
+  // 상신 버튼은 사용자가 그 화면에서 직접 누른다.
+  // (결재 팝업은 초안이 있어야 연동본문을 채울 수 있어 순서가 중요하다)
+  let lvState = null;
+  const lv = (id) => document.getElementById(id);
+
+  function lvSyncType() {
+    const t = GW.leave.TYPES[lv('lvType').value];
+    lv('lvStart').value = `${t.defStart.slice(0, 2)}:${t.defStart.slice(2)}`;
+    lv('lvBreak').checked = t.defBreak;
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const tk = lv('lvType').value;
+    const t = GW.leave.TYPES[tk];
+    const sp = GW.leave.span(tk, { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked });
+    const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+    lv('lvSpan').textContent = `구간 ${f(sp.start)}~${f(sp.end)} · 휴가 ${t.hours}시간${sp.withBreak ? ' + 휴게 1시간' : ''}`;
+    lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null;
+  }
+  function lvOpen() {
+    lv('leaveSheet').hidden = false;
+    lv('lvDate').value = T.toKey(new Date());
+    lvSyncType();
+    lv('lvMsg').textContent = '';
+  }
+  async function lvPreview() {
+    const tk = lv('lvType').value, dk = lv('lvDate').value;
+    if (!dk) { lv('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
+    try {
+      const opts = { startTm: lv('lvStart').value, includeBreak: lv('lvBreak').checked };
+      const pv = await GW.leave.preview(tk, dk, opts);
+      const sched = await GW.leave.profile();
+      const val = await GW.leave.validate(pv, sched);
+      lvState = { pv, sched };
+      const f = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+      lv('lvPreview').hidden = false;
+      lv('lvPreview').innerHTML =
+        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>` +
+        `<div class="r"><span>구간</span><b>${f(pv.span.start)}~${f(pv.span.end)}${pv.span.withBreak ? ' (휴게 포함)' : ''}</b></div>` +
+        `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>` +
+        `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>` +
+        (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
+      lv('lvActions').hidden = false;
+      lv('lvSubmit').disabled = !val.ok;
+      lv('lvMsg').textContent = val.ok ? '신청서를 만들고 결재 화면을 엽니다. 상신은 그 화면에서 직접 누르세요.'
+                                       : '검증 경고로 진행할 수 없습니다.';
+    } catch (e) { lv('lvMsg').textContent = e.message || '확인 실패'; }
+    finally { lv('lvNext').disabled = false; }
+  }
+  async function lvSubmit() {
+    if (!lvState) return;
+    lv('lvSubmit').disabled = true; lv('lvMsg').textContent = '신청서 만드는 중…';
+    try {
+      const r = await GW.leave.submit(lvState.pv, lvState.sched);
+      if (!r.created || !r.created.appSq) {
+        lv('lvMsg').textContent = '신청서가 만들어지지 않았습니다.\n' + JSON.stringify(r).slice(0, 300);
+        lv('lvSubmit').disabled = false;
+        return;
+      }
+      openUrl(GW.screens.ORIGIN + '/' + r.approvalHash);
+    } catch (e) {
+      lv('lvMsg').textContent = '실패: ' + (e.message || '');
+      lv('lvSubmit').disabled = false;
+    }
+  }
+  lv('lvOpen').onclick = lvOpen;
+  lv('lvType').onchange = lvSyncType;
+  lv('lvStart').onchange = lvSyncSpan;
+  lv('lvBreak').onchange = lvSyncSpan;
+  lv('lvNext').onclick = lvPreview;
+  lv('lvSubmit').onclick = lvSubmit;
+  lv('lvBack').onclick = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };
+  lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
+  lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   $('refresh').onclick = () => load({ useCache: false });

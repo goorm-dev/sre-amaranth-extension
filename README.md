@@ -320,60 +320,42 @@ POST https://gw.goorm.io/human/common/judgeTimeManagement/getTodayComeLeaveInfo
 
 ## 휴가 신청
 
-**앱·확장이 직접 상신하지 않습니다.** 진짜 신청서 화면을 띄우고 거기서 상신합니다.
-
-| | |
-|---|---|
-| 확장 팝업 | **휴가 신청** → `#/HP/HPD0110/HPD0110` (근태신청서) |
-| 앱 | 상단 **＋** → 세션을 쿠키로 심고 같은 화면으로 이동 |
-
-### 신청 팝업까지 딥링크할 수 없는 이유
-
-연차 신청 팝업의 주소는 이렇게 생겼습니다.
+**상신까지 자동으로 하지 않습니다.** 신청서를 만들어 두고 **결재 화면을 열어 주면**,
+상신 버튼은 그 화면에서 사용자가 직접 누릅니다.
 
 ```
-/#/popup?MicroModuleCode=eap&callComp=UBAP001&formId=249
-        &approkey=ERP_<uuid>&popupUUID=<uuid>&…
+1) calculateApplicationDays   서버가 시간·연차차감 계산 (읽기)
+2) validateNew                서버가 중복·잔여연차 검증 (읽기)
+3) 확인 화면                   제목·구간·인정시간·연차차감 표시
+4) 0hr00011 → create          근태신청 저장 → 결재문서(초안) 생성
+5) 결재 팝업 열기               사용자가 상신
 ```
 
-`approkey` 를 임의로 만들어 열면 결재 팝업이 **연동본문**을 되가져오려다 실패합니다.
+6종을 지원합니다 — 연차 / 오전반차 / 오후반차 + 각 보상.
+**시작 시각과 휴게 포함 여부**를 지정하며, 신청 구간 = 휴가시간 + (휴게 포함 시 1시간)입니다.
+
+### 순서가 중요합니다
+
+결재 팝업 주소에는 `approkey=ERP_<uuid>` 가 붙는데, 이건 팝업을 여는 쪽이 만드는
+식별자입니다. 팝업이 열리면 연동 프로세스 `HP_HPD0110_00011`
+(= `/human/attendapplication/0hr00011`)이 **방금 만들어진 초안**을 찾아 본문을 채웁니다.
+
+초안 없이 팝업만 열면 이렇게 실패합니다.
 
 ```
+연동본문 데이터 조회 실패하였습니다.
 연동프로세스코드 : HP_HPD0110_00011
 {"resultCode":-1,"resultMessage":"Internal Server Error"}
 ```
 
-`HP_HPD0110_00011` 은 근태신청 저장 엔드포인트(`0hr00011`)입니다. 즉 `approkey` 는
-근태신청서 화면이 문서를 준비할 때 만드는 **실제 식별자**라 합성할 수 없습니다.
-그래서 신청서 화면까지만 엽니다.
+그래서 **`create` 로 초안을 만든 뒤에** 팝업을 열어야 합니다.
 
-앱은 **서버에 세션을 넘겨 쿠키를 받게** 합니다.
+### 스케줄 필드
 
-```
-POST /gw/gw050A02 (form)  loginType=set-cookie&oAuthToken=…&signKey=…
-  → Set-Cookie: oAuthToken, signKey, BIZCUBE_AT, BIZCUBE_HK, BIZCUBE_TYPE  (5개)
-```
-
-CapacitorHttp 가 네이티브로 요청하므로 이 쿠키는 **WebView 와 공유되는 네이티브
-CookieManager** 에 저장됩니다. 그 뒤 WebView 를 `gw.goorm.io` 로 이동시키면
-로그인된 상태로 열립니다. 뒤로가기로 앱에 돌아옵니다.
-
-**iframe 은 쓰지 않습니다.** 앱 WebView 출처(localhost)와 교차 출처라 Android WebView 가
-서드파티 쿠키를 막아 로그인이 풀린 채로 뜹니다. WebView 자체를 이동시키면 1st-party 라
-쿠키가 정상 적용됩니다 (`server.allowNavigation` 으로 허용).
-
-### 왜 API 로 직접 상신하지 않나
-
-시도해봤고 대부분 재현했습니다 — `calculateApplicationDays`(계산) → `validateNew`(검증)
-→ `0hr00011`(근태신청 저장) → `create`(결재문서 생성)까지 동작합니다. `create` 는
-`approLineId` 를 비우면 서버가 기본 결재선을 붙여 주므로 결재선 문제도 없습니다.
-
-그런데 `create` 로 만들어진 문서는 **`approState: "2"` 즉 미상신 초안**입니다.
-결재선에 올리는 마지막 단계를 특정하지 못했습니다 (`/eap/eap096A45`, `/eap/eap096A48` 는
-둘 다 결재양식 **조회**라 상신이 아닙니다).
-
-절반만 재현하면 **초안만 쌓이고 상신은 안 되는** 상태가 되므로, 화면을 띄우는 쪽이
-안전하고 결과도 확실합니다. 결재선·잔여연차·검증을 전부 아마란스가 처리합니다.
+`comeStTm`/`leaveStTm`/`timeCd`/`workTp` 는 근무 스케줄 값이라 `getWorkTimeList` 에
+없습니다. 실제 신청 요청에서 확인한 값을 기본으로 씁니다 (`0730`/`2200`/`7730`/`1`).
+신청서의 `workTp` 는 근무제 코드가 아니라 근무구분이라, 근태 행의 `workTp`(8=자율출퇴근)와
+다릅니다. 페이로드는 실제 요청과 전 필드 일치를 확인했습니다.
 
 ## 구조
 
