@@ -207,6 +207,104 @@
   // API 로 흉내내면 미상신 초안만 쌓인다. 대신 세션을 쿠키로 심고 진짜 화면을 연다.
   //
   // iframe 은 쓰지 않는다 — 앱 WebView 출처(localhost)와 교차 출처라
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  //
+  // 확장과 같은 흐름이다 (lib/leave.js 공유):
+  //   calculateApplicationDays → validateNew → 확인 → 0hr00011 → create
+  //     → GetLinkKey → SetEnageGroup → saveLinkKey → 결재 화면
+  // 상신은 하지 않는다. 결재 화면을 띄워 주고 거기서 사용자가 누른다.
+  let lvState = null;
+  const lvHm = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+
+  function lvSyncType() {
+    $('lvStart').value = lvHm(GW.leave.TYPES[$('lvType').value].defStart);
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const sp = GW.leave.span($('lvType').value, { startTm: $('lvStart').value });
+    $('lvSpan').textContent = `구간 ${lvHm(sp.start)}~${lvHm(sp.end)} · 휴가 ${sp.hours}시간`;
+    $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null;
+  }
+
+  async function lvPreview() {
+    const dk = $('lvDate').value;
+    if (!dk) { $('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    $('lvNext').disabled = true; $('lvMsg').textContent = '확인 중…';
+    try {
+      const pv = await GW.leave.preview($('lvType').value, dk, { startTm: $('lvStart').value });
+      const sched = await GW.leave.profile();
+      const val = await GW.leave.validate(pv, sched);
+      lvState = { pv, sched };
+      $('lvPreview').hidden = false;
+      $('lvPreview').innerHTML =
+        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>`
+        + `<div class="r"><span>구간</span><b>${lvHm(pv.span.start)}~${lvHm(pv.span.end)}</b></div>`
+        + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
+        + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
+        + (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
+      $('lvActions').hidden = false;
+      $('lvSubmit').disabled = !val.ok;
+      $('lvMsg').textContent = val.ok
+        ? '신청서를 만들고 결재 화면을 엽니다. 상신은 그 화면에서 누르세요.'
+        : '검증 경고로 진행할 수 없습니다.';
+    } catch (e) { $('lvMsg').textContent = e.message || '확인 실패'; }
+    finally { $('lvNext').disabled = false; }
+  }
+
+  async function lvSubmit() {
+    if (!lvState) return;
+    $('lvSubmit').disabled = true; $('lvMsg').textContent = '신청서 만드는 중…';
+    try {
+      const r = await GW.leave.submit(lvState.pv, lvState.sched);
+      $('lvMsg').textContent = '결재 화면을 여는 중…';
+      await openApproval(r.approvalHash);
+    } catch (e) {
+      $('lvMsg').textContent = '실패: ' + (e.message || '');
+      $('lvSubmit').disabled = false;
+    }
+  }
+
+  // WebView 자체를 gw.goorm.io 로 옮긴다. iframe 은 앱 출처(localhost)에 대해
+  // 서드파티라 안드로이드가 쿠키를 막지만, 1st-party 이동이면 정상 적용된다.
+  // (capacitor.config.json 의 server.allowNavigation 으로 허용)
+  //
+  // Capacitor 의 document.cookie 세터는 문자열의 domain= 을 파싱해
+  // 네이티브 CookieManager 로 넘긴다. 그래서 domain 을 명시하면 앱 출처와
+  // 무관하게 gw.goorm.io 쿠키를 심을 수 있다.
+  function setGwCookie(key, value) {
+    document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
+  }
+
+  function injectSessionCookies() {
+    const s = GW.api.getSession();
+    if (!s || !s.token) throw new Error('로그인이 필요합니다.');
+    setGwCookie('oAuthToken', s.token);
+    setGwCookie('signKey', s.signKey);
+    setGwCookie('BIZCUBE_AT', s.token);
+    setGwCookie('BIZCUBE_HK', s.signKey);
+    setGwCookie('BIZCUBE_TYPE', 'WEB');
+  }
+
+  async function openApproval(hash) {
+    injectSessionCookies();
+    // 서버가 심어주는 경로도 함께 태운다 (둘 중 하나만 통해도 로그인이 유지된다).
+    try { await GW.api.establishWebSession(); } catch (_) {}
+    window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 앱 복귀
+  }
+
+  $('leaveBtn').onclick = () => {
+    $('leaveSheet').hidden = false;
+    $('lvDate').value = T.toKey(new Date());
+    $('lvMsg').textContent = '';
+    lvSyncType();
+  };
+  $('lvType').onchange = lvSyncType;
+  $('lvStart').onchange = lvSyncSpan;
+  $('lvNext').onclick = lvPreview;
+  $('lvSubmit').onclick = lvSubmit;
+  $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
+  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
+
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };

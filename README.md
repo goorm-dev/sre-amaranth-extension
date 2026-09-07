@@ -432,6 +432,12 @@ POST /human/openapi/attendapplication/saveLinkKey
 실행한 뒤 실제 신청을 하고 `__capDump()` 를 부르면 됩니다. 결재 팝업 안의 요청까지
 같이 잡힙니다.
 
+**앱도 같은 코드를 씁니다.** `lib/leave.js` 는 [app/sync-lib.sh](app/sync-lib.sh) 로
+복사되고, 앱의 `GW.api.call` 이 확장과 같은 계약(`resultData` 반환)이라 그대로 돕니다.
+다른 건 결재 화면을 여는 방법뿐입니다 — 확장은 새 탭, 앱은 WebView 를 gw.goorm.io 로
+이동시킵니다. iframe 은 앱 출처(localhost)에 대해 서드파티라 안드로이드가 쿠키를
+막지만, 1st-party 이동이면 정상 적용됩니다.
+
 ## 알려진 한계
 
 - 진행 중인 달의 소정근로시간은 공휴일 표 기반 **추정**입니다 (위 참고).
@@ -444,3 +450,5 @@ POST /human/openapi/attendapplication/saveLinkKey
   즉 여기 표시되는 값은 **보수적**이고, 배치 후 서버 값으로 교정됩니다.
 - 세션이 만료되면 `gw.goorm.io`에서 다시 로그인해야 합니다.
 - 휴가 신청은 초안까지만 만듭니다. **결재상신은 사용자가 결재 화면에서 직접** 누릅니다.
+- 앱에서 결재 화면을 열 때 세션이 안 실리면 로그인 화면이 뜹니다. 그때 로그인하면
+  그대로 이어집니다 — `approkey` 는 서버에 등록돼 있어 세션과 무관합니다.
