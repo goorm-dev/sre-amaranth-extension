@@ -83,13 +83,41 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  const findButton = (text) => all('button').find((b) => b.textContent.trim() === text);
+  // OBT 는 버튼을 <button> 으로만 그리지 않는다. div·a·span 도 눌린다.
+  const CLICKABLE = 'button, a, [role="button"], [class*="button" i], [class*="btn" i]';
+
+  function clickables() {
+    const seen = new Set();
+    return all(CLICKABLE).filter((el) => {
+      const t = el.textContent.trim();
+      if (!t || t.length > 20) return false;
+      // 겉을 감싼 요소와 속을 다 잡으면 같은 게 여러 번 나온다. 가장 안쪽만 남긴다.
+      if (el.querySelector(CLICKABLE)) return false;
+      const key = t + '@' + Math.round(el.getBoundingClientRect().left);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  const findButton = (text) => clickables().find((b) => b.textContent.trim() === text);
 
   function clickButton(text) {
     const btn = findButton(text);
     if (btn) { btn.click(); return true; }
     return false;
   }
+
+  // 신청서를 여는 것. 화면마다 이름이 조금씩 다르다.
+  const OPENERS = ['휴가 신청', '휴가신청', '근태 신청', '근태신청', '신청'];
+  const findOpener = () => {
+    const c = clickables();
+    for (const t of OPENERS) {
+      const hit = c.find((b) => b.textContent.trim() === t);
+      if (hit) return { el: hit, label: t };
+    }
+    return null;
+  };
 
   // "1500" → { ampm: '오후', hh: '03', mm: '00' }
   function to12h(hhmm) {
@@ -122,7 +150,7 @@
     const deadline = Date.now() + (timeout || 45000);
     while (Date.now() < deadline) {
       if (formReady()) return 'ready';
-      if (findButton('휴가 신청')) return 'needOpen';
+      if (findOpener()) return 'needOpen';
       await sleep(300);
     }
     return 'none';
@@ -130,13 +158,14 @@
 
   // 실패했을 때 화면에 무엇이 있었는지. 추측 대신 이걸 보고 고친다.
   function diagnose() {
-    const btns = all('button').map((b) => b.textContent.trim()).filter(Boolean);
+    const c = clickables().map((b) => b.textContent.trim());
     return [
       `해시 ${location.hash || '(없음)'}`,
       `문서 ${docs().length}`,
       `날짜칸 ${dateInputs().length}`,
       `시간칸 ${timeInputs().length}`,
-      `버튼 ${btns.length}${btns.length ? ': ' + btns.slice(0, 12).join(', ') : ''}`,
+      `입력칸 ${all('input').length}`,
+      `누를것 ${c.length}${c.length ? ': ' + c.slice(0, 24).join(' / ') : ''}`,
     ].join(' · ');
   }
 
@@ -148,8 +177,9 @@
     const screen = await awaitScreen();
     if (screen === 'none') fail(`근태 화면을 찾지 못했습니다.\n${diagnose()}`);
     if (screen === 'needOpen') {
-      clickButton('휴가 신청');   // 캘린더에서 신청서를 연다
-      steps.push('신청서 열기');
+      const opener = findOpener();   // 캘린더에서 신청서를 연다
+      opener.el.click();
+      steps.push(`신청서 열기: ${opener.label}`);
       if (!(await waitForForm())) fail(`신청서가 열리지 않았습니다.\n${diagnose()}`);
     }
     steps.push('폼 확인');
