@@ -324,18 +324,28 @@ POST https://gw.goorm.io/human/common/judgeTimeManagement/getTodayComeLeaveInfo
 
 | | |
 |---|---|
-| 확장 팝업 | **휴가 신청** → 연차 신청 팝업으로 **바로 이동** |
+| 확장 팝업 | **휴가 신청** → `#/HP/HPD0110/HPD0110` (근태신청서) |
 | 앱 | 상단 **＋** → 세션을 쿠키로 심고 같은 화면으로 이동 |
 
-연차 신청서를 빈 문서로 여는 딥링크입니다.
+### 신청 팝업까지 딥링크할 수 없는 이유
+
+연차 신청 팝업의 주소는 이렇게 생겼습니다.
 
 ```
 /#/popup?MicroModuleCode=eap&callComp=UBAP001&formId=249
-        &approkey=ERP_<uuid>&popupUUID=<uuid>&appLineId=&appLineList=[]&fileList=[]
+        &approkey=ERP_<uuid>&popupUUID=<uuid>&…
 ```
 
-`callComp=UBAP001` 이 새 문서, `formId=249` 가 연차휴가 신청서입니다.
-`approkey`/`popupUUID` 는 클라이언트가 만드는 식별자라 열 때마다 새로 생성합니다.
+`approkey` 를 임의로 만들어 열면 결재 팝업이 **연동본문**을 되가져오려다 실패합니다.
+
+```
+연동프로세스코드 : HP_HPD0110_00011
+{"resultCode":-1,"resultMessage":"Internal Server Error"}
+```
+
+`HP_HPD0110_00011` 은 근태신청 저장 엔드포인트(`0hr00011`)입니다. 즉 `approkey` 는
+근태신청서 화면이 문서를 준비할 때 만드는 **실제 식별자**라 합성할 수 없습니다.
+그래서 신청서 화면까지만 엽니다.
 
 앱은 **서버에 세션을 넘겨 쿠키를 받게** 합니다.
 

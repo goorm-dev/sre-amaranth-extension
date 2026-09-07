@@ -259,7 +259,7 @@
     }
   }
 
-  $('leaveBtn').onclick = () => openAmaranth(GW.screens.leaveFormHash());
+  $('leaveBtn').onclick = () => openAmaranth(GW.screens.hash(GW.screens.LEAVE_APPLY));
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };

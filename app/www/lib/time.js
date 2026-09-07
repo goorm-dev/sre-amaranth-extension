@@ -100,29 +100,10 @@
     url: (code) => `${GW.screens.ORIGIN}/#/HP/${code}/${code}`,
     hash: (code) => `#/HP/${code}/${code}`,
 
-    // 연차휴가 신청서를 빈 문서로 바로 여는 딥링크.
-    //   callComp=UBAP001 = 새 문서 (UBAP002 는 기존 문서 조회)
-    //   formId=249       = 연차휴가 신청서
-    //   approkey/popupUUID 는 클라이언트가 만드는 식별자라 매번 새로 생성한다.
-    LEAVE_FORM_ID: 249,
-    leaveFormHash: () => {
-      const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
-        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-            const r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-          }));
-      const q = new URLSearchParams({
-        MicroModuleCode: 'eap',
-        appLineId: '',
-        appLineList: '[]',
-        approkey: `ERP_${uuid()}`,
-        fileList: '[]',
-        formId: String(GW.screens.LEAVE_FORM_ID),
-        callComp: 'UBAP001',
-        popupUUID: uuid(),
-      });
-      return `#/popup?${q.toString()}`;
-    },
-    leaveFormUrl: () => `${GW.screens.ORIGIN}/${GW.screens.leaveFormHash()}`,
+    // 연차 신청 팝업을 딥링크로 바로 열 수는 없다.
+    // /#/popup?...&approkey=ERP_<uuid>&formId=249&callComp=UBAP001 형태인데,
+    // approkey 는 근태신청서 화면이 문서를 준비할 때 만드는 실제 식별자다.
+    // 임의로 만들면 결재 팝업이 연동본문(HP_HPD0110_00011)을 못 찾아
+    // "연동본문 데이터 조회 실패" 로 떨어진다. 그래서 신청서 화면까지만 연다.
   };
 })(typeof window !== 'undefined' ? window : globalThis);

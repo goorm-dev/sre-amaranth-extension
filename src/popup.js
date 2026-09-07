@@ -241,10 +241,7 @@
   }
   document.querySelector('.links').onclick = (ev) => {
     const b = ev.target.closest('[data-open]');
-    if (!b) return;
-    // 휴가 신청은 신청서 목록이 아니라 연차 신청 팝업을 바로 연다.
-    if (b.dataset.open === 'LEAVE_APPLY') openUrl(GW.screens.leaveFormUrl());
-    else openScreen(GW.screens[b.dataset.open]);
+    if (b) openScreen(GW.screens[b.dataset.open]);
   };
 
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
