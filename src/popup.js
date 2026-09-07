@@ -254,6 +254,96 @@
     window.close();
   };
 
+  // ── 휴가 신청 ────────────────────────────────────────────────────────
+  //
+  // calculateApplicationDays → validateNew → 확인 → 0hr00011 → create → 결재 팝업.
+  // 상신은 하지 않는다. 결재 화면을 열어 주고 사용자가 거기서 직접 누른다.
+  //
+  // 결재 팝업의 approkey 는 우리가 만들어 create 에 함께 보낸다(leave.js 참고).
+  let lvState = null;
+  const lv = (id) => document.getElementById(id);
+  const hm = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+
+  function lvSyncType() {
+    const t = GW.leave.TYPES[lv('lvType').value];
+    lv('lvStart').value = hm(t.defStart);
+    lvSyncSpan();
+  }
+  function lvSyncSpan() {
+    const tk = lv('lvType').value;
+    const sp = GW.leave.span(tk, { startTm: lv('lvStart').value });
+    lv('lvSpan').textContent = `구간 ${hm(sp.start)}~${hm(sp.end)} · 휴가 ${sp.hours}시간`;
+    lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null;
+  }
+
+  async function lvPreview() {
+    const tk = lv('lvType').value, dk = lv('lvDate').value;
+    if (!dk) { lv('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
+    try {
+      const opts = { startTm: lv('lvStart').value };
+      const pv = await GW.leave.preview(tk, dk, opts);
+      const sched = await GW.leave.profile();
+      const val = await GW.leave.validate(pv, sched);
+      lvState = { pv, sched };
+      lv('lvPreview').hidden = false;
+      lv('lvPreview').innerHTML =
+        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>`
+        + `<div class="r"><span>구간</span><b>${hm(pv.span.start)}~${hm(pv.span.end)}</b></div>`
+        + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
+        + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
+        + (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
+      lv('lvActions').hidden = false;
+      lv('lvSubmit').disabled = !val.ok;
+      lv('lvMsg').textContent = val.ok
+        ? '신청서를 만들고 결재 화면을 새 탭으로 엽니다. 상신은 그 화면에서 누르세요.'
+        : '검증 경고로 진행할 수 없습니다.';
+    } catch (e) { lv('lvMsg').textContent = e.message || '확인 실패'; }
+    finally { lv('lvNext').disabled = false; }
+  }
+
+  async function lvSubmit() {
+    if (!lvState) return;
+    lv('lvSubmit').disabled = true; lv('lvMsg').textContent = '신청서 만드는 중…';
+    try {
+      const r = await GW.leave.submit(lvState.pv, lvState.sched);
+      // 결재 화면이 본문을 못 불러오는 경우를 대비해 응답을 남긴다.
+      // 팝업의 "마지막 신청 결과" 에서 그대로 복사할 수 있다.
+      await chrome.storage.local.set({
+        lastLeave: { at: Date.now(), title: GW.leave.title(lvState.pv),
+                     approKey: r.approKey, sentKey: r.sentKey,
+                     saved: r.saved, created: r.created },
+      });
+      await chrome.tabs.create({ url: GW.screens.ORIGIN + '/' + r.approvalHash });
+      window.close();
+    } catch (e) {
+      lv('lvMsg').textContent = '실패: ' + (e.message || '');
+      lv('lvSubmit').disabled = false;
+    }
+  }
+
+  async function lvShowLast() {
+    let last;
+    try { ({ lastLeave: last } = await chrome.storage.local.get('lastLeave')); } catch (_) {}
+    lv('lvLast').hidden = !last;
+    if (last) lv('lvLastBody').textContent = JSON.stringify(last, null, 1);
+  }
+
+  lv('lvOpen').onclick = () => {
+    lv('leaveSheet').hidden = false;
+    lv('lvDate').value = T.toKey(new Date());
+    lvSyncType();
+    lv('lvMsg').textContent = '';
+    lvShowLast();
+  };
+  lv('lvType').onchange = lvSyncType;
+  lv('lvStart').onchange = lvSyncSpan;
+  lv('lvNext').onclick = lvPreview;
+  lv('lvSubmit').onclick = lvSubmit;
+  lv('lvBack').onclick = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };
+  lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
+  lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   $('refresh').onclick = () => load({ useCache: false });
