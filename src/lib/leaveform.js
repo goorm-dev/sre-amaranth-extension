@@ -1,4 +1,8 @@
-// 근태신청서(HPD0110) 폼 자동 입력.
+// 근태신청서 폼 자동 입력.
+//
+// HPD0110 은 신청서가 아니라 부서 근태일정 캘린더다. 거기 [휴가 신청] 을 눌러야
+// 신청서가 열린다. (진단: 해시 #/HP/HPD0110/HPD0110 · 날짜칸 0 · 버튼 13:
+//  부서 근태일정, 새로고침, 이번달, 기본, 부서, 대리신청, 확대, 도움말, ‹, ›, ▾, 휴가 신청)
 //
 // fill() 은 종류·날짜·시간만 채우고 멈춘다. 아무것도 저장하지 않는다.
 // submit() 은 [신청완료] 를 눌러 결재 팝업을 띄운다 — approkey 는 SPA 가 이때
@@ -61,7 +65,11 @@
     return out;
   }
 
-  const all = (sel) => docs().flatMap((d) => [...d.querySelectorAll(sel)]).filter(visible);
+  // 우리가 그린 것들은 빼고 본다. 패널에도 [휴가 신청] 버튼이 있어서 그냥 두면
+  // 우리 버튼을 우리가 누른다.
+  const ours = (el) => !!el.closest('#gw-work-panel, #gw-leave-toast');
+  const all = (sel) => docs().flatMap((d) => [...d.querySelectorAll(sel)])
+    .filter((el) => visible(el) && !ours(el));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // React 제어 입력이라 value 를 직접 넣으면 무시된다.
@@ -75,8 +83,10 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  const findButton = (text) => all('button').find((b) => b.textContent.trim() === text);
+
   function clickButton(text) {
-    const btn = all('button').find((b) => b.textContent.trim() === text);
+    const btn = findButton(text);
     if (btn) { btn.click(); return true; }
     return false;
   }
@@ -107,6 +117,17 @@
     return false;
   }
 
+  // 신청서가 이미 떠 있으면 'ready', 캘린더면 'needOpen'.
+  async function awaitScreen(timeout) {
+    const deadline = Date.now() + (timeout || 45000);
+    while (Date.now() < deadline) {
+      if (formReady()) return 'ready';
+      if (findButton('휴가 신청')) return 'needOpen';
+      await sleep(300);
+    }
+    return 'none';
+  }
+
   // 실패했을 때 화면에 무엇이 있었는지. 추측 대신 이걸 보고 고친다.
   function diagnose() {
     const btns = all('button').map((b) => b.textContent.trim()).filter(Boolean);
@@ -124,7 +145,13 @@
     const steps = [];
     const fail = (msg) => { const e = new Error(msg); e.steps = steps; throw e; };
 
-    if (!(await waitForForm())) fail(`근태신청서 폼을 찾지 못했습니다.\n${diagnose()}`);
+    const screen = await awaitScreen();
+    if (screen === 'none') fail(`근태 화면을 찾지 못했습니다.\n${diagnose()}`);
+    if (screen === 'needOpen') {
+      clickButton('휴가 신청');   // 캘린더에서 신청서를 연다
+      steps.push('신청서 열기');
+      if (!(await waitForForm())) fail(`신청서가 열리지 않았습니다.\n${diagnose()}`);
+    }
     steps.push('폼 확인');
 
     const label = TYPE_LABELS[req.typeKey];
@@ -167,5 +194,5 @@
     return clickButton('신청완료');
   }
 
-  GW.leaveform = { fill, submit, waitForForm, formReady, diagnose, TYPES, TYPE_LABELS, span, to12h, setValue };
+  GW.leaveform = { fill, submit, waitForForm, awaitScreen, formReady, diagnose, TYPES, TYPE_LABELS, span, to12h, setValue };
 })(typeof window !== 'undefined' ? window : globalThis);

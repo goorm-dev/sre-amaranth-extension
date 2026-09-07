@@ -349,6 +349,9 @@
     return false;
   }
 
+  const clearLeave = () => chrome.storage.local.remove('pendingLeave').catch(() => {});
+
+  // 본 창에서. 캘린더 화면까지 데려다 놓고 폼을 채운다.
   async function claimLeave(req) {
     if (leaveBusy || !req) return;
     if (Date.now() - req.at > LEAVE_TTL) return;
@@ -358,7 +361,7 @@
     toast('휴가 신청서를 채우는 중…');
     try {
       if (!(await waitForScreen(GW.screens.LEAVE_APPLY, 10000))) {
-        toast('<b>자동 입력 중단</b><br>근태신청서 화면으로 이동하지 못했습니다.', 'bad');
+        toast('<b>자동 입력 중단</b><br>근태 화면으로 이동하지 못했습니다.', 'bad');
         return;
       }
       await fillLeave(req);
@@ -367,20 +370,34 @@
     }
   }
 
-  async function runPendingLeave() {
+  // 별도 창·프레임에서. [휴가 신청] 이 모달이 아니라 새 창을 열 수도 있어서,
+  // 신청서가 여기 그려지면 여기서 채운다. 아니면 조용히 아무것도 안 한다
+  // (결재 팝업처럼 상관없는 창일 수 있다).
+  async function claimLeaveInChild(req) {
+    if (leaveBusy || !req || Date.now() - req.at > LEAVE_TTL) return;
+    const deadline = Date.now() + 45000;
+    while (Date.now() < deadline) {
+      if (GW.leaveform.formReady()) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    if (!GW.leaveform.formReady()) return;
+    leaveBusy = true;
+    try { await fillLeave(req); } finally { leaveBusy = false; }
+  }
+
+  async function runPendingLeave(inChild) {
     let req;
     try {
       ({ pendingLeave: req } = await chrome.storage.local.get('pendingLeave'));
-      if (!req) return;
-      // 한 번 집으면 바로 지운다. 실패해도 새로고침마다 다시 채우지 않게.
-      await chrome.storage.local.remove('pendingLeave');
     } catch (_) { return; }
-    await claimLeave(req);
+    if (!req) return;
+    await (inChild ? claimLeaveInChild(req) : claimLeave(req));
   }
 
   async function fillLeave(req) {
     try {
       const steps = await GW.leaveform.fill(req);
+      clearLeave();
       toast('<b>휴가 신청서를 채웠습니다.</b><br>' + esc(steps.join(' · '))
         + '<br><span style="opacity:.75">내용을 확인하고 아래를 누르면 결재창이 뜹니다.'
         + ' [결재상신] 은 그 창에서 직접 누르세요.</span>',
@@ -398,11 +415,16 @@
     }
   }
 
-  // 근태신청서·결재 같은 별도 팝업 창에는 띄우지 않는다.
-  // 아마란스가 window.open() 으로 여는 창이라 opener 가 잡힌다.
-  // (Chrome 88+ 는 target="_blank" 에 noopener 를 기본 적용하므로, opener 가 있으면
-  //  스크립트가 연 팝업이라고 봐도 된다)
-  if (window.opener || window.top !== window) return;
+  // 요약 패널은 본 창에만 띄운다. 근태신청서·결재처럼 아마란스가 window.open()
+  // 으로 여는 창에는 띄우지 않는다. (Chrome 88+ 는 target="_blank" 에 noopener 를
+  // 기본 적용하므로, opener 가 있으면 스크립트가 연 팝업이라고 봐도 된다)
+  //
+  // 다만 자동 입력은 그런 창에서도 돈다. [휴가 신청] 이 모달이 아니라 새 창을
+  // 열면 신청서가 거기 그려지기 때문이다.
+  if (window.opener || window.top !== window) {
+    runPendingLeave(true);
+    return;
+  }
 
   (async () => {
     const { collapsed } = await chrome.storage.local.get('collapsed');
@@ -423,7 +445,6 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       const c = area === 'local' && changes.pendingLeave;
       if (!c || !c.newValue) return;
-      chrome.storage.local.remove('pendingLeave');
       claimLeave(c.newValue);
     });
   })();
