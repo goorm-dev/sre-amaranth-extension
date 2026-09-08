@@ -314,12 +314,25 @@
     && window.Capacitor.isNativePlatform());
 
   async function openApproval(hash) {
-    // 네이티브는 검증된 경로 그대로 — 쿠키를 심고 WebView 를 옮긴다.
-    // 웹은 브라우저가 가진 gw 세션을 그대로 쓴다. 없으면 로그인 화면이 뜨고,
-    // 로그인하면 이어진다 (approkey 는 서버에 등록돼 있어 세션과 무관하다).
+    // 네이티브는 검증된 경로 그대로 — 쿠키를 직접 심는다. Capacitor 가 domain= 을
+    // 파싱해 네이티브 CookieManager 로 넘기고 WebView 가 그 쿠키통을 쓴다.
     if (isNative()) {
       try { injectSessionCookies(); } catch (_) {}
-      try { await GW.api.establishWebSession(); } catch (_) {}
+    }
+
+    // 서버가 gw.goorm.io 쿠키를 심게 한다. 웹에서 통하는 유일한 경로다.
+    // 브라우저는 형제 도메인(gw.goorm.io)에 쿠키를 쓸 수 없지만, 서버가 내려주는
+    // Set-Cookie 는 저장된다 — 응답을 직접 확인했다:
+    //   Set-Cookie: oAuthToken=…; Path=/; Secure; HttpOnly   (5개, resultCode 0)
+    // SameSite 가 없어 기본 Lax 이고, worktime.goorm.io ↔ gw.goorm.io 는 same-site
+    // 라 저장·전송된다. 교차 출처라 credentials:'include' 가 필수다(callUncert).
+    // HttpOnly 라 JS 로는 확인할 수 없으니, 실패하면 이유를 그대로 보여 준다.
+    try {
+      await GW.api.establishWebSession();
+    } catch (e) {
+      $('lvMsg').textContent = `세션 전달 실패: ${e.message || e}\n`
+        + '결재 화면에서 로그인이 필요할 수 있습니다.';
+      await new Promise((r) => setTimeout(r, 1800));
     }
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
