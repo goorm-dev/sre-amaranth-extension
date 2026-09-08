@@ -464,10 +464,20 @@ Access-Control-Allow-Credentials: true
 웹에서 gw 세션이 없으면 로그인 화면이 뜨고, 로그인하면 이어집니다 — `approkey` 는
 서버에 등록돼 있어 세션과 무관합니다.
 
-### 빌드·배포
+### 배포된 곳
+
+| | |
+|---|---|
+| 주소 | `https://worktime.goorm.io` |
+| 클러스터 | `internal-k8s` (EKS, ap-northeast-2) · 네임스페이스 `worktime` |
+| 이미지 | `879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/goorm/worktime-web` |
+| 인그레스 | `internal-public` ALB 그룹 (`group.order: 120`) |
+| GitOps | [goorm-dev/gitops `i-k8s/worktime-web/`](https://github.com/goorm-dev/gitops/tree/main/i-k8s/worktime-web) |
 
 ```
-docker build -t <registry>/worktime-web:<tag> .
+# 노드가 amd64 라 맥(arm64)에서는 크로스 빌드해야 한다
+docker buildx build --platform linux/amd64 \
+  -t 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/goorm/worktime-web:<tag> --push .
 ```
 
 백엔드가 없습니다. nginx 정적 서빙 하나뿐이고 **자격증명은 서버를 거치지 않습니다** —
