@@ -237,8 +237,9 @@
       lvState = { pv, sched };
       $('lvPreview').hidden = false;
       $('lvPreview').innerHTML =
-        `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>`
-        + `<div class="r"><span>구간</span><b>${lvHm(pv.span.start)}~${lvHm(pv.span.end)}</b></div>`
+        `<div class="r"><span>종류</span><b>${esc(pv.type.name)}</b></div>`
+        + `<div class="r"><span>날짜</span><b>${esc(T.label(T.fromKey(pv.dateKey)))}</b></div>`
+        + `<div class="r"><span>시간</span><b>${lvHm(pv.span.start)} ~ ${lvHm(pv.span.end)}</b></div>`
         + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
         + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
         + (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
@@ -292,16 +293,27 @@
   // Capacitor 의 document.cookie 세터는 문자열의 domain= 을 파싱해
   // 네이티브 CookieManager 로 넘긴다. 그래서 domain 을 명시하면 앱 출처와
   // 무관하게 gw.goorm.io 쿠키를 심을 수 있다.
-  // 네이티브: Capacitor 의 document.cookie 세터가 domain= 을 파싱해 네이티브
-  //   CookieManager 로 넘긴다. 호스트를 그대로 지정할 수 있다.
-  // 웹: 브라우저는 형제 도메인(gw.goorm.io)에 쿠키를 세우는 걸 거부한다. 대신
-  //   상위 도메인(goorm.io)으로 세우면 gw.goorm.io 로 이동할 때 실려 간다 —
-  //   두 도메인이 same-site 라서 가능하다. 여기가 웹에서 로그인 화면이 뜨던 이유다.
+  const GW_COOKIES = ['oAuthToken', 'signKey', 'BIZCUBE_AT', 'BIZCUBE_HK', 'BIZCUBE_TYPE'];
+
+  // 네이티브에서만 쿠키를 심는다. Capacitor 의 document.cookie 세터가 domain= 을
+  // 파싱해 네이티브 CookieManager 로 넘기고, WebView 는 깨끗한 상태로 시작한다.
   function setGwCookie(key, value) {
-    const host = new URL(GW.api.ORIGIN).hostname;          // gw.goorm.io
-    const domain = isNative() ? host : host.split('.').slice(-2).join('.');   // 웹은 goorm.io
-    const secure = location.protocol === 'https:' ? '; secure' : '';
-    document.cookie = `${key}=${value}; domain=${domain}; path=/; samesite=lax${secure}`;
+    document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
+  }
+
+  // 웹에서 상위 도메인(goorm.io)으로 심었던 쿠키를 지운다.
+  //
+  // gw.goorm.io 에는 이미 호스트 전용 쿠키가 있는데 같은 이름을 goorm.io 로 또
+  // 심으면 브라우저가 둘 다 보낸다 — oAuthToken=A; oAuthToken=B.
+  // 서버가 그걸 받고 resultCode -1 "로그인 시 문제가 발생하였습니다" 로 터진다.
+  // 멀쩡한 세션을 우리가 깨고 있었다. 심지 않는 게 맞고, 이미 심은 건 치운다.
+  function clearPlantedCookies() {
+    const parent = new URL(GW.api.ORIGIN).hostname.split('.').slice(-2).join('.');
+    for (const k of GW_COOKIES) {
+      document.cookie = `${k}=; domain=${parent}; path=/; max-age=0`;
+      document.cookie = `${k}=; domain=.${parent}; path=/; max-age=0`;
+      document.cookie = `${k}=; path=/; max-age=0`;
+    }
   }
 
   function injectSessionCookies() {
@@ -322,7 +334,12 @@
   //   2) 서버가 심게 한다. loginType=set-cookie 로 5개를 내려준다
   async function ensureGwSession() {
     let planted = '';
-    try { injectSessionCookies(); } catch (e) { planted = e.message || String(e); }
+    // 웹에서는 심지 않는다. 오히려 치운다 (위 clearPlantedCookies 설명 참고).
+    if (isNative()) {
+      try { injectSessionCookies(); } catch (e) { planted = e.message || String(e); }
+    } else {
+      clearPlantedCookies();
+    }
     let served = '';
     try { await GW.api.establishWebSession(); } catch (e) { served = e.message || String(e); }
     const r = await GW.api.hasWebSession();
@@ -397,6 +414,9 @@
   };
 
   (async () => {
+    // 예전 버전이 goorm.io 로 심어 둔 쿠키를 치운다. 그대로 두면 gw.goorm.io 의
+    // 진짜 쿠키와 이름이 겹쳐 둘 다 전송되고, 서버가 로그인 처리에서 터진다.
+    if (!isNative()) clearPlantedCookies();
     const s = await GW.auth.restore();
     if (s) enterMain(); else show('loginView');
   })();
