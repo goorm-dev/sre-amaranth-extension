@@ -253,7 +253,23 @@
 
   async function lvSubmit() {
     if (!lvState) return;
-    $('lvSubmit').disabled = true; $('lvMsg').textContent = '신청서 만드는 중…';
+    $('lvSubmit').disabled = true;
+
+    // 결재 화면은 gw.goorm.io 세션이 있어야 열린다. 앱 로그인과는 별개다
+    // (앱은 토큰으로 API 를 부르고, 결재 화면은 브라우저 세션으로 뜬다).
+    // 세션이 없는데 초안부터 만들면 상신 못 하는 미상신 문서만 쌓인다.
+    if (!isNative()) {
+      $('lvMsg').textContent = '결재 세션 확인 중…';
+      if (!(await GW.api.hasWebSession())) {
+        $('lvMsg').textContent = '결재 화면을 열려면 gw.goorm.io 에 먼저 로그인해야 합니다.\n'
+          + '아래에서 로그인한 뒤 돌아와 다시 눌러 주세요. (신청서는 아직 만들지 않았습니다)';
+        $('lvGwLogin').hidden = false;
+        $('lvSubmit').disabled = false;
+        return;
+      }
+    }
+
+    $('lvMsg').textContent = '신청서 만드는 중…';
     try {
       const r = await GW.leave.submit(lvState.pv, lvState.sched);
       $('lvMsg').textContent = '결재 화면을 여는 중…';
@@ -292,9 +308,13 @@
     // 네이티브에서만 쿠키를 심는다. 웹에서는 브라우저가 가진 gw 세션을 그대로 쓴다
     // (없으면 로그인 화면이 뜨고, 로그인하면 이어진다 — approkey 는 서버에 등록돼
     //  있어 세션과 무관하다).
-    if (isNative()) injectSessionCookies();
-    // 서버가 쿠키를 심어주는 경로도 태워 본다. 실패해도 그냥 진행한다.
-    try { await GW.api.establishWebSession(); } catch (_) {}
+    // 웹에서는 쿠키를 심을 수 없다. 앱 출처에서 gw.goorm.io 쿠키를 세우는 경로가
+    // 실제로는 동작하지 않는다 — 그래서 lvSubmit 에서 세션을 먼저 확인한다.
+    // 네이티브는 WebView 를 직접 몰기 때문에 주입 경로가 남아 있다.
+    if (isNative()) {
+      injectSessionCookies();
+      try { await GW.api.establishWebSession(); } catch (_) {}
+    }
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
@@ -309,7 +329,8 @@
   $('lvNext').onclick = lvPreview;
   $('lvSubmit').onclick = lvSubmit;
   $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
-  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
+  $('lvGwLogin').onclick = () => { window.open(GW.api.ORIGIN, '_blank'); };
+  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; $('lvGwLogin').hidden = true; };
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };

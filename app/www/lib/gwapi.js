@@ -68,11 +68,15 @@
 
   // 로그인 계열(/gw/gw050A02)은 application/x-www-form-urlencoded 로 보내야 한다.
   // JSON 으로 보내면 서버가 본문을 못 읽어 resultCode -1 이 난다.
-  async function callUncert(pathname, body, { form = false } = {}) {
+  // withCredentials: 응답의 Set-Cookie 를 브라우저가 저장하게 한다.
+  // fetch 의 기본값은 'same-origin' 이라, 다른 출처(gw.goorm.io)가 내려준 쿠키를
+  // 그냥 버린다. 세션을 심는 호출에서는 반드시 켜야 한다.
+  async function callUncert(pathname, body, { form = false, withCredentials = false } = {}) {
     const { tid, signature } = await uncertSign(pathname);
     const headers = { signature, 'transaction-id': tid };
     const res = await fetch(ORIGIN + pathname, {
       method: 'POST',
+      credentials: withCredentials ? 'include' : 'same-origin',
       headers: Object.assign({
         'Accept': '*/*',
         'Content-type': form ? 'application/x-www-form-urlencoded' : 'application/json',
@@ -215,6 +219,10 @@
   }
 
   // 보관 중인 토큰으로 서버가 gw.goorm.io 쿠키를 심게 한다.
+  //
+  // 웹(worktime.goorm.io)에서도 통한다. 두 도메인은 등록가능도메인이 goorm.io 로
+  // 같아 same-site 라서, 쿠키가 저장되기만 하면 gw.goorm.io 로 이동할 때 실려 간다.
+  // 저장되게 하려면 credentials:'include' 가 필요하다 — 교차 출처라서.
   // 응답의 Set-Cookie 가 네이티브 CookieManager 에 저장되고, WebView 가 이를 공유하므로
   // 이후 gw.goorm.io 로 이동하면 로그인된 상태로 열린다.
   // (form-urlencoded 필수 — JSON 으로 보내면 resultCode -1)
@@ -225,15 +233,29 @@
       oAuthToken: session.token,
       signKey: session.signKey,
       a10Domain: ORIGIN,
-    }, { form: true });
+    }, { form: true, withCredentials: true });
     if (!r.json || r.json.resultCode !== 0) {
       throw new Error((r.json && r.json.resultMsg) || `세션 전달 실패 (${r.status})`);
     }
     return true;
   }
 
+  // 이 브라우저에 gw.goorm.io 세션이 있는가.
+  // 그룹웨어 결재 팝업이 뜰 때 하는 것과 똑같은 호출이다 (캡처로 확인:
+  // a10Domain 만 보내고 resultCode 200 "이미 로그인된 사용자입니다" 를 받는다).
+  // 교차 출처라 쿠키를 태우려면 credentials 가 필요하다.
+  async function hasWebSession() {
+    try {
+      const r = await callUncert('/gw/gw050A02', { a10Domain: ORIGIN },
+        { form: true, withCredentials: true });
+      return !!(r.json && r.json.resultCode === 200);
+    } catch (_) {
+      return false;
+    }
+  }
+
   GW.api = {
-    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession,
+    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession, hasWebSession,
     setSession, getSession,
     getWorkTimeList, getMonth, getLeaveList, getMonthLeaves, getComeLeave, getHolidays,
   };
