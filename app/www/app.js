@@ -320,19 +320,16 @@
       try { injectSessionCookies(); } catch (_) {}
     }
 
-    // 서버가 gw.goorm.io 쿠키를 심게 한다. 웹에서 통하는 유일한 경로다.
-    // 응답이 Set-Cookie 5개(Path=/; Secure; HttpOnly)를 내려주고, 헤드리스 크롬으로
-    // 브라우저가 이를 gw.goorm.io 쿠키로 정상 저장하는 것까지 확인했다.
+    // 웹에서는 쿠키를 건드리지 않는다.
     //
-    // 붙었는지 JS 로 확인하려던 시도는 접었다. HttpOnly 라 읽을 수 없고, 확인용
-    // 호출(/gw/gw050A02 + a10Domain)은 교차 출처에서 Origin 과 a10Domain 이
-    // 달라 세션이 있어도 -1 을 낸다. 가짜 실패만 만들었다.
-    try {
-      await GW.api.establishWebSession();
-    } catch (e) {
-      $('lvMsg').textContent = `세션 전달 실패: ${e.message || e}`;
-      await new Promise((r) => setTimeout(r, 2000));
-    }
+    // loginType=set-cookie 는 세션을 만드는 게 아니라 검증 없이 "이 값을 쿠키로
+    // 써줘" 하는 헬퍼다 — 더미 토큰을 보내도 그대로 써준다. 그런데 우리 토큰은
+    // API 서명에는 유효해도 gw 웹 세션으로는 인정되지 않는다. 그래서 이걸 부르면
+    // 사용자가 gw.goorm.io 에 직접 로그인해 만든 멀쩡한 세션 쿠키를 덮어써서
+    // 오히려 로그인 화면으로 떨어뜨린다. 부르지 않는 게 맞다.
+    //
+    // 네이티브는 WebView 가 빈 쿠키통으로 시작하므로 덮어쓸 세션이 없고,
+    // 실제로 그 경로로 동작이 확인됐다.
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
