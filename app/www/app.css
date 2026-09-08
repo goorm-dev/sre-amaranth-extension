@@ -134,8 +134,8 @@ header .nav#leaveBtn { font-size: 22px; }
    설정 시트의 좁은 숫자 칸(.sheetcard input { width: 90px })과 분리한다.
    font-size 16px 미만이면 iOS 가 포커스 때 화면을 확대해 버린다. */
 #leaveSheet label { display: block; margin-bottom: 14px; }
-#leaveSheet label > input,
-#leaveSheet label > select {
+#leaveSheet input,
+#leaveSheet select {
   width: 100%; box-sizing: border-box; margin-top: 6px;
   padding: 12px; font-size: 16px;
 }

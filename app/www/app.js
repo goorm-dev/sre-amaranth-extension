@@ -256,25 +256,9 @@
     if (!lvState) return;
     $('lvSubmit').disabled = true;
 
-    // 결재 화면은 gw.goorm.io 세션이 있어야 열린다. 앱 로그인과는 별개다
-    // (앱은 토큰으로 API 를 부르고, 결재 화면은 브라우저 세션으로 뜬다).
-    // 세션이 없는데 초안부터 만들면 상신 못 하는 미상신 문서만 쌓인다.
-    if (!isNative()) {
-      $('lvMsg').textContent = '결재 세션 준비 중…';
-      const ses = await ensureGwSession();
-      if (!ses.ok) {
-        // 왜 안 되는지 서버가 한 말을 그대로 보여 준다. 추측으로 좁히지 않는다.
-        $('lvMsg').textContent = 'gw 결재 세션을 확인하지 못했습니다. (신청서는 만들지 않았습니다)\n'
-          + `resultCode=${ses.code} status=${ses.status} ${ses.msg}\n`
-          + `쿠키=${ses.seen.length ? ses.seen.join(',') : '(없음)'}`
-          + (ses.planted ? `\n심기실패: ${ses.planted}` : '')
-          + (ses.served ? `\n서버심기실패: ${ses.served}` : '');
-        $('lvGwLogin').hidden = false;
-        $('lvSubmit').disabled = false;
-        return;
-      }
-    }
-
+    // 세션을 미리 확인하지 않는다. 교차 출처에서 그 확인을 하면 gw 에 로그인돼
+    // 있어도 resultCode -1 이 나온다 — 오탐이었고, 되던 흐름을 막고 있었다.
+    // 확장도 안드로이드도 확인 없이 그냥 이동한다. 같게 간다.
     $('lvMsg').textContent = '신청서 만드는 중…';
     try {
       const r = await GW.leave.submit(lvState.pv, lvState.sched);
@@ -329,31 +313,14 @@
   const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
     && window.Capacitor.isNativePlatform());
 
-  // gw.goorm.io 세션을 확보한다. 두 경로를 다 태운다 — 하나만 통해도 된다.
-  //   1) 우리가 직접 심는다. 웹은 상위 도메인(goorm.io)으로 세워야 실려 간다
-  //   2) 서버가 심게 한다. loginType=set-cookie 로 5개를 내려준다
-  async function ensureGwSession() {
-    let planted = '';
-    // 웹에서는 심지 않는다. 오히려 치운다 (위 clearPlantedCookies 설명 참고).
-    if (isNative()) {
-      try { injectSessionCookies(); } catch (e) { planted = e.message || String(e); }
-    } else {
-      clearPlantedCookies();
-    }
-    let served = '';
-    try { await GW.api.establishWebSession(); } catch (e) { served = e.message || String(e); }
-    const r = await GW.api.hasWebSession();
-    // 우리가 심은 쿠키가 실제로 문서에 붙었는지. goorm.io 로 세웠으면 여기 보인다.
-    const seen = document.cookie.split('; ')
-      .map((c) => c.split('=')[0])
-      .filter((n) => /oAuthToken|signKey|BIZCUBE/.test(n));
-    return Object.assign({}, r, { planted, served, seen });
-  }
-
   async function openApproval(hash) {
-    // 네이티브에서만 쿠키를 심는다. 웹에서는 브라우저가 가진 gw 세션을 그대로 쓴다
-    // (없으면 로그인 화면이 뜨고, 로그인하면 이어진다 — approkey 는 서버에 등록돼
-    //  있어 세션과 무관하다).
+    // 네이티브는 검증된 경로 그대로 — 쿠키를 심고 WebView 를 옮긴다.
+    // 웹은 브라우저가 가진 gw 세션을 그대로 쓴다. 없으면 로그인 화면이 뜨고,
+    // 로그인하면 이어진다 (approkey 는 서버에 등록돼 있어 세션과 무관하다).
+    if (isNative()) {
+      try { injectSessionCookies(); } catch (_) {}
+      try { await GW.api.establishWebSession(); } catch (_) {}
+    }
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
