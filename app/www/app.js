@@ -277,59 +277,25 @@
   // Capacitor 의 document.cookie 세터는 문자열의 domain= 을 파싱해
   // 네이티브 CookieManager 로 넘긴다. 그래서 domain 을 명시하면 앱 출처와
   // 무관하게 gw.goorm.io 쿠키를 심을 수 있다.
-  const GW_COOKIES = ['oAuthToken', 'signKey', 'BIZCUBE_AT', 'BIZCUBE_HK', 'BIZCUBE_TYPE'];
-
   // 네이티브에서만 쿠키를 심는다. Capacitor 의 document.cookie 세터가 domain= 을
   // 파싱해 네이티브 CookieManager 로 넘기고, WebView 는 깨끗한 상태로 시작한다.
   function setGwCookie(key, value) {
     document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
   }
 
-  // 웹에서 상위 도메인(goorm.io)으로 심었던 쿠키를 지운다.
-  //
-  // gw.goorm.io 에는 이미 호스트 전용 쿠키가 있는데 같은 이름을 goorm.io 로 또
-  // 심으면 브라우저가 둘 다 보낸다 — oAuthToken=A; oAuthToken=B.
-  // 서버가 그걸 받고 resultCode -1 "로그인 시 문제가 발생하였습니다" 로 터진다.
-  // 멀쩡한 세션을 우리가 깨고 있었다. 심지 않는 게 맞고, 이미 심은 건 치운다.
-  function clearPlantedCookies() {
-    const parent = new URL(GW.api.ORIGIN).hostname.split('.').slice(-2).join('.');
-    for (const k of GW_COOKIES) {
-      document.cookie = `${k}=; domain=${parent}; path=/; max-age=0`;
-      document.cookie = `${k}=; domain=.${parent}; path=/; max-age=0`;
-      document.cookie = `${k}=; path=/; max-age=0`;
-    }
-  }
-
-  function injectSessionCookies() {
-    const s = GW.api.getSession();
-    if (!s || !s.token) throw new Error('로그인이 필요합니다.');
-    setGwCookie('oAuthToken', s.token);
-    setGwCookie('signKey', s.signKey);
-    setGwCookie('BIZCUBE_AT', s.token);
-    setGwCookie('BIZCUBE_HK', s.signKey);
-    setGwCookie('BIZCUBE_TYPE', 'WEB');
-  }
-
-  const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
-    && window.Capacitor.isNativePlatform());
-
   async function openApproval(hash) {
-    // 네이티브는 검증된 경로 그대로 — 쿠키를 직접 심는다. Capacitor 가 domain= 을
-    // 파싱해 네이티브 CookieManager 로 넘기고 WebView 가 그 쿠키통을 쓴다.
+    // 네이티브는 검증된 경로 그대로 — 두 가지를 다 태운다(v1.1.0 APK 와 동일).
+    //   1) 쿠키를 직접 심는다. Capacitor 가 domain= 을 파싱해 네이티브
+    //      CookieManager 로 넘기고 WebView 가 그 쿠키통을 쓴다.
+    //   2) 서버가 심게 한다. loginType=set-cookie 로 5개를 내려준다.
     if (isNative()) {
       try { injectSessionCookies(); } catch (_) {}
+      try { await GW.api.establishWebSession(); } catch (_) {}
     }
 
-    // 웹에서는 쿠키를 건드리지 않는다.
-    //
-    // loginType=set-cookie 는 세션을 만드는 게 아니라 검증 없이 "이 값을 쿠키로
-    // 써줘" 하는 헬퍼다 — 더미 토큰을 보내도 그대로 써준다. 그런데 우리 토큰은
-    // API 서명에는 유효해도 gw 웹 세션으로는 인정되지 않는다. 그래서 이걸 부르면
-    // 사용자가 gw.goorm.io 에 직접 로그인해 만든 멀쩡한 세션 쿠키를 덮어써서
-    // 오히려 로그인 화면으로 떨어뜨린다. 부르지 않는 게 맞다.
-    //
-    // 네이티브는 WebView 가 빈 쿠키통으로 시작하므로 덮어쓸 세션이 없고,
-    // 실제로 그 경로로 동작이 확인됐다.
+    // 브라우저에서 열면 쿠키를 건드리지 않는다. 우리 토큰은 gw 웹 세션으로
+    // 인정되지 않고, 오히려 사용자의 진짜 세션을 덮어써서 로그아웃시킨다
+    // (README "웹앱은 불가능하다" 참고).
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
@@ -344,8 +310,7 @@
   $('lvNext').onclick = lvPreview;
   $('lvSubmit').onclick = lvSubmit;
   $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
-  $('lvGwLogin').onclick = () => { window.open(GW.api.ORIGIN, '_blank'); };
-  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; $('lvGwLogin').hidden = true; };
+  $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
 
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
@@ -390,9 +355,6 @@
   };
 
   (async () => {
-    // 예전 버전이 goorm.io 로 심어 둔 쿠키를 치운다. 그대로 두면 gw.goorm.io 의
-    // 진짜 쿠키와 이름이 겹쳐 둘 다 전송되고, 서버가 로그인 처리에서 터진다.
-    if (!isNative()) clearPlantedCookies();
     const s = await GW.auth.restore();
     if (s) enterMain(); else show('loginView');
   })();

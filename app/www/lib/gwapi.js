@@ -240,53 +240,8 @@
     return true;
   }
 
-  // 이 브라우저에 gw.goorm.io 세션이 있는가.
-  // 그룹웨어 결재 팝업이 뜰 때 하는 것과 똑같은 호출이다 (캡처로 확인:
-  // a10Domain 만 보내고 resultCode 200 "이미 로그인된 사용자입니다" 를 받는다).
-  // 교차 출처라 쿠키를 태우려면 credentials 가 필요하다.
-  async function hasWebSession() {
-    try {
-      const r = await callUncert('/gw/gw050A02', { a10Domain: ORIGIN },
-        { form: true, withCredentials: true });
-      const code = r.json ? r.json.resultCode : null;
-      return {
-        ok: code === 200,
-        code,
-        status: r.status,
-        msg: (r.json && r.json.resultMsg) || (r.text || '').slice(0, 120),
-      };
-    } catch (e) {
-      return { ok: false, code: null, status: 0, msg: e.message || String(e) };
-    }
-  }
-
-  // 쿠키가 실제로 붙었는지 서버에 물어본다. HttpOnly 라 JS 로는 볼 수 없다.
-  //
-  // /gw/gw050A24 를 쓰려다 실패했다 — /get_token/ 이 그 경로에는 서명을 발급하지
-  // 않는다(401). 인증 전 서명이 허용되는 경로만 쓸 수 있다.
-  // 대신 결재 팝업이 부팅할 때 부르는 것과 같은 호출을 쓴다. 세션이 있으면
-  // resultCode 200 "이미 로그인된 사용자입니다" 와 sessionInfo 가 온다.
-  async function whoAmI() {
-    try {
-      const r = await callUncert('/gw/gw050A02', { a10Domain: ORIGIN },
-        { form: true, withCredentials: true });
-      const code = r.json ? r.json.resultCode : null;
-      const info = r.json && r.json.resultData && r.json.resultData.sessionInfo;
-      const uc = info && info.ucUserInfo;
-      return {
-        ok: code === 200,
-        who: (uc && uc.loginId) || (info && info.portal_id) || null,
-        code,
-        status: r.status,
-        msg: (r.json && r.json.resultMsg) || (r.text || '').slice(0, 100),
-      };
-    } catch (e) {
-      return { ok: false, who: null, code: null, status: 0, msg: e.message || String(e) };
-    }
-  }
-
   GW.api = {
-    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession, hasWebSession, whoAmI,
+    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession,
     setSession, getSession,
     getWorkTimeList, getMonth, getLeaveList, getMonthLeaves, getComeLeave, getHolidays,
   };

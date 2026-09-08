@@ -8,7 +8,8 @@
 //
 // 요청은 application/x-www-form-urlencoded, 값은 Base64(UTF-8). 성공 코드는 0 이 아니라 200.
 //
-// 이 호출에 credentials:'include' 를 붙이면 로그인 자체가 깨진다. 붙이지 말 것.
+// credentials 는 붙이지 않는다. 웹에서 gw 세션을 이관하려고 붙여 봤지만, 우리
+// 토큰은 gw 웹 세션으로 인정되지 않아 소용이 없었다(README 참고).
 // credentialEncryptUseYn 이 "Y" 면 AES-128 이지만 현재 조회값은 "N".
 (function (root) {
   const GW = (root.GW = root.GW || {});
