@@ -285,11 +285,17 @@
     setGwCookie('BIZCUBE_TYPE', 'WEB');
   }
 
+  const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
+    && window.Capacitor.isNativePlatform());
+
   async function openApproval(hash) {
-    injectSessionCookies();
-    // 서버가 심어주는 경로도 함께 태운다 (둘 중 하나만 통해도 로그인이 유지된다).
+    // 네이티브에서만 쿠키를 심는다. 웹에서는 브라우저가 가진 gw 세션을 그대로 쓴다
+    // (없으면 로그인 화면이 뜨고, 로그인하면 이어진다 — approkey 는 서버에 등록돼
+    //  있어 세션과 무관하다).
+    if (isNative()) injectSessionCookies();
+    // 서버가 쿠키를 심어주는 경로도 태워 본다. 실패해도 그냥 진행한다.
     try { await GW.api.establishWebSession(); } catch (_) {}
-    window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 앱 복귀
+    window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
   $('leaveBtn').onclick = () => {

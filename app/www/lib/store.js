@@ -1,8 +1,12 @@
-// Capacitor Preferences 기반 저장소. 확장의 chrome.storage.local 자리를 대신한다.
+// 확장의 chrome.storage.local 자리를 대신한다.
 // 인터페이스는 확장과 같게 유지해서 calc.js 가 그대로 돌아가게 한다.
+//
+// 네이티브 앱에서는 Capacitor Preferences, 웹에서는 localStorage 를 쓴다.
+// 같은 코드가 두 곳에서 돌아야 해서 여기서 갈라 준다.
 (function (root) {
   const GW = (root.GW = root.GW || {});
-  const P = () => root.Capacitor.Plugins.Preferences;
+  const P = () => root.Capacitor && root.Capacitor.Plugins && root.Capacitor.Plugins.Preferences;
+  const native = () => !!P();
 
   const DEFAULT_SETTINGS = {
     dailyMinutes: 480,
@@ -13,15 +17,16 @@
   };
 
   async function get(key) {
-    const { value } = await P().get({ key });
+    const value = native() ? (await P().get({ key })).value : localStorage.getItem(key);
     if (value == null) return undefined;
     try { return JSON.parse(value); } catch (_) { return undefined; }
   }
   async function set(key, value) {
-    await P().set({ key, value: JSON.stringify(value) });
+    const v = JSON.stringify(value);
+    if (native()) await P().set({ key, value: v }); else localStorage.setItem(key, v);
   }
   async function remove(key) {
-    await P().remove({ key });
+    if (native()) await P().remove({ key }); else localStorage.removeItem(key);
   }
 
   async function getSettings() {

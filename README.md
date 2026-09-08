@@ -438,6 +438,61 @@ POST /human/openapi/attendapplication/saveLinkKey
 이동시킵니다. iframe 은 앱 출처(localhost)에 대해 서드파티라 안드로이드가 쿠키를
 막지만, 1st-party 이동이면 정상 적용됩니다.
 
+## 웹 배포 (아이폰 포함)
+
+**`gw.goorm.io` 는 CORS 를 반사형으로 열어 둡니다.** 존재하지 않는 도메인을 `Origin`
+으로 보내도 그대로 돌려줍니다.
+
+```
+Access-Control-Allow-Origin: <보낸 Origin 그대로>
+Access-Control-Allow-Headers: authorization, wehago-sign, timestamp, ...
+Access-Control-Allow-Credentials: true
+```
+
+그래서 **아무 웹페이지에서나 이 API 를 부를 수 있습니다.** 확장의 `host_permissions`
+도, 앱의 CapacitorHttp 도 CORS 때문에는 필요 없었습니다. `app/www` 를 그대로 정적
+호스팅하면 아이폰·안드로이드·PC 어디서나 됩니다. iOS Safari 에서 홈 화면에 추가하면
+앱처럼 뜹니다 — Xcode 도 개발자 계정도 필요 없습니다.
+
+같은 코드가 네이티브와 웹 양쪽에서 도는 지점은 둘뿐입니다.
+
+| | 네이티브 | 웹 |
+|---|---|---|
+| 저장소 | Capacitor Preferences | `localStorage` |
+| 결재 화면 | 쿠키 주입 후 WebView 이동 | 그대로 이동 (브라우저의 gw 세션 사용) |
+
+웹에서 gw 세션이 없으면 로그인 화면이 뜨고, 로그인하면 이어집니다 — `approkey` 는
+서버에 등록돼 있어 세션과 무관합니다.
+
+### 빌드·배포
+
+```
+docker build -t <registry>/worktime-web:<tag> .
+```
+
+백엔드가 없습니다. nginx 정적 서빙 하나뿐이고 **자격증명은 서버를 거치지 않습니다** —
+브라우저가 `gw.goorm.io` 를 직접 부릅니다.
+
+- [Dockerfile](Dockerfile) — nginx:alpine, 비루트(101), 읽기 전용 루트
+- [deploy/nginx.conf](deploy/nginx.conf) · [deploy/security-headers.conf](deploy/security-headers.conf)
+- [deploy/k8s/](deploy/k8s/) — Deployment·Service·Ingress. `REGISTRY`/호스트/IngressClass 는 TODO 로 표시해 뒀습니다
+
+> `add_header` 는 상속이 아닙니다. 하위 `location` 에 `add_header` 가 하나라도 있으면
+> 상위 것을 **전부 버립니다.** 그래서 보안 헤더를 별도 파일로 빼서 location 마다
+> `include` 합니다. 처음엔 server 블록에만 뒀다가 `/` 응답에서 CSP 가 통째로
+> 빠지는 걸 확인했습니다.
+
+### 공개 노출에 대해
+
+이 페이지는 **회사 그룹웨어 ID/PW 를 입력받습니다.** 토큰은 브라우저 안에만 있고
+서버로 가지 않지만, 공개 URL 에 있으면 형태상 피싱 페이지와 구분되지 않습니다.
+
+- `robots.txt` + `noindex` 로 색인은 막았습니다
+- CSP 로 `connect-src` 를 `gw.goorm.io` 로만 제한하고, `frame-ancestors 'none'` 으로
+  다른 사이트가 이 페이지를 감싸지 못하게 했습니다
+- **가능하면 사내망 IP 화이트리스트나 SSO 를 앞에 두세요.** 인그레스 주석에 자리를
+  남겨 뒀습니다
+
 ## 알려진 한계
 
 - 진행 중인 달의 소정근로시간은 공휴일 표 기반 **추정**입니다 (위 참고).
