@@ -261,8 +261,9 @@
     if (!isNative()) {
       $('lvMsg').textContent = '결재 세션 확인 중…';
       if (!(await GW.api.hasWebSession())) {
-        $('lvMsg').textContent = '결재 화면을 열려면 gw.goorm.io 에 먼저 로그인해야 합니다.\n'
-          + '아래에서 로그인한 뒤 돌아와 다시 눌러 주세요. (신청서는 아직 만들지 않았습니다)';
+        $('lvMsg').textContent = '결재 세션이 만료되었습니다. 앱에서 로그아웃 후 다시 로그인하거나,\n'
+          + '아래에서 gw.goorm.io 에 로그인한 뒤 돌아와 다시 눌러 주세요.\n'
+          + '(신청서는 아직 만들지 않았습니다)';
         $('lvGwLogin').hidden = false;
         $('lvSubmit').disabled = false;
         return;

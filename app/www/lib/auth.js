@@ -7,6 +7,11 @@
 //        성공 = resultCode 200 & resultData.sessionInfo (토큰 포함)
 //
 // 요청은 application/x-www-form-urlencoded, 값은 Base64(UTF-8). 성공 코드는 0 이 아니라 200.
+//
+// withCredentials 로 부른다. 이건 gw 로그인 페이지가 쓰는 바로 그 엔드포인트라,
+// 응답의 Set-Cookie 를 브라우저가 저장하게 두면 gw.goorm.io 세션까지 같이 생긴다.
+// 그래야 결재 화면을 열 때 로그인을 또 하지 않는다. (두 도메인은 등록가능도메인이
+// goorm.io 로 같아 same-site 이므로 이동할 때 쿠키가 실려 간다)
 // credentialEncryptUseYn 이 "Y" 면 AES-128 이지만 현재 조회값은 "N".
 (function (root) {
   const GW = (root.GW = root.GW || {});
@@ -58,7 +63,7 @@
     const s1 = await GW.api.callUncert(P, {
       loginId: encId, groupSeq, loginType: 'checkLoginId', apiTarget: 'web',
       langCode: 'kr', a10Domain: GW.api.ORIGIN,
-    }, { form: true });
+    }, { form: true, withCredentials: true });
     if (!s1.json || s1.json.resultCode !== 200) {
       const err = new Error((s1.json && s1.json.resultMsg) || `아이디 확인 실패 (${s1.status})`);
       err.diag = { step: 1, code: s1.json && s1.json.resultCode };
@@ -70,7 +75,7 @@
       loginId: encId, password: b64utf8(password), groupSeq,
       scLoginYn: 'N', fidoPasswdLoginYn: null, simpleLoginYn: 'Y',
       apiTarget: 'web', langCode: 'kr', a10Domain: GW.api.ORIGIN,
-    }, { form: true });
+    }, { form: true, withCredentials: true });
 
     if (!s2.json || s2.json.resultCode !== 200) {
       const err = new Error((s2.json && s2.json.resultMsg) || `로그인 실패 (${s2.status})`);
