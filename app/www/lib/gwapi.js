@@ -260,8 +260,27 @@
     }
   }
 
+  // 쿠키가 실제로 붙었는지 서버에 물어본다. HttpOnly 라 JS 로는 볼 수 없다.
+  // /gw/gw050A24 는 세션이 있어야 loginId·logonTime 을 돌려준다 (결재 팝업이
+  // 뜰 때 부르는 것을 캡처해서 확인했다).
+  async function whoAmI() {
+    try {
+      const r = await callUncert('/gw/gw050A24', {}, { withCredentials: true });
+      const d = (r.json && r.json.resultData) || null;
+      return {
+        ok: !!(d && d.loginId),
+        who: d && d.loginId,
+        code: r.json ? r.json.resultCode : null,
+        status: r.status,
+        msg: (r.json && r.json.resultMsg) || (r.text || '').slice(0, 100),
+      };
+    } catch (e) {
+      return { ok: false, who: null, code: null, status: 0, msg: e.message || String(e) };
+    }
+  }
+
   GW.api = {
-    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession, hasWebSession,
+    ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession, hasWebSession, whoAmI,
     setSession, getSession,
     getWorkTimeList, getMonth, getLeaveList, getMonthLeaves, getComeLeave, getHolidays,
   };

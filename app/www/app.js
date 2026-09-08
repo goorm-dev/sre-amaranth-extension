@@ -327,12 +327,20 @@
     // SameSite 가 없어 기본 Lax 이고, worktime.goorm.io ↔ gw.goorm.io 는 same-site
     // 라 저장·전송된다. 교차 출처라 credentials:'include' 가 필수다(callUncert).
     // HttpOnly 라 JS 로는 확인할 수 없으니, 실패하면 이유를 그대로 보여 준다.
+    let handoff = '';
     try {
       await GW.api.establishWebSession();
     } catch (e) {
-      $('lvMsg').textContent = `세션 전달 실패: ${e.message || e}\n`
-        + '결재 화면에서 로그인이 필요할 수 있습니다.';
-      await new Promise((r) => setTimeout(r, 1800));
+      handoff = `전달 실패: ${e.message || e}`;
+    }
+
+    // 쿠키가 실제로 붙었는지 서버에 확인한다. HttpOnly 라 JS 로는 볼 수 없어서,
+    // 세션이 있어야 답하는 엔드포인트에 물어보는 수밖에 없다.
+    const me = await GW.api.whoAmI();
+    if (!me.ok) {
+      $('lvMsg').textContent = 'gw 세션이 붙지 않았습니다. 결재 화면에서 로그인해 주세요.\n'
+        + `${handoff ? handoff + '\n' : ''}whoAmI: code=${me.code} status=${me.status} ${me.msg}`;
+      await new Promise((r) => setTimeout(r, 4000));
     }
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
