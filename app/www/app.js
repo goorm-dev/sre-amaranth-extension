@@ -259,8 +259,8 @@
     // (앱은 토큰으로 API 를 부르고, 결재 화면은 브라우저 세션으로 뜬다).
     // 세션이 없는데 초안부터 만들면 상신 못 하는 미상신 문서만 쌓인다.
     if (!isNative()) {
-      $('lvMsg').textContent = '결재 세션 확인 중…';
-      if (!(await GW.api.hasWebSession())) {
+      $('lvMsg').textContent = '결재 세션 준비 중…';
+      if (!(await ensureGwSession())) {
         $('lvMsg').textContent = '결재 세션이 만료되었습니다. 앱에서 로그아웃 후 다시 로그인하거나,\n'
           + '아래에서 gw.goorm.io 에 로그인한 뒤 돌아와 다시 눌러 주세요.\n'
           + '(신청서는 아직 만들지 않았습니다)';
@@ -288,8 +288,16 @@
   // Capacitor 의 document.cookie 세터는 문자열의 domain= 을 파싱해
   // 네이티브 CookieManager 로 넘긴다. 그래서 domain 을 명시하면 앱 출처와
   // 무관하게 gw.goorm.io 쿠키를 심을 수 있다.
+  // 네이티브: Capacitor 의 document.cookie 세터가 domain= 을 파싱해 네이티브
+  //   CookieManager 로 넘긴다. 호스트를 그대로 지정할 수 있다.
+  // 웹: 브라우저는 형제 도메인(gw.goorm.io)에 쿠키를 세우는 걸 거부한다. 대신
+  //   상위 도메인(goorm.io)으로 세우면 gw.goorm.io 로 이동할 때 실려 간다 —
+  //   두 도메인이 same-site 라서 가능하다. 여기가 웹에서 로그인 화면이 뜨던 이유다.
   function setGwCookie(key, value) {
-    document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
+    const host = new URL(GW.api.ORIGIN).hostname;          // gw.goorm.io
+    const domain = isNative() ? host : host.split('.').slice(-2).join('.');   // 웹은 goorm.io
+    const secure = location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = `${key}=${value}; domain=${domain}; path=/; samesite=lax${secure}`;
   }
 
   function injectSessionCookies() {
@@ -305,17 +313,19 @@
   const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
     && window.Capacitor.isNativePlatform());
 
+  // gw.goorm.io 세션을 확보한다. 두 경로를 다 태운다 — 하나만 통해도 된다.
+  //   1) 우리가 직접 심는다. 웹은 상위 도메인(goorm.io)으로 세워야 실려 간다
+  //   2) 서버가 심게 한다. loginType=set-cookie 로 5개를 내려준다
+  async function ensureGwSession() {
+    try { injectSessionCookies(); } catch (_) {}
+    try { await GW.api.establishWebSession(); } catch (_) {}
+    return GW.api.hasWebSession();
+  }
+
   async function openApproval(hash) {
     // 네이티브에서만 쿠키를 심는다. 웹에서는 브라우저가 가진 gw 세션을 그대로 쓴다
     // (없으면 로그인 화면이 뜨고, 로그인하면 이어진다 — approkey 는 서버에 등록돼
     //  있어 세션과 무관하다).
-    // 웹에서는 쿠키를 심을 수 없다. 앱 출처에서 gw.goorm.io 쿠키를 세우는 경로가
-    // 실제로는 동작하지 않는다 — 그래서 lvSubmit 에서 세션을 먼저 확인한다.
-    // 네이티브는 WebView 를 직접 몰기 때문에 주입 경로가 남아 있다.
-    if (isNative()) {
-      injectSessionCookies();
-      try { await GW.api.establishWebSession(); } catch (_) {}
-    }
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
