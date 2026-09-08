@@ -283,6 +283,19 @@
     document.cookie = `${key}=${value}; domain=${new URL(GW.api.ORIGIN).hostname}; path=/`;
   }
 
+  function injectSessionCookies() {
+    const s = GW.api.getSession();
+    if (!s || !s.token) throw new Error('로그인이 필요합니다.');
+    setGwCookie('oAuthToken', s.token);
+    setGwCookie('signKey', s.signKey);
+    setGwCookie('BIZCUBE_AT', s.token);
+    setGwCookie('BIZCUBE_HK', s.signKey);
+    setGwCookie('BIZCUBE_TYPE', 'WEB');
+  }
+
+  const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform
+    && window.Capacitor.isNativePlatform());
+
   async function openApproval(hash) {
     // 네이티브는 검증된 경로 그대로 — 두 가지를 다 태운다(v1.1.0 APK 와 동일).
     //   1) 쿠키를 직접 심는다. Capacitor 가 domain= 을 파싱해 네이티브

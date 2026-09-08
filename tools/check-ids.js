@@ -1,4 +1,6 @@
-// 스크립트가 참조하는 엘리먼트 id 가 HTML 에 실제로 있는지 검사한다.
+// 배포 전 정적 검사.
+//
+//   1) 스크립트가 참조하는 엘리먼트 id 가 HTML 에 실제로 있는지
 //
 // 없으면 $('...').onclick = ... 이 평가 도중 TypeError 를 내고, 그 뒤의 모든
 // 바인딩이 통째로 죽는다. 증상은 "버튼이 아무 반응 없음" 이라 원인을 찾기 어렵다.
@@ -28,4 +30,19 @@ for (const [htmlPath, jsPaths] of PAIRS) {
     }
   }
 }
+//   2) 정의되지 않은 식별자 (eslint no-undef)
+//
+// 둘 다 증상이 "그 기능만 조용히 죽음" 이라 눈으로는 못 잡는다. 실제로 없는 버튼
+// 참조로 로그인 버튼이 통째로 죽었고, 범위 삭제가 isNative·injectSessionCookies
+// 정의를 삼켜 결재 화면 열기가 깨진 채로 APK 가 나갔다.
+const { execFileSync } = require('child_process');
+const TARGETS = ['app/www/app.js', 'app/www/lib', 'src'];
+try {
+  execFileSync('eslint', TARGETS.filter((t) => fs.existsSync(t)), { stdio: 'inherit' });
+  console.log('✓ eslint no-undef 통과');
+} catch (e) {
+  console.error('✗ eslint 검사 실패');
+  bad++;
+}
+
 process.exit(bad ? 1 : 0);
