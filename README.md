@@ -438,70 +438,39 @@ POST /human/openapi/attendapplication/saveLinkKey
 이동시킵니다. iframe 은 앱 출처(localhost)에 대해 서드파티라 안드로이드가 쿠키를
 막지만, 1st-party 이동이면 정상 적용됩니다.
 
-## 웹 배포 (아이폰 포함)
+## 웹앱은 불가능하다 (시도했다가 접음)
 
-**`gw.goorm.io` 는 CORS 를 반사형으로 열어 둡니다.** 존재하지 않는 도메인을 `Origin`
-으로 보내도 그대로 돌려줍니다.
+`app/www` 를 정적 호스팅해 아이폰에서도 쓰려고 했다. 접었다. 이유를 남긴다.
 
-```
-Access-Control-Allow-Origin: <보낸 Origin 그대로>
-Access-Control-Allow-Headers: authorization, wehago-sign, timestamp, ...
-Access-Control-Allow-Credentials: true
-```
+**CORS 는 열려 있다.** `gw.goorm.io` 는 `Origin` 을 그대로 반사하고
+`Access-Control-Allow-Credentials: true` 를 준다. 그래서 자체 로그인으로 API 를
+부르는 것 자체는 웹에서도 된다.
 
-그래서 **아무 웹페이지에서나 이 API 를 부를 수 있습니다.** 확장의 `host_permissions`
-도, 앱의 CapacitorHttp 도 CORS 때문에는 필요 없었습니다. `app/www` 를 그대로 정적
-호스팅하면 아이폰·안드로이드·PC 어디서나 됩니다. iOS Safari 에서 홈 화면에 추가하면
-앱처럼 뜹니다 — Xcode 도 개발자 계정도 필요 없습니다.
+**막히는 건 두 가지다.**
 
-같은 코드가 네이티브와 웹 양쪽에서 도는 지점은 둘뿐입니다.
-
-| | 네이티브 | 웹 |
-|---|---|---|
-| 저장소 | Capacitor Preferences | `localStorage` |
-| 결재 화면 | 쿠키 주입 후 WebView 이동 | 그대로 이동 (브라우저의 gw 세션 사용) |
-
-웹에서 gw 세션이 없으면 로그인 화면이 뜨고, 로그인하면 이어집니다 — `approkey` 는
-서버에 등록돼 있어 세션과 무관합니다.
-
-### 배포된 곳
-
-| | |
-|---|---|
-| 주소 | `https://worktime.goorm.io` |
-| 클러스터 | `internal-k8s` (EKS, ap-northeast-2) · 네임스페이스 `worktime` |
-| 이미지 | `879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/goorm/worktime-web` |
-| 인그레스 | `internal-public` ALB 그룹 (`group.order: 120`) |
-| GitOps | [goorm-dev/gitops `i-k8s/worktime-web/`](https://github.com/goorm-dev/gitops/tree/main/i-k8s/worktime-web) |
+**① 브라우저의 gw 세션으로 API 를 부를 수 없다** — 익스텐션 방식이 웹에서 안 되는 이유.
 
 ```
-# 노드가 amd64 라 맥(arm64)에서는 크로스 빌드해야 한다
-docker buildx build --platform linux/amd64 \
-  -t 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/goorm/worktime-web:<tag> --push .
+쿠키만      → 601 "허용된 쿠키 인증 URL이 아닙니다"
+서명+쿠키   → 107 "GetToken 요청 시, 비인증 URL을 레디스에서 찾을 수 없습니다"
 ```
 
-백엔드가 없습니다. nginx 정적 서빙 하나뿐이고 **자격증명은 서버를 거치지 않습니다** —
-브라우저가 `gw.goorm.io` 를 직접 부릅니다.
+`/human/*` 는 `wehago-sign`(사용자 `signKey` 로 만드는 HMAC)을 요구하는데,
+`signKey` 는 **HttpOnly 쿠키**라 웹 페이지에서 읽을 수 없다. 익스텐션은
+`chrome.cookies` 로 HttpOnly 를 읽을 수 있어서 가능한 것이다.
 
-- [Dockerfile](Dockerfile) — nginx:alpine, 비루트(101), 읽기 전용 루트
-- [deploy/nginx.conf](deploy/nginx.conf) · [deploy/security-headers.conf](deploy/security-headers.conf)
-- [deploy/k8s/](deploy/k8s/) — Deployment·Service·Ingress. `REGISTRY`/호스트/IngressClass 는 TODO 로 표시해 뒀습니다
+**② 결재 화면에 세션을 넘길 수 없다.**
 
-> `add_header` 는 상속이 아닙니다. 하위 `location` 에 `add_header` 가 하나라도 있으면
-> 상위 것을 **전부 버립니다.** 그래서 보안 헤더를 별도 파일로 빼서 location 마다
-> `include` 합니다. 처음엔 server 블록에만 뒀다가 `/` 응답에서 CSP 가 통째로
-> 빠지는 걸 확인했습니다.
+`loginType=set-cookie` 는 세션을 만드는 게 아니라 **검증 없이 쿠키를 써주는 헬퍼**다
+— 더미 토큰(`oAuthToken=DUMMY`)을 보내도 그대로 `Set-Cookie` 로 내려준다.
+브라우저는 그 쿠키를 `gw.goorm.io` 호스트 쿠키로 정상 저장한다(헤드리스 크롬의
+쿠키 DB 로 확인). 그런데 우리 로그인 토큰은 **gw 웹 세션으로는 인정되지 않아**
+결재 화면이 로그인을 요구한다. 게다가 이걸 부르면 사용자가 gw 에 직접 로그인해
+만든 멀쩡한 세션 쿠키를 덮어써서 오히려 로그아웃시킨다.
 
-### 공개 노출에 대해
-
-이 페이지는 **회사 그룹웨어 ID/PW 를 입력받습니다.** 토큰은 브라우저 안에만 있고
-서버로 가지 않지만, 공개 URL 에 있으면 형태상 피싱 페이지와 구분되지 않습니다.
-
-- `robots.txt` + `noindex` 로 색인은 막았습니다
-- CSP 로 `connect-src` 를 `gw.goorm.io` 로만 제한하고, `frame-ancestors 'none'` 으로
-  다른 사이트가 이 페이지를 감싸지 못하게 했습니다
-- **가능하면 사내망 IP 화이트리스트나 SSO 를 앞에 두세요.** 인그레스 주석에 자리를
-  남겨 뒀습니다
+**결론:** 웹앱은 자체 로그인(API용) + gw 로그인(결재 화면용)으로 **로그인이 두 번**
+강제되고, 그마저 결재 화면 세션 이관이 되지 않는다. 아이폰은 익스텐션도 앱도 쓸 수
+없으니, 지원하려면 Capacitor iOS 빌드가 유일한 길이다(유료 개발자 계정 필요).
 
 ## 알려진 한계
 
@@ -515,5 +484,4 @@ docker buildx build --platform linux/amd64 \
   즉 여기 표시되는 값은 **보수적**이고, 배치 후 서버 값으로 교정됩니다.
 - 세션이 만료되면 `gw.goorm.io`에서 다시 로그인해야 합니다.
 - 휴가 신청은 초안까지만 만듭니다. **결재상신은 사용자가 결재 화면에서 직접** 누릅니다.
-- 앱에서 결재 화면을 열 때 세션이 안 실리면 로그인 화면이 뜹니다. 그때 로그인하면
-  그대로 이어집니다 — `approkey` 는 서버에 등록돼 있어 세션과 무관합니다.
+- 아이폰은 지원하지 않습니다. 익스텐션도 앱도 쓸 수 없고, 웹앱은 위 이유로 접었습니다.

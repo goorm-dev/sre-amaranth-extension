@@ -1,3 +1,0 @@
-# 사내 도구입니다. 색인하지 않습니다.
-User-agent: *
-Disallow: /
