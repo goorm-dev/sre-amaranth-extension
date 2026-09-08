@@ -337,11 +337,11 @@
     // 쿠키가 실제로 붙었는지 서버에 확인한다. HttpOnly 라 JS 로는 볼 수 없어서,
     // 세션이 있어야 답하는 엔드포인트에 물어보는 수밖에 없다.
     const me = await GW.api.whoAmI();
-    if (!me.ok) {
-      $('lvMsg').textContent = 'gw 세션이 붙지 않았습니다. 결재 화면에서 로그인해 주세요.\n'
-        + `${handoff ? handoff + '\n' : ''}whoAmI: code=${me.code} status=${me.status} ${me.msg}`;
-      await new Promise((r) => setTimeout(r, 4000));
-    }
+    $('lvMsg').textContent = me.ok
+      ? `gw 세션 확인됨 (${me.who || '?'}) — 결재 화면을 엽니다.`
+      : 'gw 세션이 붙지 않았습니다. 결재 화면에서 로그인해 주세요.\n'
+        + `${handoff ? handoff + '\n' : ''}code=${me.code} status=${me.status} ${me.msg}`;
+    await new Promise((r) => setTimeout(r, me.ok ? 1200 : 4000));
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 

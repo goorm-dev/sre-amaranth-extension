@@ -261,16 +261,22 @@
   }
 
   // 쿠키가 실제로 붙었는지 서버에 물어본다. HttpOnly 라 JS 로는 볼 수 없다.
-  // /gw/gw050A24 는 세션이 있어야 loginId·logonTime 을 돌려준다 (결재 팝업이
-  // 뜰 때 부르는 것을 캡처해서 확인했다).
+  //
+  // /gw/gw050A24 를 쓰려다 실패했다 — /get_token/ 이 그 경로에는 서명을 발급하지
+  // 않는다(401). 인증 전 서명이 허용되는 경로만 쓸 수 있다.
+  // 대신 결재 팝업이 부팅할 때 부르는 것과 같은 호출을 쓴다. 세션이 있으면
+  // resultCode 200 "이미 로그인된 사용자입니다" 와 sessionInfo 가 온다.
   async function whoAmI() {
     try {
-      const r = await callUncert('/gw/gw050A24', {}, { withCredentials: true });
-      const d = (r.json && r.json.resultData) || null;
+      const r = await callUncert('/gw/gw050A02', { a10Domain: ORIGIN },
+        { form: true, withCredentials: true });
+      const code = r.json ? r.json.resultCode : null;
+      const info = r.json && r.json.resultData && r.json.resultData.sessionInfo;
+      const uc = info && info.ucUserInfo;
       return {
-        ok: !!(d && d.loginId),
-        who: d && d.loginId,
-        code: r.json ? r.json.resultCode : null,
+        ok: code === 200,
+        who: (uc && uc.loginId) || (info && info.portal_id) || null,
+        code,
         status: r.status,
         msg: (r.json && r.json.resultMsg) || (r.text || '').slice(0, 100),
       };
