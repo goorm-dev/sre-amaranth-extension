@@ -124,3 +124,17 @@ header .nav#leaveBtn { font-size: 22px; }
 .lvprev .r span { color: var(--dim); white-space: nowrap; }
 .lvprev .r b { text-align: right; }
 .lvprev .warn { color: var(--amber); margin-top: 6px; }
+
+/* 휴가 신청 시트 — 날짜·시각 칸이 좁아 무엇을 골랐는지 안 보였다.
+   설정 시트의 좁은 숫자 칸(.sheetcard input { width: 90px })과 분리한다.
+   font-size 16px 미만이면 iOS 가 포커스 때 화면을 확대해 버린다. */
+#leaveSheet label { display: block; margin-bottom: 14px; }
+#leaveSheet label > input,
+#leaveSheet label > select {
+  width: 100%; box-sizing: border-box; margin-top: 6px;
+  padding: 12px; font-size: 16px;
+}
+/* CSP 가 style-src 'self' 라 인라인 style 은 막힌다. 클래스로 둔다. */
+.lvfull { width: 100%; margin-top: 8px; }
+.lvx { width: 100%; background: none; border: 0; color: var(--dim);
+  margin-top: 10px; padding: 10px; font: inherit; cursor: pointer; }

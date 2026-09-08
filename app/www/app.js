@@ -260,10 +260,14 @@
     // 세션이 없는데 초안부터 만들면 상신 못 하는 미상신 문서만 쌓인다.
     if (!isNative()) {
       $('lvMsg').textContent = '결재 세션 준비 중…';
-      if (!(await ensureGwSession())) {
-        $('lvMsg').textContent = '결재 세션이 만료되었습니다. 앱에서 로그아웃 후 다시 로그인하거나,\n'
-          + '아래에서 gw.goorm.io 에 로그인한 뒤 돌아와 다시 눌러 주세요.\n'
-          + '(신청서는 아직 만들지 않았습니다)';
+      const ses = await ensureGwSession();
+      if (!ses.ok) {
+        // 왜 안 되는지 서버가 한 말을 그대로 보여 준다. 추측으로 좁히지 않는다.
+        $('lvMsg').textContent = 'gw 결재 세션을 확인하지 못했습니다. (신청서는 만들지 않았습니다)\n'
+          + `resultCode=${ses.code} status=${ses.status} ${ses.msg}\n`
+          + `쿠키=${ses.seen.length ? ses.seen.join(',') : '(없음)'}`
+          + (ses.planted ? `\n심기실패: ${ses.planted}` : '')
+          + (ses.served ? `\n서버심기실패: ${ses.served}` : '');
         $('lvGwLogin').hidden = false;
         $('lvSubmit').disabled = false;
         return;
@@ -317,9 +321,16 @@
   //   1) 우리가 직접 심는다. 웹은 상위 도메인(goorm.io)으로 세워야 실려 간다
   //   2) 서버가 심게 한다. loginType=set-cookie 로 5개를 내려준다
   async function ensureGwSession() {
-    try { injectSessionCookies(); } catch (_) {}
-    try { await GW.api.establishWebSession(); } catch (_) {}
-    return GW.api.hasWebSession();
+    let planted = '';
+    try { injectSessionCookies(); } catch (e) { planted = e.message || String(e); }
+    let served = '';
+    try { await GW.api.establishWebSession(); } catch (e) { served = e.message || String(e); }
+    const r = await GW.api.hasWebSession();
+    // 우리가 심은 쿠키가 실제로 문서에 붙었는지. goorm.io 로 세웠으면 여기 보인다.
+    const seen = document.cookie.split('; ')
+      .map((c) => c.split('=')[0])
+      .filter((n) => /oAuthToken|signKey|BIZCUBE/.test(n));
+    return Object.assign({}, r, { planted, served, seen });
   }
 
   async function openApproval(hash) {

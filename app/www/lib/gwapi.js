@@ -248,9 +248,15 @@
     try {
       const r = await callUncert('/gw/gw050A02', { a10Domain: ORIGIN },
         { form: true, withCredentials: true });
-      return !!(r.json && r.json.resultCode === 200);
-    } catch (_) {
-      return false;
+      const code = r.json ? r.json.resultCode : null;
+      return {
+        ok: code === 200,
+        code,
+        status: r.status,
+        msg: (r.json && r.json.resultMsg) || (r.text || '').slice(0, 120),
+      };
+    } catch (e) {
+      return { ok: false, code: null, status: 0, msg: e.message || String(e) };
     }
   }
 
