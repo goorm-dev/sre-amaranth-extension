@@ -321,27 +321,18 @@
     }
 
     // 서버가 gw.goorm.io 쿠키를 심게 한다. 웹에서 통하는 유일한 경로다.
-    // 브라우저는 형제 도메인(gw.goorm.io)에 쿠키를 쓸 수 없지만, 서버가 내려주는
-    // Set-Cookie 는 저장된다 — 응답을 직접 확인했다:
-    //   Set-Cookie: oAuthToken=…; Path=/; Secure; HttpOnly   (5개, resultCode 0)
-    // SameSite 가 없어 기본 Lax 이고, worktime.goorm.io ↔ gw.goorm.io 는 same-site
-    // 라 저장·전송된다. 교차 출처라 credentials:'include' 가 필수다(callUncert).
-    // HttpOnly 라 JS 로는 확인할 수 없으니, 실패하면 이유를 그대로 보여 준다.
-    let handoff = '';
+    // 응답이 Set-Cookie 5개(Path=/; Secure; HttpOnly)를 내려주고, 헤드리스 크롬으로
+    // 브라우저가 이를 gw.goorm.io 쿠키로 정상 저장하는 것까지 확인했다.
+    //
+    // 붙었는지 JS 로 확인하려던 시도는 접었다. HttpOnly 라 읽을 수 없고, 확인용
+    // 호출(/gw/gw050A02 + a10Domain)은 교차 출처에서 Origin 과 a10Domain 이
+    // 달라 세션이 있어도 -1 을 낸다. 가짜 실패만 만들었다.
     try {
       await GW.api.establishWebSession();
     } catch (e) {
-      handoff = `전달 실패: ${e.message || e}`;
+      $('lvMsg').textContent = `세션 전달 실패: ${e.message || e}`;
+      await new Promise((r) => setTimeout(r, 2000));
     }
-
-    // 쿠키가 실제로 붙었는지 서버에 확인한다. HttpOnly 라 JS 로는 볼 수 없어서,
-    // 세션이 있어야 답하는 엔드포인트에 물어보는 수밖에 없다.
-    const me = await GW.api.whoAmI();
-    $('lvMsg').textContent = me.ok
-      ? `gw 세션 확인됨 (${me.who || '?'}) — 결재 화면을 엽니다.`
-      : 'gw 세션이 붙지 않았습니다. 결재 화면에서 로그인해 주세요.\n'
-        + `${handoff ? handoff + '\n' : ''}code=${me.code} status=${me.status} ${me.msg}`;
-    await new Promise((r) => setTimeout(r, me.ok ? 1200 : 4000));
     window.location.href = `${GW.api.ORIGIN}/${hash}`;   // 뒤로가기로 복귀
   }
 
