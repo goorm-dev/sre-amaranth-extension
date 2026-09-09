@@ -28,6 +28,7 @@
       $('loginPw').value = '';
       $('loginMsg').textContent = '';
       enterMain();
+      openRoute();
     } catch (e) {
       $('loginMsg').textContent = e.message || '로그인에 실패했습니다.';
       if (e.diag) {
@@ -430,8 +431,19 @@
     show('loginView');
   };
 
+  // subPath 로 바로 열기. 아이폰 홈 화면에 /leave · /break 를 따로 추가하면
+  // 두 번 탭에 신청서가 뜬다. nginx 가 모든 경로를 index.html 로 떨어뜨린다.
+  //
+  // 로그인 전에 들어와도 경로를 기억했다가 로그인 뒤에 연다.
+  const ROUTES = { '/leave': 'leaveBtn', '/break': 'breakBtn' };
+
+  function openRoute() {
+    const btn = ROUTES[location.pathname.replace(/\/+$/, '') || '/'];
+    if (btn && $(btn)) $(btn).click();
+  }
+
   (async () => {
     const s = await GW.auth.restore();
-    if (s) enterMain(); else show('loginView');
+    if (s) { enterMain(); openRoute(); } else { show('loginView'); }
   })();
 })();

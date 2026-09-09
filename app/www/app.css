@@ -151,3 +151,6 @@ header .nav#breakBtn { font-size: 17px; }
   width: 100%; box-sizing: border-box; margin-top: 6px;
   padding: 12px; font-size: 16px;
 }
+.gwnote { font-size: 12px; color: var(--dim); background: var(--soft);
+  border: 1px solid var(--softline); border-radius: 8px; padding: 9px 10px; margin-top: 10px; }
+.gwnote b { color: var(--fg); }
