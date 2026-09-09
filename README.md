@@ -476,6 +476,23 @@ POST /human/openapi/attendapplication/saveLinkKey
 강제되고, 그마저 결재 화면 세션 이관이 되지 않는다. 아이폰은 익스텐션도 앱도 쓸 수
 없으니, 지원하려면 Capacitor iOS 빌드가 유일한 길이다(유료 개발자 계정 필요).
 
+## 업데이트 확인
+
+팝업과 페이지 패널에 새 버전 안내가 뜹니다. **자동 설치는 안 됩니다** — 압축해제
+로드 방식이라 Chrome 이 대신 갱신해 줄 수 없고, 릴리스 페이지 링크만 띄웁니다.
+
+```
+GET https://raw.githubusercontent.com/goorm-dev/sre-amaranth-extension/main/latest.json
+→ { "version": "1.3.1", "url": "…/releases/latest" }
+```
+
+GitHub API 가 아니라 raw 파일을 씁니다. API 는 인증 없이 **시간당 60회/IP** 제한이
+걸리고, raw 는 사실상 없습니다. raw 응답에 `Access-Control-Allow-Origin: *` 이 있어
+`host_permissions` 를 늘리지 않아도 됩니다 — 권한 재승인 프롬프트가 뜨지 않습니다.
+
+6시간마다 확인하고, 무시한 버전은 다시 띄우지 않습니다.
+**릴리스할 때 `latest.json` 의 `version` 을 같이 올려야 합니다.**
+
 ## 알려진 한계
 
 - 진행 중인 달의 소정근로시간은 공휴일 표 기반 **추정**입니다 (위 참고).
