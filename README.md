@@ -436,8 +436,8 @@ POST /human/openapi/attendapplication/saveLinkKey
 실행한 뒤 실제 신청을 하고 `__capDump()` 를 부르면 됩니다. 결재 팝업 안의 요청까지
 같이 잡힙니다.
 
-**앱도 같은 코드를 씁니다.** `lib/leave.js` 는 [app/sync-lib.sh](app/sync-lib.sh) 로
-복사되고, 앱의 `GW.api.call` 이 확장과 같은 계약(`resultData` 반환)이라 그대로 돕니다.
+**앱도 같은 코드를 씁니다.** `lib/leave.js` 와 `lib/break.js` 는
+[app/sync-lib.sh](app/sync-lib.sh) 로 복사되고, 앱의 `GW.api.call` 이 확장과 같은 계약(`resultData` 반환)이라 그대로 돕니다.
 다른 건 결재 화면을 여는 방법뿐입니다 — 확장은 새 탭, 앱은 WebView 를 gw.goorm.io 로
 이동시킵니다. iframe 은 앱 출처(localhost)에 대해 서드파티라 안드로이드가 쿠키를
 막지만, 1st-party 이동이면 정상 적용됩니다.

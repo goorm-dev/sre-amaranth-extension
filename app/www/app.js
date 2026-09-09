@@ -325,6 +325,69 @@
   $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
   $('lvClose').onclick = () => { $('leaveSheet').hidden = true; };
 
+  // ── 자율휴게 신청 ────────────────────────────────────────────────────
+  //
+  // 확장과 같은 코드를 쓴다 (lib/break.js). 휴가와 다른 점은 셋 —
+  // validateNew 를 부르지 않고, 연차를 쓰지 않고, 사유(appRmkDc)가 들어간다.
+  let brState = null;
+
+  function brSyncSpan() {
+    const st = $('brStart').value;
+    const sp = GW.break.span(st, Number($('brMin').value));
+    $('brSpan').textContent = st
+      ? `구간 ${lvHm(sp.start)}~${lvHm(sp.end)} · ${sp.minutes}분`
+      : '시작 시각을 입력해 주세요.';
+    $('brPreview').hidden = true; $('brActions').hidden = true; brState = null;
+  }
+
+  async function brPreview() {
+    const dk = $('brDate').value, st = $('brStart').value;
+    if (!dk || !st) { $('brMsg').textContent = '날짜와 시작 시각을 입력해 주세요.'; return; }
+    $('brNext').disabled = true; $('brMsg').textContent = '확인 중…';
+    try {
+      const pv = await GW.break.preview(dk, st, Number($('brMin').value), $('brReason').value.trim());
+      const sched = await GW.leave.profile();
+      brState = { pv, sched };
+      $('brPreview').hidden = false;
+      $('brPreview').innerHTML =
+        `<div class="r"><span>날짜</span><b>${esc(T.label(T.fromKey(pv.dateKey)))}</b></div>`
+        + `<div class="r"><span>시간</span><b>${lvHm(pv.span.start)} ~ ${lvHm(pv.span.end)}</b></div>`
+        + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
+        + `<div class="r"><span>사유</span><b>${esc(pv.reason) || '—'}</b></div>`;
+      $('brActions').hidden = false;
+      $('brMsg').textContent = '신청서를 만들고 결재 화면을 엽니다. 상신은 그 화면에서 누르세요.';
+    } catch (e) { $('brMsg').textContent = e.message || '확인 실패'; }
+    finally { $('brNext').disabled = false; }
+  }
+
+  async function brSubmit() {
+    if (!brState) return;
+    $('brSubmit').disabled = true; $('brMsg').textContent = '신청서 만드는 중…';
+    try {
+      const r = await GW.break.submit(brState.pv, brState.sched);
+      $('brMsg').textContent = '결재 화면을 여는 중…';
+      await openApproval(r.approvalHash);
+    } catch (e) {
+      $('brMsg').textContent = '실패: ' + (e.message || '');
+      $('brSubmit').disabled = false;
+    }
+  }
+
+  $('breakBtn').onclick = () => {
+    $('breakSheet').hidden = false;
+    $('brDate').value = T.toKey(new Date());
+    const n = new Date();
+    $('brStart').value = `${String(n.getHours()).padStart(2, '0')}:00`;
+    $('brMsg').textContent = '';
+    brSyncSpan();
+  };
+  $('brStart').onchange = brSyncSpan;
+  $('brMin').onchange = brSyncSpan;
+  $('brNext').onclick = brPreview;
+  $('brSubmit').onclick = brSubmit;
+  $('brCancel').onclick = () => { $('brPreview').hidden = true; $('brActions').hidden = true; brState = null; };
+  $('brClose').onclick = () => { $('breakSheet').hidden = true; };
+
   $('loginBtn').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };

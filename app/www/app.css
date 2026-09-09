@@ -143,3 +143,11 @@ header .nav#leaveBtn { font-size: 22px; }
 .lvfull { width: 100%; margin-top: 8px; }
 .lvx { width: 100%; background: none; border: 0; color: var(--dim);
   margin-top: 10px; padding: 10px; font: inherit; cursor: pointer; }
+header .nav#breakBtn { font-size: 17px; }
+/* 휴게 시트도 휴가 시트와 같은 넓은 입력칸을 쓴다 */
+#breakSheet label { display: block; margin-bottom: 14px; }
+#breakSheet input,
+#breakSheet select {
+  width: 100%; box-sizing: border-box; margin-top: 6px;
+  padding: 12px; font-size: 16px;
+}

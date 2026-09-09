@@ -3,7 +3,7 @@
 # (gwapi/store 는 세션 획득 방식이 달라 앱 전용 구현을 쓴다)
 set -e
 cd "$(dirname "$0")"
-for f in time.js holidays.js calc.js leave.js; do
+for f in time.js holidays.js calc.js leave.js break.js; do
   cp "../src/lib/$f" "www/lib/$f"
   echo "  동기화: $f"
 done

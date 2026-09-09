@@ -33,6 +33,7 @@
     <span id="monthLabel">—</span>
     <button id="nextM" class="nav">›</button>
     <button id="leaveBtn" class="nav" title="휴가 신청">＋</button>
+    <button id="breakBtn" class="nav" title="휴게 신청">☕</button>
     <button id="menuBtn" class="nav">⋯</button>
   </header>
 
@@ -111,12 +112,37 @@
   </div>
 </section>
 
+<section id="breakSheet" class="sheet" hidden>
+  <div class="sheetcard">
+    <h2>자율휴게 신청</h2>
+    <label>날짜 <input id="brDate" type="date"></label>
+    <label>시작 시각 <input id="brStart" type="time"></label>
+    <label>길이
+      <select id="brMin">
+        <option value="60">1시간</option>
+        <option value="30">30분</option>
+      </select>
+    </label>
+    <label>사유 <input id="brReason" type="text" placeholder="예: 운동, 병원" maxlength="50"></label>
+    <div id="brSpan" class="lvspan"></div>
+    <button id="brNext" class="primary lvfull">확인</button>
+    <div id="brPreview" class="lvprev" hidden></div>
+    <div class="btns" id="brActions" hidden>
+      <button id="brSubmit" class="primary">신청서 열기</button>
+      <button id="brCancel">취소</button>
+    </div>
+    <div id="brMsg" class="msg"></div>
+    <button id="brClose" class="lvx">닫기</button>
+  </div>
+</section>
+
 <script src="lib/time.js"></script>
 <script src="lib/holidays.js"></script>
 <script src="lib/store.js"></script>
 <script src="lib/gwapi.js"></script>
 <script src="lib/calc.js"></script>
 <script src="lib/leave.js"></script>
+<script src="lib/break.js"></script>
 <script src="lib/auth.js"></script>
 <script src="app.js"></script>
 </body>
