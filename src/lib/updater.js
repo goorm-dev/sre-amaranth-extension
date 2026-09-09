@@ -1,16 +1,14 @@
 // 업데이트 확인.
 //
-// 저장소가 private 이라 확장에서 익명 GitHub API 를 호출할 수 없다(토큰을 넣으면 유출된다).
-// 대신 정해둔 버전 파일(공개 raw 또는 사내 경로)에서 최신 버전만 읽고,
-// 실제 다운로드/설치는 사용자가 릴리스 페이지에서 하도록 링크를 연다.
+// 저장소의 latest.json 에서 최신 버전만 읽는다. 설치는 확장이 하지 않는다 —
+// 압축해제 로드 방식이라 자동 설치가 불가능하고, 릴리스 페이지 링크만 띄운다.
 //
-// VERSION_URL 은 팀 상황에 맞게 바꾼다:
-//   - 저장소를 public 으로 돌리면 raw.githubusercontent.com/<repo>/main/latest.json
-//   - private 유지 시 사내 정적 호스팅에 latest.json 을 올려 그 URL 을 지정
+// GitHub API 가 아니라 raw 파일을 쓴다. API 는 인증 없이 rate limit 이 빡세고
+// (시간당 60회/IP), raw 는 그런 제한이 사실상 없다. 응답도 우리가 만든 두 줄이다.
 (function (root) {
   const GW = (root.GW = root.GW || {});
   const RELEASES_URL = 'https://github.com/goorm-dev/sre-amaranth-extension/releases/latest';
-  const VERSION_URL = '';   // 예: 'https://raw.githubusercontent.com/goorm-dev/sre-amaranth-extension/main/latest.json'
+  const VERSION_URL = 'https://raw.githubusercontent.com/goorm-dev/sre-amaranth-extension/main/latest.json';
   const CHECK_TTL = 6 * 60 * 60 * 1000;
 
   const parseVer = (v) => String(v).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);

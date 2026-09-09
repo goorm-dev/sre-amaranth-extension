@@ -307,6 +307,26 @@
       </div>`;
   }
 
+  // 새 버전 안내. 압축해제 로드라 자동 설치는 불가능하고 링크만 띄운다.
+  // 팝업을 안 여는 사람도 있어서 패널에도 한 줄 붙인다.
+  async function showUpdateIfAny() {
+    let info;
+    try { info = await GW.updater.check(); } catch (_) { return; }
+    if (!info.hasUpdate || await GW.updater.dismissed(info.latest)) return;
+    if (!panel || !document.body.contains(panel)) return;
+    const bar = document.createElement('div');
+    bar.className = 'gwp-update';
+    bar.innerHTML = `새 버전 <b>v${esc(info.latest)}</b>`
+      + ` <a href="${esc(info.url)}" target="_blank" rel="noreferrer">받기</a>`
+      + '<button title="닫기">×</button>';
+    bar.querySelector('button').onclick = (ev) => {
+      ev.stopPropagation();
+      GW.updater.dismiss(info.latest);
+      bar.remove();
+    };
+    panel.prepend(bar);
+  }
+
   // 근태신청서·결재 같은 별도 팝업 창에는 띄우지 않는다.
   // 아마란스가 window.open() 으로 여는 창이라 opener 가 잡힌다.
   // (Chrome 88+ 는 target="_blank" 에 noopener 를 기본 적용하므로, opener 가 있으면
@@ -319,5 +339,6 @@
     if (collapsed) panel.classList.add('gwp-collapsed');
     load(viewMonth);
     startAuto();
+    showUpdateIfAny();
   })();
 })();
