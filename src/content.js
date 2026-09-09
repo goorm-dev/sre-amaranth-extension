@@ -222,6 +222,9 @@
     const settings = await GW.store.getSettings();
     state.plans = await GW.store.getPlans();
     const s = GW.calc.summarize({ rows: state.rows, leaves: state.leaves, plans: state.plans, holidays: state.holidays }, settings, viewMonth, new Date());
+    // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
+    const leftLabel = (min) => (min > 0 ? `${T.fmtDuration(min)} 남음` : '충족');
+
     const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
     const f = feasibility(s);
     const [y, m] = viewMonth.split('-');
@@ -241,9 +244,12 @@
            </div>
            ${plan.creditMin ? `<div class="gwp-plan-leave">${plan.leaveNames.join(' + ')} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
            ${plan.singleTarget
-             ? `<div class="gwp-plan-row gwp-hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
-             : `<div class="gwp-plan-row"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
-                <div class="gwp-plan-row gwp-hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`}
+             ? `<div class="gwp-plan-row gwp-hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span>
+                  <b>${plan.parOut} <em class="gwp-left">(${leftLabel(plan.parLeftMin)})</em></b></div>`
+             : `<div class="gwp-plan-row"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span>
+                  <b>${plan.minOut} <em class="gwp-left">(${leftLabel(plan.minLeftMin)})</em></b></div>
+                <div class="gwp-plan-row gwp-hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span>
+                  <b>${plan.parOut} <em class="gwp-left">(${leftLabel(plan.parLeftMin)})</em></b></div>`}
          </div>`;
 
     const anomalyNote = s.anomalies.length

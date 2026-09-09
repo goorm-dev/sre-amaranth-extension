@@ -156,6 +156,9 @@
 
     const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
     const isCurrent = viewMonth === T.monthKey(new Date());
+  // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
+  const leftLabel = (min) => (min > 0 ? `${T.fmtDuration(min)} 남음` : '충족');
+
     $('plan').innerHTML = !isCurrent || !plan ? '' : plan.done
       ? `<div class="ptop">
            <span class="pl">오늘 근무</span><b class="pt done">${T.fmtDuration(plan.workedMin)}</b>
@@ -167,9 +170,12 @@
          </div>
          ${plan.creditMin ? `<div class="planleave">${plan.leaveNames.join(' + ')} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
          ${plan.singleTarget
-           ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
-           : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
-              <div class="planline hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`}`;
+           ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span>
+                <b>${plan.parOut} <em class="left">(${leftLabel(plan.parLeftMin)})</em></b></div>`
+           : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span>
+                <b>${plan.minOut} <em class="left">(${leftLabel(plan.minLeftMin)})</em></b></div>
+              <div class="planline hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span>
+                <b>${plan.parOut} <em class="left">(${leftLabel(plan.parLeftMin)})</em></b></div>`}`;
 
     const notes = [];
     if (s.anomalies.length) {

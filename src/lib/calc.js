@@ -232,7 +232,12 @@
     };
 
     const clock = now || new Date();
-    const elapsedMin = Math.max(0, clock.getHours() * 60 + clock.getMinutes() - base);
+    const nowMin = clock.getHours() * 60 + clock.getMinutes();
+    // 경과는 출근 시각부터 잰다. base(출근+휴게)에서 재면 출근 후 첫 한 시간이
+    // 음수가 되어 늘 0분으로 보인다.
+    const elapsedMin = Math.max(0, nowMin - inMin);
+    // 각 퇴근 시각까지 남은 시간. 이미 지났으면 음수다.
+    const leftTo = (workMin) => base + workMin - nowMin;
 
     return {
       done: false,
@@ -245,6 +250,8 @@
       singleTarget: minNeedMin === needMin,   // 반차 날은 최소=정량이라 한 줄로 보여준다
       minOut: at(minNeedMin),
       parOut: at(needMin),
+      minLeftMin: leftTo(minNeedMin),
+      parLeftMin: leftTo(needMin),
     };
   }
 
