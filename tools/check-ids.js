@@ -20,7 +20,9 @@ for (const [htmlPath, jsPaths] of PAIRS) {
   for (const jsPath of jsPaths) {
     if (!fs.existsSync(jsPath)) continue;
     const js = fs.readFileSync(jsPath, 'utf8');
-    const used = new Set([...js.matchAll(/\$\('([^']+)'\)/g)].map((m) => m[1]));
+    // getElementById 별칭이 여럿이다 ($ 와 lv). 별칭을 늘리면 여기에 추가한다.
+    // \b 는 $ 앞에서 안 먹는다($ 가 단어문자가 아니라서). 뒤돌아보기로 막는다.
+    const used = new Set([...js.matchAll(/(?<![\w$])(?:\$|lv)\('([^']+)'\)/g)].map((m) => m[1]));
     const missing = [...used].filter((id) => !have.has(id)).sort();
     if (missing.length) {
       console.error(`✗ ${jsPath} → ${htmlPath} 에 없는 id: ${missing.join(', ')}`);

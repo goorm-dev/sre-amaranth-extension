@@ -350,6 +350,75 @@
   lv('lvClose').onclick = () => { lv('leaveSheet').hidden = true; };
   lv('leaveSheet').onclick = (e) => { if (e.target === lv('leaveSheet')) lv('leaveSheet').hidden = true; };
 
+  // ── 자율휴게 신청 ────────────────────────────────────────────────────
+  //
+  // 휴가와 같은 흐름이다 (lib/break.js). 다른 점은 셋뿐이다 —
+  // validateNew 를 부르지 않고, 연차를 쓰지 않고, 사유(appRmkDc)가 들어간다.
+  let brState = null;
+
+  function brSyncSpan() {
+    const sp = GW.break.span(lv('brStart').value, Number(lv('brMin').value));
+    lv('brSpan').textContent = lv('brStart').value
+      ? `구간 ${hm(sp.start)}~${hm(sp.end)} · ${sp.minutes}분`
+      : '시작 시각을 입력해 주세요.';
+    lv('brPreview').hidden = true; lv('brActions').hidden = true; brState = null;
+  }
+
+  async function brPreview() {
+    const dk = lv('brDate').value;
+    const st = lv('brStart').value;
+    if (!dk || !st) { lv('brMsg').textContent = '날짜와 시작 시각을 입력해 주세요.'; return; }
+    lv('brNext').disabled = true; lv('brMsg').textContent = '확인 중…';
+    try {
+      const pv = await GW.break.preview(dk, st, Number(lv('brMin').value), lv('brReason').value.trim());
+      const sched = await GW.leave.profile();
+      brState = { pv, sched };
+      lv('brPreview').hidden = false;
+      lv('brPreview').innerHTML =
+        `<div class="r"><span>날짜</span><b>${esc(T.label(T.fromKey(pv.dateKey)))}</b></div>`
+        + `<div class="r"><span>시간</span><b>${hm(pv.span.start)} ~ ${hm(pv.span.end)}</b></div>`
+        + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
+        + `<div class="r"><span>사유</span><b>${esc(pv.reason) || '<span style="opacity:.5">없음</span>'}</b></div>`;
+      lv('brActions').hidden = false;
+      lv('brMsg').textContent = '신청서를 만들고 결재 화면을 엽니다. 상신은 그 화면에서 누르세요.';
+    } catch (e) { lv('brMsg').textContent = e.message || '확인 실패'; }
+    finally { lv('brNext').disabled = false; }
+  }
+
+  async function brSubmit() {
+    if (!brState) return;
+    lv('brSubmit').disabled = true; lv('brMsg').textContent = '신청서 만드는 중…';
+    try {
+      const r = await GW.break.submit(brState.pv, brState.sched);
+      await chrome.storage.local.set({
+        lastLeave: { at: Date.now(), kind: '휴게', title: r.titleDc, appSq: r.appSq,
+                     appDt: r.appDt, coCd: r.coCd, approKey: r.approKey,
+                     linkKey: r.linkKey, url: r.approvalHash },
+      });
+      await chrome.tabs.create({ url: GW.screens.ORIGIN + '/' + r.approvalHash });
+      window.close();
+    } catch (e) {
+      lv('brMsg').textContent = '실패: ' + (e.message || '');
+      lv('brSubmit').disabled = false;
+    }
+  }
+
+  lv('brOpen').onclick = () => {
+    lv('breakSheet').hidden = false;
+    lv('brDate').value = T.toKey(new Date());
+    const now = new Date();
+    lv('brStart').value = `${String(now.getHours()).padStart(2, '0')}:00`;
+    lv('brMsg').textContent = '';
+    brSyncSpan();
+  };
+  lv('brStart').onchange = brSyncSpan;
+  lv('brMin').onchange = brSyncSpan;
+  lv('brNext').onclick = brPreview;
+  lv('brSubmit').onclick = brSubmit;
+  lv('brBack').onclick = () => { lv('brPreview').hidden = true; lv('brActions').hidden = true; brState = null; };
+  lv('brClose').onclick = () => { lv('breakSheet').hidden = true; };
+  lv('breakSheet').onclick = (e) => { if (e.target === lv('breakSheet')) lv('breakSheet').hidden = true; };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   $('refresh').onclick = () => load({ useCache: false });

@@ -127,3 +127,5 @@ footer span { font-size: 11px; color: #9ca3af; }
 /* 퇴근 시각 옆 "(2시간 12분 남음)" — 시각이 주인공이라 톤을 낮춘다 */
 .planline .left { font-style: normal; font-weight: 600; font-size: 11px; color: #6b7280; }
 .planline.hl .left { font-size: 12px; color: #4b7ce0; }
+.lvcard input[type=text] { width: 100%; font: inherit; padding: 9px; margin-bottom: 8px;
+  border: 1px solid #d5dae4; border-radius: 8px; box-sizing: border-box; }
