@@ -421,7 +421,9 @@
 
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
-  $('refresh').onclick = () => load({ useCache: false });
+  // 새로고침은 근태 데이터와 버전 확인을 같이 강제한다. TTL 때문에 새 버전이
+  // 안 보일 때 사용자가 직접 확인할 수 있는 유일한 통로다.
+  $('refresh').onclick = () => { load({ useCache: false }); checkUpdate(true); };
 
   $('save').onclick = async () => {
     await GW.store.setSettings({
@@ -437,9 +439,9 @@
   };
 
   // 업데이트 안내. VERSION_URL 이 비어 있으면 check() 가 hasUpdate:false 로 돌아온다.
-  async function checkUpdate() {
+  async function checkUpdate(force) {
     let info;
-    try { info = await GW.updater.check(); } catch (_) { return; }
+    try { info = await GW.updater.check(force); } catch (_) { return; }
     if (!info.hasUpdate || await GW.updater.dismissed(info.latest)) return;
     const bar = $('updateBar');
     bar.innerHTML = `새 버전 <b>v${esc(info.latest)}</b> 이 있습니다 `

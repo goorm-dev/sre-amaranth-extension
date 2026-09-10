@@ -9,7 +9,10 @@
   const GW = (root.GW = root.GW || {});
   const RELEASES_URL = 'https://github.com/goorm-dev/sre-amaranth-extension/releases/latest';
   const VERSION_URL = 'https://raw.githubusercontent.com/goorm-dev/sre-amaranth-extension/main/latest.json';
-  const CHECK_TTL = 6 * 60 * 60 * 1000;
+  // 캐시는 서버를 덜 두들기려는 것뿐이다. 파일이 95바이트고 raw 는 rate limit 이
+  // 사실상 없어서 짧게 잡는다. 6시간이었을 땐 릴리스 직후 반나절 가까이 아무에게도
+  // 안 뜨는 일이 실제로 있었다.
+  const CHECK_TTL = 20 * 60 * 1000;
 
   const parseVer = (v) => String(v).replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
   function cmp(a, b) {
@@ -28,13 +31,17 @@
 
     let cache = {};
     try { cache = (await chrome.storage.local.get('updateCheck')).updateCheck || {}; } catch (_) {}
-    if (!force && cache.at && Date.now() - cache.at < CHECK_TTL) return decorate(cache, base);
+    // 확장을 갱신하면 캐시가 남아 있어도 다시 본다. 안 그러면 방금 올린 버전이
+    // TTL 동안 "새 버전 있음" 으로 남는다.
+    const fresh = cache.at && Date.now() - cache.at < CHECK_TTL && cache.forVersion === current;
+    if (!force && fresh) return decorate(cache, base);
 
     try {
       const res = await fetch(`${VERSION_URL}?_=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       const j = await res.json();   // { version: "1.1.0", url?: "..." }
-      const info = { at: Date.now(), latest: String(j.version || '').replace(/^v/, ''), url: j.url || RELEASES_URL };
+      const info = { at: Date.now(), forVersion: current,
+        latest: String(j.version || '').replace(/^v/, ''), url: j.url || RELEASES_URL };
       try { await chrome.storage.local.set({ updateCheck: info }); } catch (_) {}
       return decorate(info, base);
     } catch (_) {
