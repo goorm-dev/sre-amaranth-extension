@@ -526,7 +526,25 @@ GitHub API 가 아니라 raw 파일을 씁니다. API 는 인증 없이 **시간
 `host_permissions` 를 늘리지 않아도 됩니다 — 권한 재승인 프롬프트가 뜨지 않습니다.
 
 6시간마다 확인하고, 무시한 버전은 다시 띄우지 않습니다.
-**릴리스할 때 `latest.json` 의 `version` 을 같이 올려야 합니다.**
+
+### 릴리스 규칙
+
+**태그 = `manifest.json` 의 버전**입니다. 사용자가 안내에서 보는 숫자와 릴리스
+페이지의 숫자를 같게 두기 위한 것입니다.
+
+```
+1. manifest.json 과 latest.json 의 version 을 같이 올린다
+2. node tools/check-ids.js        ← 둘이 어긋나면 여기서 걸린다
+3. sh pack-extension.sh
+4. gh release create v<그 버전> <zip> [<apk>]
+```
+
+`latest.json` 을 안 올리면 **아무에게도 안내가 안 뜹니다.** 릴리스 태그가 아니라
+이 파일 하나만 보기 때문입니다. 눈으로는 안 잡혀서 검사에 넣었습니다.
+
+**앱만 바뀐 경우**엔 새 태그를 만들지 않고 기존 릴리스에 APK 만 교체합니다
+(`gh release upload <tag> <apk> --clobber`). 확장 사용자에게 알릴 변경이 아니므로
+버전을 올리지 않는 게 맞습니다.
 
 ## 알려진 한계
 

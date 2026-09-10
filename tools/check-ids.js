@@ -33,10 +33,22 @@ for (const [htmlPath, jsPaths] of PAIRS) {
   }
 }
 //   2) 정의되지 않은 식별자 (eslint no-undef)
+//   3) manifest.json 과 latest.json 의 버전 일치
 //
 // 둘 다 증상이 "그 기능만 조용히 죽음" 이라 눈으로는 못 잡는다. 실제로 없는 버튼
 // 참조로 로그인 버튼이 통째로 죽었고, 범위 삭제가 isNative·injectSessionCookies
 // 정의를 삼켜 결재 화면 열기가 깨진 채로 APK 가 나갔다.
+// 릴리스 태그는 manifest.json 버전에 맞춘다. latest.json 이 어긋나면 업데이트
+// 안내가 안 뜨거나 엉뚱한 버전을 가리킨다 — 눈으로는 절대 안 잡히는 부류다.
+const mv = JSON.parse(fs.readFileSync('manifest.json', 'utf8')).version;
+const lv = JSON.parse(fs.readFileSync('latest.json', 'utf8')).version;
+if (mv !== lv) {
+  console.error(`✗ 버전 불일치: manifest.json ${mv} ≠ latest.json ${lv}`);
+  bad++;
+} else {
+  console.log(`✓ 버전 ${mv} (manifest = latest)`);
+}
+
 const { execFileSync } = require('child_process');
 const TARGETS = ['app/www/app.js', 'app/www/lib', 'src'];
 try {
