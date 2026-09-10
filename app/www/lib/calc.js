@@ -233,22 +233,21 @@
 
     const clock = now || new Date();
     const nowMin = clock.getHours() * 60 + clock.getMinutes();
-    // 경과는 출근 시각부터 잰다. base(출근+휴게)에서 재면 출근 후 첫 한 시간이
-    // 음수가 되어 늘 0분으로 보인다.
-    const elapsedMin = Math.max(0, nowMin - inMin);
-    // 각 퇴근 시각까지 "더 일해야 하는" 시간. 이미 지났으면 음수다.
-    //
-    // 벽시계로 빼면 아직 안 쓴 점심이 포함돼 실제보다 길게 보인다. 점심 휴게는
-    // 12:00~13:00 고정이므로, 지금과 퇴근 시각 사이에 남아 있는 점심만큼을 뺀다.
-    // 13시 이후엔 뺄 게 없어 벽시계와 같아진다. 점심 중이면 남은 만큼만 빠진다.
-    // 뺄 수 있는 건 아직 안 쓴 휴게뿐이다. 오전반차처럼 휴가 구간이 휴게를 이미
-    // 흡수한 날은 brk 가 0 이라 쭉 일하고 퇴근한다 — 뺄 게 없다.
+    // 경과도 남은 시간도 벽시계가 아니라 "실제 일하는 시간" 으로 센다.
+    // 점심 휴게는 12:00~13:00 고정이므로 그 구간과 겹치는 만큼을 양쪽에서 뺀다.
+    // 그래야 경과 + 남은 = 오늘 필요 시간이 맞는다.
+    // 뺄 수 있는 건 실제로 쓰는 휴게뿐이다 — 오전반차처럼 휴가 구간이 휴게를 이미
+    // 흡수한 날은 brk 가 0 이라 쭉 일하므로 뺄 게 없다.
     const LUNCH_ST = 12 * 60, LUNCH_ED = 13 * 60;
-    const lunchAhead = (until) => (brk <= 0 ? 0
-      : Math.min(brk, Math.max(0, Math.min(until, LUNCH_ED) - Math.max(nowMin, LUNCH_ST))));
+    const lunchIn = (from, to) => (brk <= 0 ? 0
+      : Math.min(brk, Math.max(0, Math.min(to, LUNCH_ED) - Math.max(from, LUNCH_ST))));
+
+    // 이미 쓴 점심을 뺀 실근무 시간.
+    const elapsedMin = Math.max(0, nowMin - inMin - lunchIn(inMin, nowMin));
+    // 각 퇴근 시각까지 더 일해야 하는 시간. 아직 안 쓴 점심을 뺀다.
     const leftTo = (workMin) => {
       const out = base + workMin;
-      return out - nowMin - lunchAhead(out);
+      return out - nowMin - lunchIn(nowMin, out);
     };
 
     return {
