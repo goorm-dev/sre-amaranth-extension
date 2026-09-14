@@ -152,15 +152,17 @@
     }
   }
 
+  // 탭 복귀 감지는 한 번만 단다. 패널을 껐다 켤 때마다 달면 리스너가 쌓인다.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || auto.stopped || !panel) return;
+    // 오래 자리를 비웠으면 통째로, 아니면 평소 주기대로.
+    if (Date.now() - auto.last.full > auto.stale) load(viewMonth, { useCache: false });
+    else pulse();
+  });
+
   function startAuto() {
     clearInterval(auto.timer);
     auto.timer = setInterval(pulse, auto.tick);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden || auto.stopped) return;
-      // 오래 자리를 비웠으면 통째로, 아니면 평소 주기대로.
-      if (Date.now() - auto.last.full > auto.stale) load(viewMonth, { useCache: false });
-      else pulse();
-    });
   }
 
   const esc = (v) => String(v == null ? '' : v)
@@ -181,6 +183,28 @@
     }
   }
 
+  // 패널을 끄면 DOM 에서 지우고 자동 갱신도 멈춘다. 팝업은 따로 동작하므로
+  // 조회를 계속할 이유가 없다. 다시 켜면 새로고침 없이 되살린다.
+  let panelOff = false;   // 진행 중이던 조회가 패널을 되살리지 못하게 막는 빗장
+
+  function teardownPanel() {
+    panelOff = true;
+    clearInterval(auto.timer);
+    auto.timer = null;
+    if (panel) { panel.remove(); panel = null; }
+  }
+
+  async function setupPanel() {
+    panelOff = false;
+    if (panel) return;
+    await render();
+    const { collapsed } = await chrome.storage.local.get('collapsed');
+    if (collapsed && panel) panel.classList.add('gwp-collapsed');
+    load(viewMonth);
+    startAuto();
+    showUpdateIfAny();
+  }
+
   const CORNERS = ['tl', 'tr', 'bl', 'br'];
   const CORNER_IC = { tl: '◰', tr: '◳', bl: '◱', br: '◲' };
   const CORNER_NM = { tl: '왼쪽 위', tr: '오른쪽 위', bl: '왼쪽 아래', br: '오른쪽 아래' };
@@ -195,6 +219,7 @@
   }
 
   function ensurePanel() {
+    if (panelOff) return null;
     if (panel && document.body.contains(panel)) return panel;
     panel = document.createElement('div');
     panel.id = 'gw-work-panel';
@@ -243,6 +268,7 @@
 
   async function renderInner() {
     const el = ensurePanel();
+    if (!el) return;   // 패널을 꺼 둔 상태. 진행 중이던 조회가 여기로 들어온다.
     const settings = await GW.store.getSettings();
     applyCorner(settings.panelCorner);
     panel.classList.toggle('gwp-pick', pickOpen);
@@ -365,17 +391,17 @@
   if (window.opener || window.top !== window) return;
 
   (async () => {
-    const { collapsed } = await chrome.storage.local.get('collapsed');
-    await render();
-    if (collapsed) panel.classList.add('gwp-collapsed');
-    load(viewMonth);
-    startAuto();
-    showUpdateIfAny();
-
-    // 팝업에서 위치를 바꾸면 새로고침 없이 바로 옮긴다.
+    // 리스너를 먼저 단다. 꺼진 상태로 들어와도 팝업에서 켜면 바로 뜨게.
     chrome.storage.onChanged.addListener((changes, area) => {
       const c = area === 'local' && changes.settings;
-      if (c && c.newValue) applyCorner(c.newValue.panelCorner);
+      if (!c || !c.newValue) return;
+      if (c.newValue.panelHidden) teardownPanel();
+      else if (!panel) setupPanel();
+      else applyCorner(c.newValue.panelCorner);
     });
+
+    let settings;
+    try { settings = await GW.store.getSettings(); } catch (_) { return; }
+    if (!settings.panelHidden) await setupPanel();
   })();
 })();

@@ -201,6 +201,7 @@
     $('holAdd').value = (settings.holidayAdd || []).join(', ');
     $('holRemove').value = (settings.holidayRemove || []).join(', ');
     paintCorners(settings.panelCorner);
+    paintPanelToggle(settings.panelHidden);
   }
 
   const parseDates = (t) => (t || '').split(/[,\s]+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
@@ -433,6 +434,18 @@
       b.classList.toggle('on', b.dataset.corner === (corner || 'br'));
     }
   }
+  // 패널을 끄면 위치 선택기도 의미가 없다. 같이 흐린다.
+  function paintPanelToggle(hidden) {
+    $('showPanel').checked = !hidden;
+    $('corners').style.opacity = hidden ? '.4' : '';
+    $('corners').style.pointerEvents = hidden ? 'none' : '';
+  }
+  $('showPanel').onchange = async () => {
+    const hidden = !$('showPanel').checked;
+    paintPanelToggle(hidden);
+    await GW.store.setSettings({ panelHidden: hidden });
+  };
+
   $('corners').onclick = async (ev) => {
     const b = ev.target.closest('[data-corner]');
     if (!b) return;
