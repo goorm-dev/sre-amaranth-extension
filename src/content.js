@@ -181,6 +181,15 @@
     }
   }
 
+  const CORNERS = ['tl', 'tr', 'bl', 'br'];
+
+  function applyCorner(corner) {
+    if (!panel) return;
+    const c = CORNERS.includes(corner) ? corner : 'br';
+    panel.classList.remove(...CORNERS.map((x) => `gwp-${x}`));
+    panel.classList.add(`gwp-${c}`);
+  }
+
   function ensurePanel() {
     if (panel && document.body.contains(panel)) return panel;
     panel = document.createElement('div');
@@ -220,6 +229,7 @@
   async function renderInner() {
     const el = ensurePanel();
     const settings = await GW.store.getSettings();
+    applyCorner(settings.panelCorner);
     state.plans = await GW.store.getPlans();
     const s = GW.calc.summarize({ rows: state.rows, leaves: state.leaves, plans: state.plans, holidays: state.holidays }, settings, viewMonth, new Date());
     // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
@@ -340,5 +350,11 @@
     load(viewMonth);
     startAuto();
     showUpdateIfAny();
+
+    // 팝업에서 위치를 바꾸면 새로고침 없이 바로 옮긴다.
+    chrome.storage.onChanged.addListener((changes, area) => {
+      const c = area === 'local' && changes.settings;
+      if (c && c.newValue) applyCorner(c.newValue.panelCorner);
+    });
   })();
 })();

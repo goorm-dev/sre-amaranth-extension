@@ -12,6 +12,7 @@
     breakMinutes: 60,     // 휴게시간 (퇴근 시각 계산용)
     holidayAdd: [],       // 공휴일 표에 없는 회사 휴무일
     holidayRemove: [],    // 공휴일 표에서 빼고 근무일로 취급할 날
+    panelCorner: 'br',    // 페이지 패널 위치: tl · tr · bl · br
   };
 
   // 확장을 새로고침하면 기존 탭의 콘텐츠 스크립트가 고아가 되고, 이후 chrome.* 호출은

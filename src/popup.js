@@ -200,6 +200,7 @@
     $('breakMin').value = settings.breakMinutes;
     $('holAdd').value = (settings.holidayAdd || []).join(', ');
     $('holRemove').value = (settings.holidayRemove || []).join(', ');
+    paintCorners(settings.panelCorner);
   }
 
   const parseDates = (t) => (t || '').split(/[,\s]+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
@@ -424,6 +425,20 @@
   // 새로고침은 근태 데이터와 버전 확인을 같이 강제한다. TTL 때문에 새 버전이
   // 안 보일 때 사용자가 직접 확인할 수 있는 유일한 통로다.
   $('refresh').onclick = () => { load({ useCache: false }); checkUpdate(true); };
+
+  // 페이지 패널 위치. 고르는 즉시 저장하고, 열려 있는 gw 탭에도 바로 반영된다
+  // (content.js 가 storage.onChanged 를 듣는다).
+  function paintCorners(corner) {
+    for (const b of $('corners').querySelectorAll('button')) {
+      b.classList.toggle('on', b.dataset.corner === (corner || 'br'));
+    }
+  }
+  $('corners').onclick = async (ev) => {
+    const b = ev.target.closest('[data-corner]');
+    if (!b) return;
+    paintCorners(b.dataset.corner);
+    await GW.store.setSettings({ panelCorner: b.dataset.corner });
+  };
 
   $('save').onclick = async () => {
     await GW.store.setSettings({
