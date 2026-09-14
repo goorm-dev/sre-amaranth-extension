@@ -153,3 +153,29 @@
 #gw-work-panel.gwp-tr { top: 20px; right: 20px; left: auto; bottom: auto; }
 #gw-work-panel.gwp-bl { bottom: 20px; left: 20px; right: auto; top: auto; }
 #gw-work-panel.gwp-br { bottom: 20px; right: 20px; left: auto; top: auto; }
+
+/* 패널 안에서 위치 바꾸기. 헤더의 ⤢ 를 누르면 열린다.
+   헤더가 기준이라 relative 를 주고, 패널이 어느 모서리에 있든 헤더 바로 아래 뜬다. */
+#gw-work-panel .gwp-head { position: relative; }
+#gw-work-panel .gwp-corners {
+  display: none;
+  position: absolute; top: calc(100% + 4px); right: 6px; z-index: 1;
+  grid-template-columns: 1fr 1fr; gap: 3px; padding: 5px;
+  background: #fff; border: 1px solid #e2e6ee; border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(17, 24, 39, .18);
+}
+#gw-work-panel.gwp-pick .gwp-corners { display: grid; }
+#gw-work-panel .gwp-corners button {
+  width: 28px; height: 26px; padding: 0; font: inherit; font-size: 15px; line-height: 1;
+  border: 1px solid #d5dae4; border-radius: 5px;
+  background: #fff; color: #9ca3af; cursor: pointer;
+}
+#gw-work-panel .gwp-corners button:hover { background: #f5f7fb; }
+#gw-work-panel .gwp-corners button.on { border-color: #1e63d8; background: #eef4ff; color: #1e63d8; }
+/* 접힌 상태에서는 본문이 없어 헤더만 남는다. 그때도 선택기는 떠야 한다. */
+#gw-work-panel.gwp-collapsed { overflow: visible; }
+/* 접히면 헤더가 곧 패널이다. overflow 를 풀었으니 모서리를 직접 둥글린다. */
+#gw-work-panel.gwp-collapsed .gwp-head { border-radius: 12px; }
+/* 아래쪽 모서리에 접혀 있으면 아래로 열 자리가 없다. 위로 연다. */
+#gw-work-panel.gwp-collapsed.gwp-bl .gwp-corners,
+#gw-work-panel.gwp-collapsed.gwp-br .gwp-corners { top: auto; bottom: calc(100% + 4px); }

@@ -182,6 +182,10 @@
   }
 
   const CORNERS = ['tl', 'tr', 'bl', 'br'];
+  const CORNER_IC = { tl: '◰', tr: '◳', bl: '◱', br: '◲' };
+  const CORNER_NM = { tl: '왼쪽 위', tr: '오른쪽 위', bl: '왼쪽 아래', br: '오른쪽 아래' };
+  // 패널은 30초마다 다시 그려진다. 선택기 열림 상태를 여기 두고 렌더 뒤에 다시 씌운다.
+  let pickOpen = false;
 
   function applyCorner(corner) {
     if (!panel) return;
@@ -210,7 +214,18 @@
     else if (act === 'refresh') { auto.resume(); load(viewMonth, { useCache: false }); }
     // 확장은 읽기 전용이다. 신청서 작성은 그룹웨어 화면에서 하도록 이동만 시킨다.
     else if (act === 'apply-leave') location.hash = GW.screens.hash(GW.screens.LEAVE_APPLY);
-    else if (act === 'toggle') {
+    else if (act === 'corner') {
+      pickOpen = !pickOpen;
+      panel.classList.toggle('gwp-pick', pickOpen);
+    } else if (act === 'corner-set') {
+      pickOpen = false;
+      panel.classList.remove('gwp-pick');
+      applyCorner(a.dataset.corner);        // 저장을 기다리지 않고 바로 옮긴다
+      GW.store.setSettings({ panelCorner: a.dataset.corner }).catch(() => {});
+      for (const b of panel.querySelectorAll('[data-act="corner-set"]')) {
+        b.classList.toggle('on', b.dataset.corner === a.dataset.corner);
+      }
+    } else if (act === 'toggle') {
       panel.classList.toggle('gwp-collapsed');
       chrome.storage.local.set({ collapsed: panel.classList.contains('gwp-collapsed') });
     }
@@ -230,6 +245,7 @@
     const el = ensurePanel();
     const settings = await GW.store.getSettings();
     applyCorner(settings.panelCorner);
+    panel.classList.toggle('gwp-pick', pickOpen);
     state.plans = await GW.store.getPlans();
     const s = GW.calc.summarize({ rows: state.rows, leaves: state.leaves, plans: state.plans, holidays: state.holidays }, settings, viewMonth, new Date());
     // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
@@ -280,7 +296,12 @@
         <button class="gwp-nav" data-act="prev" title="이전 달">‹</button>
         <span class="gwp-title">${y}년 ${Number(m)}월 근무</span>
         <button class="gwp-nav" data-act="next" title="다음 달">›</button>
+        <button class="gwp-nav" data-act="corner" title="패널 위치">⤢</button>
         <button class="gwp-toggle" data-act="toggle" title="접기/펼치기">▾</button>
+        <div class="gwp-corners">
+          ${CORNERS.map((c) => `<button data-act="corner-set" data-corner="${c}"
+            title="${CORNER_NM[c]}" class="${settings.panelCorner === c ? 'on' : ''}">${CORNER_IC[c]}</button>`).join('')}
+        </div>
       </div>
       <div class="gwp-body">
         <div class="gwp-hero">
