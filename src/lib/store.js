@@ -14,6 +14,7 @@
     holidayRemove: [],    // 공휴일 표에서 빼고 근무일로 취급할 날
     panelCorner: 'br',    // 페이지 패널 위치: tl · tr · bl · br
     panelHidden: false,   // 페이지 패널을 아예 띄우지 않는다 (팝업은 그대로 쓴다)
+    dayScope: 'team',     // 그날 근태를 볼 범위: team · all
   };
 
   // 확장을 새로고침하면 기존 탭의 콘텐츠 스크립트가 고아가 되고, 이후 chrome.* 호출은

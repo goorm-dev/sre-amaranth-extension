@@ -265,8 +265,56 @@
     return rows.filter((lv) => lv.startKey <= to && lv.endKey >= from);
   }
 
+  // ── 팀 근태 (누가 휴가인지) ──────────────────────────────────────────
+  //
+  // /schres/sc111A03 은 일정(UE) 모듈의 근태캘린더다. 화면은 날짜마다 한 번씩
+  // 부르므로 우리도 하루씩 부른다(범위가 되는지는 확인된 바 없다).
+  //
+  // 본문의 companyInfo 는 WEHAGO 식별자다. gw 페이지의 sessionStorage 에서
+  // 콘텐츠 스크립트가 캐시해 둔 것을 쓴다.
+  const P_TEAM = '/schres/sc111A03';
+
+  async function wehagoIdentity() {
+    const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
+    if (id && id.groupSeq) return id;
+    throw new Error('사원 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열었다가 다시 시도해 주세요.');
+  }
+
+  // atCd 앞자리로 갈린다 — 1xxx 휴가, 2xxx 출장, 3xxx 외근.
+  const KIND_OF = (atCd) => ({ 1: 'leave', 2: 'trip', 3: 'field' })[String(atCd || '')[0]] || 'etc';
+
+  async function getDayAttendance(dateKey) {
+    const id = await wehagoIdentity();
+    const d = dateKey.replace(/-/g, '');
+    const r = await call(P_TEAM, {
+      companyInfo: {
+        compSeq: id.compSeq, groupSeq: id.groupSeq, deptSeq: id.deptSeq,
+        emailAddr: id.emailAddr, emailDomain: id.emailDomain,
+      },
+      startDate: d, endDate: d,
+      schUserTypeSechYn: 'Y',
+      calList: [], tcalList: [], acalList: ['1'],   // 근태캘린더만
+      tooltipSechYn: 'Y', mySchYn: 'N', langCode: 'kr',
+    }, 'UEA0000');
+
+    const list = (r && r.resultList) || [];
+    return list.map((x) => ({
+      name: x.partName || x.schUserList || '',
+      dept: x.createDeptName || '',
+      deptSeq: String((x.schUserAndType || '').match(/deptSeq:\s*(\d+)/)?.[1] || ''),
+      atNm: x.atNm || (x.schTitle || '').replace(/[[\]]/g, '').trim(),
+      atCd: x.atCd || '',
+      kind: KIND_OF(x.atCd),
+      allday: x.alldayYn === 'Y',
+      // 202609070800 → 08:00
+      from: String(x.startDate || '').slice(8, 12),
+      to: String(x.endDate || '').slice(8, 12),
+    })).sort((a, b) => (a.dept + a.name).localeCompare(b.dept + b.name, 'ko'));
+  }
+
   GW.api = {
     call, getWorkTimeList, getMonth, getLeaveList, getMonthLeaves,
     getComeLeave, getHolidays, resolveIdentity, credentials, AuthError,
+    getDayAttendance, wehagoIdentity,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

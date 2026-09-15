@@ -202,15 +202,91 @@
     $('holRemove').value = (settings.holidayRemove || []).join(', ');
     paintCorners(settings.panelCorner);
     paintPanelToggle(settings.panelHidden);
+    dayScope = settings.dayScope || 'team';
   }
 
   const parseDates = (t) => (t || '').split(/[,\s]+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+
+  // ── 그날 근태 (누가 휴가인지) ────────────────────────────────────────
+  //
+  // 달력 날짜를 누르면 뜬다. 응답이 전사라서 우리 팀만 볼지 전체를 볼지 고른다.
+  // 날짜별로 한 번만 받아 두고 범위 전환은 클라이언트에서 거른다.
+  let dayScope = 'team';
+  let dayKey = null;
+  const dayCache = new Map();
+
+  function paintScope() {
+    for (const b of $('daySheet').querySelectorAll('[data-scope]')) {
+      b.classList.toggle('on', b.dataset.scope === dayScope);
+    }
+  }
+
+  const KIND_NM = { leave: '휴가', trip: '출장', field: '외근', etc: '기타' };
+
+  function renderDay(rows, myDeptSeq) {
+    const list = dayScope === 'team' && myDeptSeq
+      ? rows.filter((r) => r.deptSeq === String(myDeptSeq))
+      : rows;
+    if (!list.length) {
+      $('dayBody').innerHTML = `<div class="dnone">${dayScope === 'team' ? '우리 팀은' : ''} 아무도 없습니다</div>`;
+      return;
+    }
+    // 휴가 → 출장 → 외근 순으로 묶는다. 궁금한 건 대개 휴가다.
+    const order = ['leave', 'trip', 'field', 'etc'];
+    $('dayBody').innerHTML = order.map((k) => {
+      const g = list.filter((r) => r.kind === k);
+      if (!g.length) return '';
+      return `<div class="dgrp">${KIND_NM[k]} ${g.length}</div>`
+        + g.map((r) => `<div class="drow">
+             <b>${esc(r.name)}</b>
+             ${dayScope === 'all' ? `<span class="ddept">${esc(r.dept)}</span>` : ''}
+             <span class="dwhen">${esc(r.atNm)}${r.allday ? '' : ` ${hm(r.from)}~${hm(r.to)}`}</span>
+           </div>`).join('');
+    }).join('');
+  }
+
+  async function openDay(key) {
+    dayKey = key;
+    $('daySheet').hidden = false;
+    $('dayTitle').textContent = `${T.label(T.fromKey(key))} 근태`;
+    paintScope();
+    if (dayCache.has(key)) {
+      const { rows, myDeptSeq } = dayCache.get(key);
+      renderDay(rows, myDeptSeq);
+      return;
+    }
+    $('dayBody').textContent = '불러오는 중…';
+    try {
+      const [rows, id] = await Promise.all([
+        GW.api.getDayAttendance(key),
+        GW.api.wehagoIdentity().catch(() => null),
+      ]);
+      const myDeptSeq = id && id.deptSeq;
+      dayCache.set(key, { rows, myDeptSeq });
+      if (dayKey === key) renderDay(rows, myDeptSeq);
+    } catch (e) {
+      $('dayBody').innerHTML = `<div class="dbad">${esc(e.message || '조회 실패')}</div>`;
+    }
+  }
+
+  $('daySheet').querySelector('.dayscope').onclick = async (ev) => {
+    const b = ev.target.closest('[data-scope]');
+    if (!b || b.dataset.scope === dayScope) return;
+    dayScope = b.dataset.scope;
+    paintScope();
+    const hit = dayCache.get(dayKey);
+    if (hit) renderDay(hit.rows, hit.myDeptSeq);
+    GW.store.setSettings({ dayScope }).catch(() => {});
+  };
+  $('dayClose').onclick = () => { $('daySheet').hidden = true; };
+  $('daySheet').onclick = (e) => { if (e.target === $('daySheet')) $('daySheet').hidden = true; };
 
   $('cal').onclick = (ev) => {
     const b = ev.target.closest('button[data-key]');
     if (!b || b.disabled) return;
     selectedKey = b.dataset.key === selectedKey ? null : b.dataset.key;
     render();
+    if (selectedKey) openDay(selectedKey);
   };
   $('editApply').onclick = async () => {
     const h = Number($('editHours').value);

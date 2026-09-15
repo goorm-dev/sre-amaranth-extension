@@ -205,6 +205,37 @@
     showUpdateIfAny();
   }
 
+  // 팀 근태 조회(/schres/sc111A03)는 본문에 WEHAGO 식별자를 요구한다 —
+  // groupSeq·compSeq·deptSeq·이메일. ERP 코드(empCd/coCd)와는 다른 체계다.
+  // gw.goorm.io 의 sessionStorage.userInfo 에 들어 있고, 콘텐츠 스크립트는
+  // 같은 출처라 읽을 수 있다(격리 세계라도 스토리지는 공유된다). 팝업은 다른
+  // 출처라 못 읽으므로 여기서 캐시해 준다.
+  function cacheWehagoIdentity() {
+    let raw;
+    try { raw = sessionStorage.getItem('userInfo'); } catch (_) { return; }
+    if (!raw) return;
+    let uc;
+    try { uc = findUcUserInfo(JSON.parse(raw)); } catch (_) { return; }
+    if (!uc || !uc.groupSeq) return;
+    const id = {
+      groupSeq: uc.groupSeq, compSeq: uc.compSeq, deptSeq: uc.deptSeq,
+      empSeq: uc.empSeq, deptName: uc.deptName,
+      emailAddr: uc.emailAdd, emailDomain: uc.emailDomain, at: Date.now(),
+    };
+    chrome.storage.local.set({ wehagoIdentity: id }).catch(() => {});
+  }
+
+  // 응답 구조가 버전마다 달라 키 이름으로 찾는다.
+  function findUcUserInfo(o, depth) {
+    if (!o || typeof o !== 'object' || (depth || 0) > 6) return null;
+    if (o.groupSeq && o.compSeq && o.deptSeq) return o;
+    for (const v of Object.values(o)) {
+      const hit = findUcUserInfo(v, (depth || 0) + 1);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
   const CORNERS = ['tl', 'tr', 'bl', 'br'];
   const CORNER_IC = { tl: '◰', tr: '◳', bl: '◱', br: '◲' };
   const CORNER_NM = { tl: '왼쪽 위', tr: '오른쪽 위', bl: '왼쪽 아래', br: '오른쪽 아래' };
@@ -399,6 +430,8 @@
       else if (!panel) setupPanel();
       else applyCorner(c.newValue.panelCorner);
     });
+
+    cacheWehagoIdentity();
 
     let settings;
     try { settings = await GW.store.getSettings(); } catch (_) { return; }

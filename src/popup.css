@@ -136,3 +136,17 @@ footer span { font-size: 11px; color: #9ca3af; }
   border: 1px solid #d5dae4; border-radius: 6px; background: #fff; color: #9ca3af; cursor: pointer; }
 .corners button:hover { background: #f5f7fb; }
 .corners button.on { border-color: #1e63d8; background: #eef4ff; color: #1e63d8; }
+/* 달력 날짜를 누르면 뜨는 그날 근태 */
+.dayscope { display: flex; gap: 4px; margin-bottom: 10px; }
+.dayscope button { flex: 1; padding: 6px; font: inherit; font-size: 12px; font-weight: 600;
+  border: 1px solid #d5dae4; border-radius: 7px; background: #fff; color: #6b7280; cursor: pointer; }
+.dayscope button.on { border-color: #1e63d8; background: #eef4ff; color: #1e63d8; }
+.daybody { max-height: 280px; overflow-y: auto; font-size: 12.5px; }
+.daybody .dgrp { font-size: 11px; font-weight: 700; color: #9ca3af; margin: 8px 0 3px; }
+.daybody .dgrp:first-child { margin-top: 0; }
+.daybody .drow { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f3f5f9; }
+.daybody .drow b { font-weight: 700; }
+.daybody .drow .ddept { color: #9ca3af; font-size: 11px; }
+.daybody .drow .dwhen { margin-left: auto; color: #6b7280; font-size: 11px; white-space: nowrap; }
+.daybody .dnone { color: #9ca3af; padding: 14px 0; text-align: center; }
+.daybody .dbad { color: #b91c1c; white-space: pre-wrap; }

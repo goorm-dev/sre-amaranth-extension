@@ -517,6 +517,34 @@ calculateApplicationDays → 0hr00011 → create
 휴게는 근로시간에서 **빠지므로** 퇴근이 그만큼 밀립니다. 다만 확장의 계산에는 넣지
 않습니다 — 결재가 끝나면 서버가 인정근무시간에 반영합니다 (위 참고).
 
+## 그날 근태 (누가 휴가인지)
+
+달력 날짜를 누르면 **그날 자리를 비우는 사람**이 뜹니다. `우리 팀` / `전체` 를 고를
+수 있고, 휴가 → 출장 → 외근 순으로 묶어 보여줍니다.
+
+```
+POST /schres/sc111A03    (일정 모듈의 근태캘린더)
+  { companyInfo: { compSeq, groupSeq, deptSeq, emailAddr, emailDomain },
+    startDate, endDate, acalList: ["1"], … }
+→ resultList[] : partName · createDeptName · atNm · atCd · startDate · endDate · alldayYn
+```
+
+**화면이 날짜마다 한 번씩 부르므로 우리도 하루씩 부릅니다.** 본문에 `startDate`/
+`endDate` 가 있어 범위가 될 수도 있지만 확인된 바 없습니다. 날짜별로 한 번 받아
+두고 `우리 팀`/`전체` 전환은 클라이언트에서 거릅니다.
+
+종류는 `atCd` 앞자리로 갈립니다 — `1xxx` 휴가, `2xxx` 출장, `3xxx` 외근.
+
+### WEHAGO 식별자
+
+이 API 는 본문에 `groupSeq`·`compSeq`·`deptSeq`·이메일을 요구합니다. 근태 API 가
+쓰는 ERP 코드(`empCd`/`coCd`)와는 **다른 체계**라 따로 구해야 합니다.
+
+`gw.goorm.io` 의 `sessionStorage.userInfo` 에 들어 있고, 콘텐츠 스크립트가 같은
+출처라 읽을 수 있습니다(격리 세계라도 스토리지는 공유됩니다). 팝업은 다른 출처라
+못 읽으므로 콘텐츠 스크립트가 캐시해 둡니다. **그래서 `gw.goorm.io` 탭을 한 번은
+열어야** 이 기능이 동작합니다.
+
 ## 업데이트 확인
 
 팝업과 페이지 패널에 새 버전 안내가 뜹니다. **자동 설치는 안 됩니다** — 압축해제
