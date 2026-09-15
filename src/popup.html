@@ -26,13 +26,6 @@
     </div>
     <div class="calhead"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
     <div class="cal" id="cal"></div>
-    <div class="caledit" id="caledit" hidden>
-      <span id="editDay"></span>
-      <input id="editHours" type="number" step="0.5" min="0" max="16">
-      <span class="unit">시간</span>
-      <button id="editApply" class="primary">적용</button>
-      <button id="editClear">해제</button>
-    </div>
     <div class="callegend">
       <span><i class="lg-plan"></i>계획</span>
       <span><i class="lg-leave"></i>휴가</span>
@@ -49,6 +42,14 @@
         <button type="button" data-scope="team" class="on">우리 팀</button>
         <button type="button" data-scope="all">전체</button>
       </div>
+      <div class="caledit" id="caledit" hidden>
+        <span id="editDay"></span>
+        <input id="editHours" type="number" step="0.5" min="0" max="16">
+        <span class="unit">시간</span>
+        <button id="editApply" class="primary">적용</button>
+        <button id="editClear">해제</button>
+      </div>
+      <div class="dgrp dsec">그날 자리 비우는 사람</div>
       <div id="dayBody" class="daybody">불러오는 중…</div>
       <button id="dayClose" class="lvx">닫기</button>
     </div>

@@ -150,3 +150,7 @@ footer span { font-size: 11px; color: #9ca3af; }
 .daybody .drow .dwhen { margin-left: auto; color: #6b7280; font-size: 11px; white-space: nowrap; }
 .daybody .dnone { color: #9ca3af; padding: 14px 0; text-align: center; }
 .daybody .dbad { color: #b91c1c; white-space: pre-wrap; }
+.daybody .dgrp.dsec, .dgrp.dsec { margin-top: 12px; padding-top: 9px; border-top: 1px solid #eef1f6; }
+#daySheet .caledit { margin-top: 0; margin-bottom: 2px; }
+/* 계획을 세울 수 없는 날(마감·휴일)도 눌러서 근태는 볼 수 있다 */
+.cal button.noplan { cursor: pointer; }

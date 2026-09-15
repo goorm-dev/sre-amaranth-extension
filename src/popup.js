@@ -67,7 +67,10 @@
         r.leaveNames ? `${r.leaveNames.join(', ')} ${T.fmtDuration(r.creditMin)} 인정` : null,
       ].filter(Boolean).join(' · ');
       const title = tip ? ` title="${esc(tip)}"` : '';
-      const disabled = !r.standardMin || past ? ' disabled' : '';
+      // 지난 날·휴일도 누를 수 있게 둔다 — 그날 누가 쉬었는지는 볼 수 있어야 한다.
+      // 계획 편집만 막으면 된다(아래 renderEditor).
+      if (!r.standardMin || past) cls.push('noplan');
+      const disabled = '';
       cells.push(`<button class="${cls.join(' ')}" data-key="${key}"${disabled}${title}>` +
         `<span class="d">${d.getDate()}</span><span class="v">${value || '&nbsp;'}</span></button>`);
     }
@@ -76,11 +79,12 @@
 
   function renderEditor(s) {
     const box = $('caledit');
-    if (!selectedKey) { box.hidden = true; return; }
-    box.hidden = false;
-    const d = T.fromKey(selectedKey);
     const r = s.rows.find((x) => x.key === selectedKey) || {};
-    $('editDay').innerHTML = esc(T.label(d));
+    // 마감된 날과 휴일은 계획을 세울 게 없다. 근태 목록만 보여준다.
+    const editable = selectedKey && r.standardMin > 0 && selectedKey >= T.toKey(new Date());
+    if (!editable) { box.hidden = true; return; }
+    box.hidden = false;
+    $('editDay').textContent = '근무 계획';
     const fallback = r.planMin != null ? r.planMin
       : (r.creditMin > 0 ? Math.max(0, r.standardMin - r.creditMin) : (s.avgNeededMin ?? s.dailyMin));
     $('editHours').value = (fallback / 60).toFixed(1);
