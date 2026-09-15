@@ -231,6 +231,8 @@
     const list = dayScope === 'team' && myDeptSeq
       ? rows.filter((r) => r.deptSeq === String(myDeptSeq))
       : rows;
+    // 목록이 잘려도 총원이 제목에 있으면 더 있다는 게 보인다.
+    $('dayCount').textContent = list.length ? `${list.length}명` : '';
     if (!list.length) {
       $('dayBody').innerHTML = `<div class="dnone">${dayScope === 'team' ? '우리 팀은' : ''} 아무도 없습니다</div>`;
       return;
@@ -240,11 +242,12 @@
     $('dayBody').innerHTML = order.map((k) => {
       const g = list.filter((r) => r.kind === k);
       if (!g.length) return '';
-      return `<div class="dgrp">${KIND_NM[k]} ${g.length}</div>`
+      return `<div class="dgrp">${KIND_NM[k]}<i>${g.length}명</i></div>`
         + g.map((r) => `<div class="drow">
-             <b>${esc(r.name)}</b>
-             ${dayScope === 'all' ? `<span class="ddept">${esc(r.dept)}</span>` : ''}
-             <span class="dwhen">${esc(r.atNm)}${r.allday ? '' : ` ${hm(r.from)}~${hm(r.to)}`}</span>
+             <span class="dwho"><b>${esc(r.name)}</b>${
+               dayScope === 'all' ? `<i class="ddept">${esc(r.dept)}</i>` : ''}</span>
+             <span class="dwhen">${esc(r.atNm)}${
+               r.allday ? '' : `<i class="dtime">${hm(r.from)}~${hm(r.to)}</i>`}</span>
            </div>`).join('');
     }).join('');
   }
@@ -253,6 +256,7 @@
     dayKey = key;
     $('daySheet').hidden = false;
     $('dayTitle').textContent = `${T.label(T.fromKey(key))} 근태`;
+    $('dayCount').textContent = '';
     paintScope();
     if (dayCache.has(key)) {
       const { rows, myDeptSeq } = dayCache.get(key);

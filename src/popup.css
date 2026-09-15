@@ -141,16 +141,38 @@ footer span { font-size: 11px; color: #9ca3af; }
 .dayscope button { flex: 1; padding: 6px; font: inherit; font-size: 12px; font-weight: 600;
   border: 1px solid #d5dae4; border-radius: 7px; background: #fff; color: #6b7280; cursor: pointer; }
 .dayscope button.on { border-color: #1e63d8; background: #eef4ff; color: #1e63d8; }
-.daybody { max-height: 280px; overflow-y: auto; font-size: 12.5px; }
-.daybody .dgrp { font-size: 11px; font-weight: 700; color: #9ca3af; margin: 8px 0 3px; }
-.daybody .dgrp:first-child { margin-top: 0; }
-.daybody .drow { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; border-bottom: 1px solid #f3f5f9; }
-.daybody .drow b { font-weight: 700; }
-.daybody .drow .ddept { color: #9ca3af; font-size: 11px; }
-.daybody .drow .dwhen { margin-left: auto; color: #6b7280; font-size: 11px; white-space: nowrap; }
+.daybody { max-height: 300px; overflow-y: auto; font-size: 12.5px; }
+.daybody { border-top: 1px solid #eef1f6; padding-top: 4px; margin-top: 12px; }
+.daybody .dgrp { display: flex; align-items: baseline; gap: 5px;
+  font-size: 11.5px; font-weight: 700; color: #374151; margin: 10px 0 2px; }
+.daybody .dgrp i { font-style: normal; font-weight: 600; color: #9ca3af; font-size: 10.5px; }
+.daybody .dgrp:first-child { margin-top: 4px; }
+.daybody .drow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f3f5f9; }
+.daybody .drow:last-child { border-bottom: 0; }
+/* 이름+부서를 한 덩어리로 묶어 넘치면 부서명부터 줄인다. 종류는 오른쪽 고정. */
+.daybody .dwho { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 5px; }
+.daybody .dwho b { font-weight: 700; white-space: nowrap; }
+.daybody .ddept { font-style: normal; color: #9ca3af; font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daybody .dwhen { flex: none; color: #4b5563; font-size: 11.5px; white-space: nowrap; text-align: right; }
+.daybody .dtime { display: block; font-style: normal; color: #9ca3af; font-size: 10.5px; }
 .daybody .dnone { color: #9ca3af; padding: 14px 0; text-align: center; }
 .daybody .dbad { color: #b91c1c; white-space: pre-wrap; }
-.daybody .dgrp.dsec, .dgrp.dsec { margin-top: 12px; padding-top: 9px; border-top: 1px solid #eef1f6; }
 #daySheet .caledit { margin-top: 0; margin-bottom: 2px; }
 /* 계획을 세울 수 없는 날(마감·휴일)도 눌러서 근태는 볼 수 있다 */
 .cal button.noplan { cursor: pointer; }
+
+/* ── 날짜 창 ───────────────────────────────────────────────────────────
+   .lvcard .primary 가 width:100% 라 [적용] 이 늘어나면서 라벨과 [해제] 가
+   세로로 쪼개졌다. 이 창 안에서는 그 규칙을 풀고 따로 잡는다. */
+#daySheet .lvcard { width: 312px; }
+#daySheet b#dayTitle { font-size: 15px; }
+
+#daySheet .caledit { display: block; margin: 0; }
+#daySheet #editDay { display: block; font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+#daySheet .caledit .erow { display: flex; align-items: center; gap: 6px; }
+#daySheet .caledit input { width: 62px; flex: none; text-align: right; }
+#daySheet .caledit .unit { flex: 1; font-size: 11.5px; color: #6b7280; }
+#daySheet .caledit button { width: auto; flex: none; white-space: nowrap; padding: 7px 14px; font-size: 12.5px; }
+#daySheet b#dayTitle { display: inline; }
+.daycount { font-style: normal; font-size: 11.5px; font-weight: 600; color: #9ca3af; margin-left: 6px; }

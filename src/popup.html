@@ -37,19 +37,20 @@
 
   <div id="daySheet" class="lvsheet" hidden>
     <div class="lvcard">
-      <b id="dayTitle">—</b>
+      <b id="dayTitle">—</b><i id="dayCount" class="daycount"></i>
       <div class="dayscope">
         <button type="button" data-scope="team" class="on">우리 팀</button>
         <button type="button" data-scope="all">전체</button>
       </div>
       <div class="caledit" id="caledit" hidden>
         <span id="editDay"></span>
-        <input id="editHours" type="number" step="0.5" min="0" max="16">
-        <span class="unit">시간</span>
-        <button id="editApply" class="primary">적용</button>
-        <button id="editClear">해제</button>
+        <div class="erow">
+          <input id="editHours" type="number" step="0.5" min="0" max="16">
+          <span class="unit">시간</span>
+          <button id="editApply" class="primary">적용</button>
+          <button id="editClear">해제</button>
+        </div>
       </div>
-      <div class="dgrp dsec">그날 자리 비우는 사람</div>
       <div id="dayBody" class="daybody">불러오는 중…</div>
       <button id="dayClose" class="lvx">닫기</button>
     </div>
