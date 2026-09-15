@@ -1,0 +1,1433 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<hudson>
+  <disabledAdministrativeMonitors>
+    <string>hudson.node_monitors.MonitorMarkedNodeOffline</string>
+    <string>hudson.diagnosis.TooManyJobsButNoView</string>
+    <string>jenkins.diagnostics.ControllerExecutorsNoAgents</string>
+    <string>jenkins.monitor.JavaVersionRecommendationAdminMonitor-11-2024-09-30-WARNING</string>
+    <string>OldData</string>
+    <string>jenkins.security.UpdateSiteWarningsMonitor</string>
+    <string>hudson.util.DoubleLaunchChecker</string>
+    <string>jenkins.security.csp.impl.CspRecommendation</string>
+    <string>org.jenkinsci.plugins.rolestrategy.AmbiguousSidsAdminMonitor</string>
+    <string>org.jenkinsci.plugins.rolestrategy.NamingStrategyAdministrativeMonitor</string>
+    <string>jenkins.diagnostics.ControllerExecutorsAgents</string>
+    <string>hudson.diagnosis.ReverseProxySetupMonitor</string>
+  </disabledAdministrativeMonitors>
+  <version>2.568.3</version>
+  <numExecutors>1</numExecutors>
+  <mode>EXCLUSIVE</mode>
+  <useSecurity>true</useSecurity>
+  <authorizationStrategy class="com.michelin.cio.hudson.plugins.rolestrategy.RoleBasedAuthorizationStrategy">
+    <permissionTemplates>
+      <template name="default">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+      </template>
+    </permissionTemplates>
+    <roleMap type="slaveRoles"/>
+    <roleMap type="globalRoles">
+      <role name="admin" pattern=".*">
+        <permissions>
+          <permission>hudson.model.Hudson.Administer</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">sre-team</sid>
+        </assignedSIDs>
+      </role>
+      <role name="developer" pattern=".*">
+        <permissions>
+          <permission>hudson.model.Hudson.Read</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">authenticated</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">cyber-security-team</sid>
+          <sid type="GROUP">devops-read</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+          <sid type="GROUP">vapor-team</sid>
+        </assignedSIDs>
+      </role>
+      <role name="leader" pattern=".*">
+        <permissions>
+          <permission>hudson.model.Hudson.Read</permission>
+          <permission>hudson.model.View.Create</permission>
+          <permission>hudson.model.View.Delete</permission>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Workspace</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.model.Run.Replay</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+          <permission>hudson.model.View.Read</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+        </assignedSIDs>
+      </role>
+    </roleMap>
+    <roleMap type="projectRoles">
+      <role name="AI-DIT-Intern" pattern="(AI-DT|AI-DT/(dev|stage|entry|prev|prod).*)">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs/>
+      </role>
+      <role name="AI-DT" pattern="AI-DT.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">ai-tech-team</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="account-api" pattern="account-api.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="arkain" pattern="arkain.*" templateName="default">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">cyber-security-team</sid>
+        </assignedSIDs>
+      </role>
+      <role name="aws-utils" pattern="aws-utils.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">cyber-security-team</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+          <sid type="GROUP">vapor-team</sid>
+        </assignedSIDs>
+      </role>
+      <role name="code-runner" pattern="code-runner.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="csap" pattern="csap.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="dataq" pattern="dataq.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="dw" pattern="dw.*" templateName="default">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="edu-ai-course" pattern="edu-ai-course.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="gem" pattern="gem.*" templateName="default">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-admin" pattern="goorm-admin.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs/>
+      </role>
+      <role name="goorm-auth" pattern="goorm-auth.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-edu" pattern="goorm-edu.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-exp" pattern="exp.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-ide" pattern="goorm-ide.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-io" pattern="goorm-io.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="goorm-pay" pattern="goorm-pay-v2.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs/>
+      </role>
+      <role name="greenit" pattern="greenit.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="ide-kubernetes" pattern="ide-kubernetes.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="kakao-ide" pattern="kakao.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="kdt" pattern="kdt.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="kode-runner" pattern="kode-runner.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="ktc" pattern="ktc.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs/>
+      </role>
+      <role name="laas" pattern="laas.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="lge" pattern="lge.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="new-edu" pattern="new-edu.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="nis" pattern="nis.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="softcamp" pattern="softcamp.*">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">devth-sqd</sid>
+          <sid type="GROUP">exelearnce-leaders</sid>
+          <sid type="GROUP">exelearnce-sqd</sid>
+        </assignedSIDs>
+      </role>
+      <role name="sre-intern" pattern="(sre-intern.*|goorm-edu|goorm-edu/edu-core|goorm-edu/edu-core/DEV.*)">
+        <permissions>
+          <permission>hudson.model.View.Delete</permission>
+          <permission>hudson.model.Item.Create</permission>
+          <permission>hudson.model.Run.Delete</permission>
+          <permission>hudson.model.Item.Workspace</permission>
+          <permission>hudson.model.View.Configure</permission>
+          <permission>hudson.model.Item.Configure</permission>
+          <permission>hudson.model.View.Read</permission>
+          <permission>hudson.model.View.Create</permission>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Delete</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.plugins.jobConfigHistory.JobConfigHistory.DeleteEntry</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+          <permission>hudson.model.Item.Move</permission>
+          <permission>hudson.model.Item.Discover</permission>
+          <permission>hudson.model.Run.Update</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="USER">hyunho.lee@goorm.io</sid>
+        </assignedSIDs>
+      </role>
+      <role name="tokenhub" pattern="tokenhub.*" templateName="default">
+        <permissions>
+          <permission>hudson.model.Item.Cancel</permission>
+          <permission>hudson.model.Item.Read</permission>
+          <permission>hudson.model.Item.Build</permission>
+          <permission>hudson.scm.SCM.Tag</permission>
+        </permissions>
+        <assignedSIDs>
+          <sid type="GROUP">arkain-leaders</sid>
+          <sid type="GROUP">arkain-sqd</sid>
+        </assignedSIDs>
+      </role>
+    </roleMap>
+  </authorizationStrategy>
+  <securityRealm class="org.jenkinsci.plugins.oic.OicSecurityRealm" plugin="oic-auth@4.681.v2c81b_d60dfdc">
+    <userIdStrategy class="jenkins.model.IdStrategy$CaseSensitive"/>
+    <groupIdStrategy class="jenkins.model.IdStrategy$CaseSensitive"/>
+    <clientId>jenkins</clientId>
+    <clientSecret>{AQAAABAAAAAwAwgV9evE3KQw4ZdoKPV1s6F/nrqpSKsxq6LQqViov4CSlblTLY5NHcju1ZtSmYgfBWWUsNJJzJnQcc1Uj6azRA==}</clientSecret>
+    <userNameField>preferred_username</userNameField>
+    <fullNameFieldName>name</fullNameFieldName>
+    <groupsFieldName>groups</groupsFieldName>
+    <disableSslVerification>false</disableSslVerification>
+    <logoutFromOpenidProvider>false</logoutFromOpenidProvider>
+    <serverConfiguration class="org.jenkinsci.plugins.oic.OicServerWellKnownConfiguration">
+      <wellKnownOpenIDConfigurationUrl>https://keycloak.internal.goorm.io/realms/goorm/.well-known/openid-configuration</wellKnownOpenIDConfigurationUrl>
+    </serverConfiguration>
+    <rootURLFromRequest>false</rootURLFromRequest>
+    <sendScopesInTokenRequest>false</sendScopesInTokenRequest>
+    <tokenExpirationCheckDisabled>false</tokenExpirationCheckDisabled>
+    <allowTokenAccessWithoutOicSession>false</allowTokenAccessWithoutOicSession>
+    <properties/>
+  </securityRealm>
+  <disableRememberMe>false</disableRememberMe>
+  <projectNamingStrategy class="jenkins.model.ProjectNamingStrategy$DefaultProjectNamingStrategy"/>
+  <workspaceDir>${JENKINS_HOME}/workspace/${ITEM_FULL_NAME}</workspaceDir>
+  <buildsDir>${ITEM_ROOTDIR}/builds</buildsDir>
+  <markupFormatter class="hudson.markup.EscapedMarkupFormatter"/>
+  <jdks/>
+  <viewsTabBar class="hudson.views.DefaultViewsTabBar"/>
+  <myViewsTabBar class="hudson.views.DefaultMyViewsTabBar"/>
+  <clouds>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>2vCPU-8GiB-ARM</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>2vCPU-8GiB-ARM</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>2vCPU-8GiB-ARM</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: arm64
+    type: jenkins
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;3Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;6Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;3Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;6Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+  volumes:
+    - name: workspace
+      emptyDir: {}</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>4vCPU-16GiB-ARM</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>4vCPU-16GiB-ARM</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>4vCPU-16GiB-ARM</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: arm64
+    type: jenkins
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;3.5&quot;
+          memory: &quot;13.5Gi&quot;
+        limits:
+          cpu: &quot;3.5&quot;
+          memory: &quot;13.5Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.5&quot;
+          memory: &quot;1Gi&quot;
+        limits:
+          cpu: &quot;1&quot;
+          memory: &quot;2Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+  volumes:
+    - name: workspace
+      emptyDir: {}</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>2vCPU-8GiB-AMD</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>2vCPU-8GiB-AMD</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <runAsUser>0</runAsUser>
+          <runAsGroup>0</runAsGroup>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>2vCPU-8GiB-AMD</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    type: jenkins
+    topology.kubernetes.io/zone: ap-northeast-2a
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;3Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;6Gi&quot;
+
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: efs-volume
+          mountPath: /mnt
+
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;3Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;6Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: efs-volume
+          mountPath: /mnt
+
+  volumes:
+    - name: workspace
+      emptyDir: {}
+
+    - name: efs-volume
+      persistentVolumeClaim:
+        claimName: efs-pvc</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>4vCPU-16GiB-AMD</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>4vCPU-16GiB-AMD</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>4vCPU-16GiB-AMD</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    type: jenkins
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+
+      resources:
+        requests:
+          cpu: &quot;3&quot;
+          memory: &quot;12Gi&quot;
+        limits:
+          cpu: &quot;3&quot;
+          memory: &quot;12Gi&quot;
+
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+  volumes:
+    - name: workspace
+      emptyDir: {}</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>8vCPU-32GiB-AMD</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>8vCPU-32GiB-AMD</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>8vCPU-32GiB-AMD</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    type: jenkins
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+
+      resources:
+        requests:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+        limits:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+  volumes:
+    - name: workspace
+      emptyDir: {}</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <name>edu-spot</name>
+      <defaultsProviderTemplate>edu-spot</defaultsProviderTemplate>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>edu-spot</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>7200</activeDeadlineSeconds>
+          <label>edu-spot</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    type: jenkins
+    topology.kubernetes.io/zone: ap-northeast-2a
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;3500m&quot;
+          memory: &quot;14Gi&quot;
+        limits:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;3500m&quot;
+          memory: &quot;14Gi&quot;
+        limits:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: efs-volume
+          mountPath: /mnt
+
+  volumes:
+    - name: workspace
+      emptyDir: {}
+
+    - name: efs-volume
+      persistentVolumeClaim:
+        claimName: efs-pvc</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>8vCPU-32GiB-ARM</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>a66c536d-012c-4a4e-9af5-c32486d056c8</id>
+          <name>8vCPU-32GiB-ARM</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>8vCPU-32GiB-ARM</label>
+          <nodeSelector>type=jenkins</nodeSelector>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: arm64
+    type: jenkins
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+        limits:
+          cpu: &quot;7.5&quot;
+          memory: &quot;29Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.5&quot;
+          memory: &quot;1Gi&quot;
+        limits:
+          cpu: &quot;1&quot;
+          memory: &quot;2Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+
+  volumes:
+    - name: workspace
+      emptyDir: {}</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+    <org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud plugin="kubernetes@4423.vb_59f230b_ce53">
+      <actions/>
+      <name>2vCPU-4GiB-AMD</name>
+      <templates>
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <id>edd1f223-4181-4d92-8a08-d396c57f9e86</id>
+          <name>2vCPU-4GiB-AMD</name>
+          <namespace>jenkins</namespace>
+          <privileged>false</privileged>
+          <runAsUser>0</runAsUser>
+          <runAsGroup>0</runAsGroup>
+          <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+          <alwaysPullImage>false</alwaysPullImage>
+          <instanceCap>2147483647</instanceCap>
+          <slaveConnectTimeout>1000</slaveConnectTimeout>
+          <idleMinutes>0</idleMinutes>
+          <activeDeadlineSeconds>3600</activeDeadlineSeconds>
+          <label>2vCPU-4GiB-AMD</label>
+          <hostNetwork>false</hostNetwork>
+          <volumes/>
+          <containers/>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+          <agentInjection>true</agentInjection>
+          <yaml>apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+
+  nodeSelector:
+    kubernetes.io/arch: amd64
+    type: jenkins
+    topology.kubernetes.io/zone: ap-northeast-2a
+
+  tolerations:
+    - key: &quot;type&quot;
+      operator: &quot;Equal&quot;
+      value: &quot;jenkins&quot;
+      effect: &quot;NoSchedule&quot;
+
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: Always
+      command:
+        - /busybox/sleep
+        - infinity
+      tty: true
+
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;1.5Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;3Gi&quot;
+
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: efs-volume
+          mountPath: /mnt
+
+    - name: node-builder
+      image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/docker-hub/library/node:20
+      imagePullPolicy: Always
+      command:
+        - sleep
+        - infinity
+      tty: true
+      resources:
+        requests:
+          cpu: &quot;0.75&quot;
+          memory: &quot;1.5Gi&quot;
+        limits:
+          cpu: &quot;1.5&quot;
+          memory: &quot;3Gi&quot;
+      volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: efs-volume
+          mountPath: /mnt
+
+  volumes:
+    - name: workspace
+      emptyDir: {}
+
+    - name: efs-volume
+      persistentVolumeClaim:
+        claimName: efs-pvc</yaml>
+          <yamlMergeStrategy class="org.csanchez.jenkins.plugins.kubernetes.pod.yaml.Overrides"/>
+          <inheritYamlMergeStrategy>false</inheritYamlMergeStrategy>
+          <showRawYaml>true</showRawYaml>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      </templates>
+      <useJenkinsProxy>false</useJenkinsProxy>
+      <skipTlsVerify>false</skipTlsVerify>
+      <addMasterProxyEnvVars>false</addMasterProxyEnvVars>
+      <capOnlyOnAlivePods>false</capOnlyOnAlivePods>
+      <restrictedPssSecurityContext>false</restrictedPssSecurityContext>
+      <webSocket>true</webSocket>
+      <directConnection>false</directConnection>
+      <containerCap>10</containerCap>
+      <retentionTimeout>5</retentionTimeout>
+      <connectTimeout>5</connectTimeout>
+      <readTimeout>15</readTimeout>
+      <podLabels>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>jenkins</key>
+          <value>slave</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+        <org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+          <key>type</key>
+          <value>jenkins</value>
+        </org.csanchez.jenkins.plugins.kubernetes.PodLabel>
+      </podLabels>
+      <usageRestricted>false</usageRestricted>
+      <maxRequestsPerHost>32</maxRequestsPerHost>
+      <waitForPodSec>600</waitForPodSec>
+      <podRetention class="org.csanchez.jenkins.plugins.kubernetes.pod.retention.Never"/>
+      <traits/>
+    </org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud>
+  </clouds>
+  <quietPeriod>5</quietPeriod>
+  <scmCheckoutRetryCount>0</scmCheckoutRetryCount>
+  <views>
+    <hudson.model.AllView>
+      <owner class="hudson" reference="../../.."/>
+      <name>all</name>
+      <description></description>
+      <filterExecutors>false</filterExecutors>
+      <filterQueue>false</filterQueue>
+      <properties class="hudson.model.View$PropertyList"/>
+    </hudson.model.AllView>
+  </views>
+  <primaryView>all</primaryView>
+  <slaveAgentPort>-1</slaveAgentPort>
+  <label>master</label>
+  <crumbIssuer class="hudson.security.csrf.DefaultCrumbIssuer"/>
+  <nodeProperties/>
+  <globalNodeProperties>
+    <hudson.slaves.EnvironmentVariablesNodeProperty>
+      <envVars serialization="custom">
+        <unserializable-parents/>
+        <tree-map>
+          <default>
+            <comparator class="java.lang.String$CaseInsensitiveComparator"/>
+          </default>
+          <int>1</int>
+          <string>GIT_LFS_SKIP_SMUDGE</string>
+          <string>1</string>
+        </tree-map>
+      </envVars>
+    </hudson.slaves.EnvironmentVariablesNodeProperty>
+  </globalNodeProperties>
+  <nodeRenameMigrationNeeded>false</nodeRenameMigrationNeeded>
+</hudson>
