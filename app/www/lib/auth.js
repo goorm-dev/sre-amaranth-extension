@@ -28,6 +28,17 @@
   }
 
   // sessionInfo 안에서 토큰/서명키를 찾는다 (서버 버전마다 키 이름이 조금씩 다르다).
+  // 응답 구조가 버전마다 달라 키 조합으로 찾는다.
+  function findUcUserInfo(o, depth) {
+    if (!o || typeof o !== 'object' || (depth || 0) > 6) return null;
+    if (o.groupSeq && o.compSeq && o.deptSeq) return o;
+    for (const v of Object.values(o)) {
+      const hit = findUcUserInfo(v, (depth || 0) + 1);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
   function pickToken(json) {
     const walk = (o, depth) => {
       if (!o || typeof o !== 'object' || depth > 6) return null;
@@ -88,7 +99,15 @@
       throw err;
     }
 
-    const session = Object.assign({ groupSeq, at: Date.now() }, hit);
+    // 팀 근태 조회(/schres/sc111A03)는 WEHAGO 식별자를 본문에 요구한다.
+    // 로그인 응답에 ucUserInfo 로 들어 있으니 세션에 같이 담아 둔다.
+    // (확장은 gw 페이지의 sessionStorage 에서 읽지만 앱은 그 페이지가 없다)
+    const uc = findUcUserInfo(s2.json.resultData) || {};
+    const session = Object.assign({
+      groupSeq, at: Date.now(),
+      compSeq: uc.compSeq, deptSeq: uc.deptSeq, empSeq: uc.empSeq,
+      emailAddr: uc.emailAdd, emailDomain: uc.emailDomain,
+    }, hit);
     GW.api.setSession(session);
 
     // empCd/coCd — 오늘 타각 조회에 필요. 근태 행에서 확보한다.

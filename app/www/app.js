@@ -123,6 +123,8 @@
     ].join('');
 
     const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
+    // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
+    const leftLabel = (min) => (min > 0 ? `${T.fmtDuration(min)} 남음` : '충족');
     const isCur = viewMonth === T.monthKey(new Date());
     $('plan').innerHTML = !isCur || !plan ? '' : plan.done
       ? `<div class="ptop"><span class="pl">오늘 근무</span><b class="pt done">${T.fmtDuration(plan.workedMin)}</b>
@@ -131,9 +133,12 @@
            <i class="pe">${T.fmtDuration(plan.elapsedMin)} 경과</i></div>
          ${plan.creditMin ? `<div class="planleave">${esc(plan.leaveNames.join(' + '))} ${T.fmtDuration(plan.creditMin)} 인정</div>` : ''}
          ${plan.singleTarget
-           ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`
-           : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span><b>${plan.minOut}</b></div>
-              <div class="planline hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span><b>${plan.parOut}</b></div>`}`;
+           ? `<div class="planline hl"><span>오늘 필요 (${T.fmtDuration(plan.needMin)})</span>
+                <b>${plan.parOut} <em class="left">(${leftLabel(plan.parLeftMin)})</em></b></div>`
+           : `<div class="planline"><span>최소 (${T.fmtDuration(plan.minNeedMin)})</span>
+                <b>${plan.minOut} <em class="left">(${leftLabel(plan.minLeftMin)})</em></b></div>
+              <div class="planline hl"><span>정량 (${T.fmtDuration(plan.needMin)})</span>
+                <b>${plan.parOut} <em class="left">(${leftLabel(plan.parLeftMin)})</em></b></div>`}`;
 
     renderCalendar(s);
     renderEditor(s);
@@ -172,7 +177,10 @@
       else if (s.avgNeededMin != null) value = short(s.avgNeededMin);
       if (key === s.todayKey) cls.push('today');
       if (key === selectedKey) cls.push('sel');
-      const dis = !r.standardMin || past ? ' disabled' : '';
+      // 지난 날·휴일도 누를 수 있게 둔다 — 그날 누가 쉬었는지는 볼 수 있어야 한다.
+      // 계획 편집만 renderEditor 에서 막는다.
+      if (!r.standardMin || past) cls.push('noplan');
+      const dis = '';
       cells.push(`<button class="${cls.join(' ')}" data-key="${key}"${dis}>` +
         `<span class="d">${d.getDate()}</span><span class="v">${value || '&nbsp;'}</span></button>`);
     }
@@ -181,10 +189,12 @@
 
   function renderEditor(s) {
     const box = $('caledit');
-    if (!selectedKey) { box.hidden = true; return; }
-    box.hidden = false;
     const r = s.rows.find((x) => x.key === selectedKey) || {};
-    $('editDay').innerHTML = esc(T.label(T.fromKey(selectedKey)));
+    // 마감된 날과 휴일은 계획을 세울 게 없다. 근태 목록만 보여준다.
+    const editable = selectedKey && r.standardMin > 0 && selectedKey >= T.toKey(new Date());
+    if (!editable) { box.hidden = true; return; }
+    box.hidden = false;
+    $('editDay').textContent = '근무 계획';
     const fb = r.planMin != null ? r.planMin
       : (r.creditMin > 0 ? Math.max(0, r.standardMin - r.creditMin) : (s.avgNeededMin ?? s.dailyMin));
     $('editHours').value = (fb / 60).toFixed(1);
@@ -397,11 +407,84 @@
   $('closeSheet').onclick = () => { $('sheet').hidden = true; };
   $('sheet').onclick = (e) => { if (e.target === $('sheet')) $('sheet').hidden = true; };
 
+  // ── 그날 근태 (누가 휴가인지) ────────────────────────────────────────
+  //
+  // 확장과 같은 흐름이다. 응답이 전사라 우리 팀/전체를 고르고, 날짜별로 한 번만
+  // 받아 두고 범위 전환은 클라이언트에서 거른다.
+  let dayScope = 'team';
+  let dayKey = null;
+  const dayCache = new Map();
+  const KIND_NM = { leave: '휴가', trip: '출장', field: '외근', etc: '기타' };
+  const dHm = (v) => `${v.slice(0, 2)}:${v.slice(2)}`;
+
+  function paintScope() {
+    for (const b of $('daySheet').querySelectorAll('[data-scope]')) {
+      b.classList.toggle('on', b.dataset.scope === dayScope);
+    }
+  }
+
+  function renderDay(rows, myDeptSeq) {
+    const list = dayScope === 'team' && myDeptSeq
+      ? rows.filter((r) => r.deptSeq === String(myDeptSeq))
+      : rows;
+    $('dayCount').textContent = list.length ? `${list.length}명` : '';
+    if (!list.length) {
+      $('dayBody').innerHTML = `<div class="dnone">${dayScope === 'team' ? '우리 팀은' : ''} 아무도 없습니다</div>`;
+      return;
+    }
+    $('dayBody').innerHTML = ['leave', 'trip', 'field', 'etc'].map((k) => {
+      const g = list.filter((r) => r.kind === k);
+      if (!g.length) return '';
+      return `<div class="dgrp">${KIND_NM[k]}<i>${g.length}명</i></div>`
+        + g.map((r) => `<div class="drow">
+             <span class="dwho"><b>${esc(r.name)}</b>${
+               dayScope === 'all' ? `<i class="ddept">${esc(r.dept)}</i>` : ''}</span>
+             <span class="dwhen">${esc(r.atNm)}${
+               r.allday ? '' : `<i class="dtime">${dHm(r.from)}~${dHm(r.to)}</i>`}</span>
+           </div>`).join('');
+    }).join('');
+  }
+
+  async function openDay(key) {
+    dayKey = key;
+    $('daySheet').hidden = false;
+    $('dayTitle').textContent = `${T.label(T.fromKey(key))} 근태`;
+    $('dayCount').textContent = '';
+    paintScope();
+    if (dayCache.has(key)) {
+      const c = dayCache.get(key);
+      renderDay(c.rows, c.myDeptSeq);
+      return;
+    }
+    $('dayBody').textContent = '불러오는 중…';
+    try {
+      const rows = await GW.api.getDayAttendance(key);
+      const myDeptSeq = (GW.api.getSession() || {}).deptSeq;
+      dayCache.set(key, { rows, myDeptSeq });
+      if (dayKey === key) renderDay(rows, myDeptSeq);
+    } catch (e) {
+      $('dayBody').innerHTML = `<div class="dbad">${esc(e.message || '조회 실패')}</div>`;
+    }
+  }
+
+  $('daySheet').querySelector('.dayscope').onclick = (ev) => {
+    const b = ev.target.closest('[data-scope]');
+    if (!b || b.dataset.scope === dayScope) return;
+    dayScope = b.dataset.scope;
+    paintScope();
+    const hit = dayCache.get(dayKey);
+    if (hit) renderDay(hit.rows, hit.myDeptSeq);
+    GW.store.setSettings({ dayScope }).catch(() => {});
+  };
+  $('dayClose').onclick = () => { $('daySheet').hidden = true; };
+  $('daySheet').onclick = (e) => { if (e.target === $('daySheet')) $('daySheet').hidden = true; };
+
   $('cal').onclick = (e) => {
     const b = e.target.closest('button[data-key]');
     if (!b || b.disabled) return;
     selectedKey = b.dataset.key === selectedKey ? null : b.dataset.key;
     render();
+    if (selectedKey) openDay(selectedKey);
   };
   $('editApply').onclick = async () => {
     const h = Number($('editHours').value);

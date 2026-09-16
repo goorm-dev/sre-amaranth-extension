@@ -240,9 +240,45 @@
     return true;
   }
 
+  // ── 팀 근태 (누가 휴가인지) ──────────────────────────────────────────
+  //
+  // /schres/sc111A03 은 일정(UE) 모듈의 근태캘린더다. 화면이 날짜마다 한 번씩
+  // 부르므로 우리도 하루씩 부른다. 본문의 companyInfo 는 WEHAGO 식별자로,
+  // 로그인 때 세션에 담아 둔 값을 쓴다(auth.js 참고).
+  const KIND_OF = (atCd) => ({ 1: 'leave', 2: 'trip', 3: 'field' })[String(atCd || '')[0]] || 'etc';
+
+  async function getDayAttendance(dateKey) {
+    if (!session || !session.groupSeq) throw new AuthError('로그인이 필요합니다.');
+    if (!session.compSeq) throw new Error('사원 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.');
+    const d = dateKey.replace(/-/g, '');
+    const r = await call('/schres/sc111A03', {
+      companyInfo: {
+        compSeq: session.compSeq, groupSeq: session.groupSeq, deptSeq: session.deptSeq,
+        emailAddr: session.emailAddr, emailDomain: session.emailDomain,
+      },
+      startDate: d, endDate: d,
+      schUserTypeSechYn: 'Y',
+      calList: [], tcalList: [], acalList: ['1'],
+      tooltipSechYn: 'Y', mySchYn: 'N', langCode: 'kr',
+    }, 'UEA0000');
+
+    return ((r && r.resultList) || []).map((x) => ({
+      name: x.partName || x.schUserList || '',
+      dept: x.createDeptName || '',
+      deptSeq: String((x.schUserAndType || '').match(/deptSeq:\s*(\d+)/)?.[1] || ''),
+      atNm: x.atNm || (x.schTitle || '').replace(/[[\]]/g, '').trim(),
+      atCd: x.atCd || '',
+      kind: KIND_OF(x.atCd),
+      allday: x.alldayYn === 'Y',
+      from: String(x.startDate || '').slice(8, 12),
+      to: String(x.endDate || '').slice(8, 12),
+    })).sort((a, b) => (a.dept + a.name).localeCompare(b.dept + b.name, 'ko'));
+  }
+
   GW.api = {
     ORIGIN, AuthError, callUncert, call, request, uncertSign, establishWebSession,
     setSession, getSession,
     getWorkTimeList, getMonth, getLeaveList, getMonthLeaves, getComeLeave, getHolidays,
+    getDayAttendance,
   };
 })(window);
