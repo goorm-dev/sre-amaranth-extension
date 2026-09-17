@@ -242,7 +242,7 @@
     $('dayBody').innerHTML = order.map((k) => {
       const g = list.filter((r) => r.kind === k);
       if (!g.length) return '';
-      return `<div class="dgrp">${KIND_NM[k]}<i>${g.length}명</i></div>`
+      return `<div class="dgrp k-${k}">${KIND_NM[k]}<i>${g.length}명</i></div>`
         + g.map((r) => `<div class="drow">
              <span class="dwho"><b>${esc(r.name)}</b>${
                dayScope === 'all' ? `<i class="ddept">${esc(r.dept)}</i>` : ''}</span>

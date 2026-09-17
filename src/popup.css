@@ -143,15 +143,22 @@ footer span { font-size: 11px; color: #9ca3af; }
 .dayscope button.on { border-color: #1e63d8; background: #eef4ff; color: #1e63d8; }
 .daybody { max-height: 300px; overflow-y: auto; font-size: 12.5px; }
 .daybody { border-top: 1px solid #eef1f6; padding-top: 4px; margin-top: 12px; }
-.daybody .dgrp { display: flex; align-items: baseline; gap: 5px;
-  font-size: 11.5px; font-weight: 700; color: #374151; margin: 10px 0 2px; }
-.daybody .dgrp i { font-style: normal; font-weight: 600; color: #9ca3af; font-size: 10.5px; }
-.daybody .dgrp:first-child { margin-top: 4px; }
+/* 그룹 헤더는 "역할이 다른 것" 으로 보여야 한다. 항목과 같은 굵은 글씨면
+   "오세준 반차" 와 "휴가 4명" 이 구분되지 않는다. 작은 색 칩으로 뺀다. */
+.daybody .dgrp { display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+  padding: 3px 9px; border-radius: 999px; margin: 12px 0 5px; }
+.daybody .dgrp i { font-style: normal; font-weight: 600; opacity: .7; }
+.daybody .dgrp:first-child { margin-top: 2px; }
+.daybody .dgrp.k-leave { background: #eef4ff; color: #1e63d8; }
+.daybody .dgrp.k-trip  { background: #fff7e6; color: #a15c00; }
+.daybody .dgrp.k-field { background: #e8f6ee; color: #0f7a43; }
+.daybody .dgrp.k-etc   { background: #f3f4f6; color: #6b7280; }
 .daybody .drow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f3f5f9; }
 .daybody .drow:last-child { border-bottom: 0; }
 /* 이름+부서를 한 덩어리로 묶어 넘치면 부서명부터 줄인다. 종류는 오른쪽 고정. */
 .daybody .dwho { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 5px; }
-.daybody .dwho b { font-weight: 700; white-space: nowrap; }
+.daybody .dwho b { font-weight: 700; font-size: 13px; white-space: nowrap; }
 .daybody .ddept { font-style: normal; color: #9ca3af; font-size: 11px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .daybody .dwhen { flex: none; color: #4b5563; font-size: 11.5px; white-space: nowrap; text-align: right; }

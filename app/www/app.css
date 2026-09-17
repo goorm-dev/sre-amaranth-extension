@@ -173,14 +173,28 @@ header .nav#breakBtn { font-size: 17px; }
 
 .daybody { max-height: 46vh; overflow-y: auto; font-size: 14px;
   border-top: 1px solid var(--line); padding-top: 4px; margin-top: 12px; }
-.daybody .dgrp { display: flex; align-items: baseline; gap: 6px;
-  font-size: 12.5px; font-weight: 700; color: var(--fg); margin: 12px 0 3px; }
-.daybody .dgrp:first-child { margin-top: 4px; }
-.daybody .dgrp i { font-style: normal; font-weight: 600; color: var(--dim); font-size: 11.5px; }
+/* 그룹 헤더는 "역할이 다른 것" 으로 보여야 한다. 항목과 같은 굵은 글씨면
+   "오세준 반차" 와 "휴가 4명" 이 구분되지 않는다. 작은 색 칩으로 뺀다.
+   색은 테마별로 따로 준다 — color-mix 는 구형 WebView 에서 안 먹는다. */
+.daybody .dgrp { display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .3px;
+  padding: 4px 11px; border-radius: 999px; margin: 14px 0 6px; }
+.daybody .dgrp:first-child { margin-top: 2px; }
+.daybody .dgrp i { font-style: normal; font-weight: 600; opacity: .7; }
+.daybody .dgrp.k-leave { background: #eef4ff; color: #1e63d8; }
+.daybody .dgrp.k-trip  { background: #fff7e6; color: #a15c00; }
+.daybody .dgrp.k-field { background: #e8f6ee; color: #0f7a43; }
+.daybody .dgrp.k-etc   { background: #f3f4f6; color: #6b7280; }
+@media (prefers-color-scheme: dark) {
+  .daybody .dgrp.k-leave { background: #1d2b47; color: #93c5fd; }
+  .daybody .dgrp.k-trip  { background: #3a2c12; color: #fbbf24; }
+  .daybody .dgrp.k-field { background: #14301f; color: #6ee7a8; }
+  .daybody .dgrp.k-etc   { background: #262b34; color: #9aa3b2; }
+}
 .daybody .drow { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
 .daybody .drow:last-child { border-bottom: 0; }
 .daybody .dwho { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
-.daybody .dwho b { font-weight: 700; white-space: nowrap; }
+.daybody .dwho b { font-weight: 700; font-size: 14.5px; white-space: nowrap; }
 .daybody .ddept { font-style: normal; color: var(--dim); font-size: 12px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .daybody .dwhen { flex: none; color: var(--fg); font-size: 13px; white-space: nowrap; text-align: right; }
