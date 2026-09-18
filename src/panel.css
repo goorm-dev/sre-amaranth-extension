@@ -179,3 +179,27 @@
 /* 아래쪽 모서리에 접혀 있으면 아래로 열 자리가 없다. 위로 연다. */
 #gw-work-panel.gwp-collapsed.gwp-bl .gwp-corners,
 #gw-work-panel.gwp-collapsed.gwp-br .gwp-corners { top: auto; bottom: calc(100% + 4px); }
+
+/* ── 드래그 ─────────────────────────────────────────────────────────── */
+#gw-work-panel .gwp-head { cursor: grab; touch-action: none; }
+#gw-work-panel.gwp-dragging { cursor: grabbing; user-select: none; transition: none; }
+#gw-work-panel.gwp-dragging .gwp-head { cursor: grabbing; }
+/* 헤더 안의 버튼은 끌기 대상이 아니다 */
+#gw-work-panel .gwp-head button { cursor: pointer; }
+
+/* ── 버블 (접었을 때 작은 원) ────────────────────────────────────────── */
+#gw-work-panel .gwp-bub { display: none; }
+#gw-work-panel.gwp-bubble.gwp-collapsed {
+  width: auto; min-width: 0; border-radius: 999px; border: 0;
+  box-shadow: 0 6px 20px rgba(17, 24, 39, .22);
+}
+#gw-work-panel.gwp-bubble.gwp-collapsed .gwp-head {
+  padding: 9px 14px; border-radius: 999px; gap: 8px;
+}
+/* 접힌 버블에는 남은 시간과 펼치기만 남긴다 */
+#gw-work-panel.gwp-bubble.gwp-collapsed .gwp-title,
+#gw-work-panel.gwp-bubble.gwp-collapsed .gwp-nav { display: none; }
+#gw-work-panel.gwp-bubble.gwp-collapsed .gwp-bub {
+  display: block; font-size: 13px; font-weight: 800; letter-spacing: -.2px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}

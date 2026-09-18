@@ -243,11 +243,74 @@
   let pickOpen = false;
 
   function applyCorner(corner) {
-    if (!panel) return;
+    if (!panel || panelPos) return;   // 드래그로 옮긴 위치가 있으면 그게 우선이다
     const c = CORNERS.includes(corner) ? corner : 'br';
     panel.classList.remove(...CORNERS.map((x) => `gwp-${x}`));
     panel.classList.add(`gwp-${c}`);
   }
+
+  // ── 드래그로 옮기기 ──────────────────────────────────────────────────
+  //
+  // 좌표를 쓰면 모서리 클래스는 끄고 left/top 으로 잡는다. 화면 밖으로 못 나가게
+  // 항상 가둔다 — 창이 작아지거나 접혀서 크기가 바뀌어도 다시 당겨 넣는다.
+  let panelPos = null;
+
+  function clamp(x, y) {
+    const r = panel.getBoundingClientRect();
+    const pad = 4;
+    return {
+      x: Math.max(pad, Math.min(x, window.innerWidth - r.width - pad)),
+      y: Math.max(pad, Math.min(y, window.innerHeight - r.height - pad)),
+    };
+  }
+
+  function applyPos(pos) {
+    if (!panel) return;
+    panelPos = pos;
+    if (!pos) return;   // 좌표를 지우면 다음 렌더에서 모서리로 돌아간다
+    panel.classList.remove(...CORNERS.map((x) => `gwp-${x}`));
+    const c = clamp(pos.x, pos.y);
+    panel.style.left = `${c.x}px`;
+    panel.style.top = `${c.y}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  function clearPos() {
+    panelPos = null;
+    if (!panel) return;
+    panel.style.left = panel.style.top = panel.style.right = panel.style.bottom = '';
+  }
+
+  // 헤더를 잡고 끈다. 버튼 위에서 시작한 것은 건드리지 않는다.
+  function startDrag(ev) {
+    if (!panel || ev.button !== 0) return;
+    if (ev.target.closest('button, a, input, .gwp-corners')) return;
+    const r = panel.getBoundingClientRect();
+    const dx = ev.clientX - r.left;
+    const dy = ev.clientY - r.top;
+    let moved = false;
+
+    const move = (e) => {
+      // 몇 픽셀은 클릭으로 본다. 안 그러면 접기 버튼을 누르다 미세하게 흔들려도
+      // 드래그로 잡혀 위치가 바뀐다.
+      if (!moved && Math.hypot(e.clientX - ev.clientX, e.clientY - ev.clientY) < 4) return;
+      moved = true;
+      panel.classList.add('gwp-dragging');
+      applyPos({ x: e.clientX - dx, y: e.clientY - dy });
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      panel.classList.remove('gwp-dragging');
+      if (moved) GW.store.setSettings({ panelPos }).catch(() => {});
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+  }
+
+  // 창 크기가 바뀌면 화면 밖으로 나간 패널을 다시 당겨 넣는다.
+  window.addEventListener('resize', () => { if (panelPos) applyPos(panelPos); });
 
   function ensurePanel() {
     if (panelOff) return null;
@@ -255,6 +318,9 @@
     panel = document.createElement('div');
     panel.id = 'gw-work-panel';
     panel.addEventListener('click', onClick);
+    panel.addEventListener('pointerdown', (ev) => {
+      if (ev.target.closest('.gwp-head')) startDrag(ev);
+    });
     document.body.appendChild(panel);
     return panel;
   }
@@ -276,8 +342,9 @@
     } else if (act === 'corner-set') {
       pickOpen = false;
       panel.classList.remove('gwp-pick');
+      clearPos();                           // 모서리를 고르면 드래그 위치는 버린다
       applyCorner(a.dataset.corner);        // 저장을 기다리지 않고 바로 옮긴다
-      GW.store.setSettings({ panelCorner: a.dataset.corner }).catch(() => {});
+      GW.store.setSettings({ panelCorner: a.dataset.corner, panelPos: null }).catch(() => {});
       for (const b of panel.querySelectorAll('[data-act="corner-set"]')) {
         b.classList.toggle('on', b.dataset.corner === a.dataset.corner);
       }
@@ -301,7 +368,9 @@
     const el = ensurePanel();
     if (!el) return;   // 패널을 꺼 둔 상태. 진행 중이던 조회가 여기로 들어온다.
     const settings = await GW.store.getSettings();
+    if (settings.panelPos) applyPos(settings.panelPos); else clearPos();
     applyCorner(settings.panelCorner);
+    panel.classList.toggle('gwp-bubble', !!settings.panelBubble);
     panel.classList.toggle('gwp-pick', pickOpen);
     state.plans = await GW.store.getPlans();
     const s = GW.calc.summarize({ rows: state.rows, leaves: state.leaves, plans: state.plans, holidays: state.holidays }, settings, viewMonth, new Date());
@@ -355,6 +424,7 @@
         <button class="gwp-nav" data-act="next" title="다음 달">›</button>
         <button class="gwp-nav" data-act="corner" title="패널 위치">⤢</button>
         <button class="gwp-toggle" data-act="toggle" title="접기/펼치기">▾</button>
+        <span class="gwp-bub">${s.remainingMin <= 0 ? '완료' : T.fmtDuration(Math.max(s.remainingMin, 0))}</span>
         <div class="gwp-corners">
           ${CORNERS.map((c) => `<button data-act="corner-set" data-corner="${c}"
             title="${CORNER_NM[c]}" class="${settings.panelCorner === c ? 'on' : ''}">${CORNER_IC[c]}</button>`).join('')}
@@ -428,7 +498,11 @@
       if (!c || !c.newValue) return;
       if (c.newValue.panelHidden) teardownPanel();
       else if (!panel) setupPanel();
-      else applyCorner(c.newValue.panelCorner);
+      else {
+        if (c.newValue.panelPos) applyPos(c.newValue.panelPos); else clearPos();
+        applyCorner(c.newValue.panelCorner);
+        panel.classList.toggle('gwp-bubble', !!c.newValue.panelBubble);
+      }
     });
 
     cacheWehagoIdentity();

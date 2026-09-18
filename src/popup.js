@@ -206,6 +206,7 @@
     $('holRemove').value = (settings.holidayRemove || []).join(', ');
     paintCorners(settings.panelCorner);
     paintPanelToggle(settings.panelHidden);
+    $('panelBubble').checked = !!settings.panelBubble;
     dayScope = settings.dayScope || 'team';
   }
 
@@ -530,11 +531,16 @@
     await GW.store.setSettings({ panelHidden: hidden });
   };
 
+  $('panelBubble').onchange = async () => {
+    await GW.store.setSettings({ panelBubble: $('panelBubble').checked });
+  };
+
+  // 모서리를 고르면 드래그로 옮긴 좌표는 버린다 (둘이 싸우지 않게).
   $('corners').onclick = async (ev) => {
     const b = ev.target.closest('[data-corner]');
     if (!b) return;
     paintCorners(b.dataset.corner);
-    await GW.store.setSettings({ panelCorner: b.dataset.corner });
+    await GW.store.setSettings({ panelCorner: b.dataset.corner, panelPos: null });
   };
 
   $('save').onclick = async () => {
