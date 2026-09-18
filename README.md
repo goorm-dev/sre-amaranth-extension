@@ -175,7 +175,9 @@ POST https://gw.goorm.io/personal/hpd0210/getWorkTimeList
 
 | 필드 | 의미 |
 |---|---|
-| `appworkTm` | 인정근무 (분). 반차·휴가 인정분 포함 |
+| `appworkTotalTm` | **인정근무 (분). 우리가 쓰는 값.** 회사가 얹어 주는 시간까지 포함 |
+| `appworkTm` | 인정근무 (분). 얹어 준 시간이 **빠져 있다** |
+| `outgoworkTm` | 외출근무 = 자율휴게 신청분 (분) |
 | `selfCommuteStandardWorkTm` | 그날의 소정근로시간 (분). 휴일이면 0 |
 | `exceptworkTm` | 제외근무 = 휴게시간 (보통 60) |
 | `comeTm` / `leaveTm` | 실제 출퇴근 타각 (`HHMM`, 없으면 `----`) |
@@ -185,6 +187,29 @@ POST https://gw.goorm.io/personal/hpd0210/getWorkTimeList
 | `worktmNm` | 승인 / 대기 |
 | `holiYn` | 공휴일 여부 |
 | `coCd` / `empCd` | 회사·사원 코드 (아래 실시간 조회에 필요) |
+
+#### 인정근무는 `appworkTotalTm` 을 씁니다
+
+회사가 근무시간을 얹어 주는 경우(스마트데이 등)가 있습니다. 그 시간은
+`appworkTm` 에 안 들어가고 `appworkTotalTm` 에만 들어옵니다.
+
+```
+2026-09-11 (스마데)  appworkTm 417 · appworkTotalTm 537   ← 120분 차이
+그 외의 날            둘이 같다 (578/578 · 485/485 · 530/530 · 497/497)
+```
+
+`appworkTotalTm` 이 체류시간이 아니라는 것도 확인했습니다 — 2026-09-01 은
+체류가 698분(09:00~20:38)인데 두 필드 모두 578 입니다. 즉 체류가 아니라
+"인정근무 + 얹어 준 시간" 입니다.
+
+반차·휴가 인정분은 `appcomeTm` 이 앞당겨지는 방식이라 양쪽에 이미 들어 있습니다
+(9/1 오전반차 → `comeTm` 14:39 이지만 `appcomeTm` 09:00).
+
+**API 에 월 합계는 없습니다.** `getWorkTimeList` 는 평평한 배열만 돌려주고,
+개인근무시간현황 화면이 행을 더해서 보여줍니다. 그래서 "화면 총합을 그대로
+가져오기" 는 불가능하고, 같은 필드를 더하는 것이 곧 같은 값입니다.
+어느 필드인지 대조하는 도구가 [tools/capture-worktime.js](tools/capture-worktime.js)
+의 `__dumpMonth()` 입니다.
 
 ### 2. 근태신청(휴가) 조회
 

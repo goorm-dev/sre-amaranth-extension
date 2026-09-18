@@ -124,7 +124,13 @@
     return rows.map((r) => ({
       key: GW.time.fromApiDate(r.atDt),
       standardMin: r.selfCommuteStandardWorkTm || 0,  // 그날의 소정근로시간 (휴일이면 0)
-      workedMin: r.appworkTm || 0,                    // 인정근무 (반차·휴가 인정분 포함)
+      // 인정근무. appworkTm 이 아니라 appworkTotalTm 을 쓴다 —
+      // 회사가 얹어 주는 시간(스마트데이 등)이 그 차이로 들어온다.
+      //   2026-09-11(스마데)  appworkTm 417 · appworkTotalTm 537   ← 120분 차이
+      //   그 외의 날            둘이 같다 (578/578, 485/485, 530/530, 497/497)
+      // 체류시간이 아니라는 것도 확인했다 — 2026-09-01 은 체류 698분인데 둘 다 578 이다.
+      // 반차·휴가 인정분은 appcomeTm 이 앞당겨져 양쪽에 이미 들어 있다.
+      workedMin: r.appworkTotalTm != null ? r.appworkTotalTm : (r.appworkTm || 0),
       basicMin: r.basicworkTm || 0,
       overMin: r.overworkTm || 0,
       breakMin: r.exceptworkTm || 0,                  // 제외근무 = 휴게시간
