@@ -816,9 +816,24 @@ main 이 아니거나, 커밋 안 된 변경이 있거나, 태그·릴리스가 
 `latest.json` 을 안 올리면 반대로 **아무에게도 안내가 안 뜹니다.** 릴리스 태그가
 아니라 이 파일 하나만 보기 때문입니다. 눈으로는 안 잡혀서 검사에 넣었습니다.
 
-**앱만 바뀐 경우**엔 새 태그를 만들지 않고 기존 릴리스에 APK 만 교체합니다
-(`gh release upload <tag> <apk> --clobber`). 확장 사용자에게 알릴 변경이 아니므로
-버전을 올리지 않는 게 맞습니다.
+**앱(APK)은 확장과 버전도 릴리스도 따로 갑니다.** 태그가 `app-v…` 로 시작합니다.
+
+```
+1. app/android/app/build.gradle 의 versionCode 를 올린다 (안드로이드가 요구한다)
+   versionName 과 app/package.json 도 같이 맞춘다
+2. sh app/sync-lib.sh && (cd app && node_modules/.bin/cap sync android)
+3. cd app/android && JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew assembleDebug
+4. gh release create app-v<버전> <apk> --title "앱 v<버전> — …"
+```
+
+**`assembleDebug` 로 뽑습니다.** 서명 설정이 따로 없어서 릴리스 빌드는 서명이 안 되고,
+서명이 달라지면 덮어 설치가 막혀 **사용자가 앱을 지웠다 깔아야 합니다** — 그러면
+팀·친구 설정이 날아갑니다. 기존 APK 는 로컬 디버그 키로 서명돼 있으므로 같은 키로
+계속 뽑습니다. 올리기 전에 서명이 같은지 확인합니다.
+
+```
+apksigner verify --print-certs <apk> | grep "SHA-256 digest"
+```
 
 ## 알려진 한계
 
