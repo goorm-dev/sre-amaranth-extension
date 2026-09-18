@@ -819,12 +819,19 @@ main 이 아니거나, 커밋 안 된 변경이 있거나, 태그·릴리스가 
 **앱(APK)은 확장과 버전도 릴리스도 따로 갑니다.** 태그가 `app-v…` 로 시작합니다.
 
 ```
-1. app/android/app/build.gradle 의 versionCode 를 올린다 (안드로이드가 요구한다)
-   versionName 과 app/package.json 도 같이 맞춘다
-2. sh app/sync-lib.sh && (cd app && node_modules/.bin/cap sync android)
+1. app/package.json 의 version 을 올린다          ← 유일한 출처
+2. sh app/set-version.sh                        ← 안드로이드 프로젝트에 박아 넣는다
+   sh app/sync-lib.sh
+   (cd app && node_modules/.bin/cap sync android)
 3. cd app/android && JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew assembleDebug
 4. gh release create app-v<버전> <apk> --title "앱 v<버전> — …"
 ```
+
+`app/android/` 는 `cap add android` 로 만들어지는 **생성물이라 통째로 gitignore** 돼
+있습니다. 거기 적힌 `versionCode` 는 그 기계에만 있고 프로젝트를 다시 만들면 1 로
+돌아갑니다. 그래서 추적되는 `app/package.json` 의 `version` 을 유일한 출처로 삼고
+[app/set-version.sh](app/set-version.sh) 가 계산해 넣습니다 (`1.4.2` → `10402`).
+내려가는 값이면 거기서 멈춥니다 — 안드로이드가 다운그레이드를 거부합니다.
 
 **`assembleDebug` 로 뽑습니다.** 서명 설정이 따로 없어서 릴리스 빌드는 서명이 안 되고,
 서명이 달라지면 덮어 설치가 막혀 **사용자가 앱을 지웠다 깔아야 합니다** — 그러면
