@@ -1,10 +1,13 @@
 // worktime 공유 API.
 //
-// 팀 링크가 곧 권한이다 — 계정도 로그인도 없다. 팀을 만들면 joinKey 가 나오고,
-// 그 키를 가진 사람만 읽고 쓸 수 있다. worktime.goorm.io 는 인터넷에서 닿으므로
-// 키 없는 접근은 전부 막는다.
+// 계정도 로그인도 없다. 팀 주소(teamId)와 열쇠(joinKey)는 클라이언트가
+// 회사 열쇠와 부서로부터 계산해 온다 (lib/team.js 의 derive 참고).
+// 서버는 그게 어떻게 나온 값인지 모른 채 "이 주소에 이 열쇠" 만 확인한다 —
+// 회사 열쇠도, 그룹웨어 토큰도 여기로 오지 않는다.
 //
-//   POST /api/teams                      { name }        → { teamId, joinKey }
+// worktime.goorm.io 는 인터넷에서 닿으므로 열쇠 없는 접근은 전부 막는다.
+//
+//   PUT  /api/teams/:id                  { joinKey, name }  → 있으면 확인, 없으면 생성
 //   GET  /api/teams/:id?k=<joinKey>                      → { name, members[] }
 //   PUT  /api/teams/:id/me?k=<joinKey>   { id, writeKey, name, ... }
 //   DELETE /api/teams/:id/me?k=<joinKey> { id, writeKey }
@@ -19,8 +22,6 @@ const { Store } = require('./store');
 const PORT = Number(process.env.PORT || 8081);
 const DATA = process.env.DATA_FILE || '/data/teams.json';
 const store = new Store(DATA);
-
-const rid = (n) => crypto.randomBytes(n).toString('base64url');
 
 // 팀 생성만 IP 단위로 제한한다. 인터넷에 열려 있어서, 안 막으면 아무나 MAX_TEAMS 를
 // 채워 남이 팀을 못 만들게 할 수 있다. 읽기·쓰기는 키가 있어야 하므로 제외.
@@ -56,11 +57,18 @@ function timingSafeEq(a, b) {
 // 자격증명은 안 쓴다(키가 본문·쿼리로 오므로 쿠키가 필요 없다).
 function cors(res, origin) {
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'content-type');
   res.setHeader('Access-Control-Max-Age', '600');
   res.setHeader('Vary', 'Origin');
 }
+
+// 팀이 없을 때와 열쇠가 틀렸을 때를 한 곳에서 같은 응답으로 돌려준다 —
+// 열쇠 없이 팀 존재 여부를 알아낼 수 없게. 반복해서 틀리면 막는다.
+const badKey = (req, res) =>
+  (tooMany('badKey', clientIp(req), BAD_KEY_PER_HOUR)
+    ? send(res, 429, { error: '잠시 후 다시 시도해 주세요' })
+    : send(res, 403, { error: '접근할 수 없습니다' }));
 
 const send = (res, code, body) => {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -120,28 +128,36 @@ const server = http.createServer(async (req, res) => {
   const [, teamId, isMe] = m;
 
   try {
-    // 팀 만들기
-    if (req.method === 'POST' && !teamId) {
+    // 팀은 전부 부서에서 파생된다 (teamId·joinKey 를 클라이언트가 계산한다).
+    // 무작위로 팀을 만들어 주던 POST /api/teams 는 없앴다 — 쓰이지 않는데
+    // 인터넷에 열려 있으면 아무나 팀 한도를 채울 수 있다.
+    if (!teamId) return send(res, 404, { error: 'not found' });
+    const team = store.team(teamId);
+
+    // 부서에서 파생한 팀. id 와 joinKey 를 클라이언트가 회사 열쇠로 계산해 오므로
+    // 서버가 새로 만들어 줄 게 없다 — 있으면 확인만, 없으면 그대로 만든다.
+    // 열쇠를 모르면 id 자체를 계산할 수 없어서 남의 부서 자리를 선점할 수 없다.
+    if (req.method === 'PUT' && !isMe) {
+      const b = await readBody(req);
+      const joinKey = str(b.joinKey, 64);
+      const name = str(b.name, 40) || '팀';
+      if (joinKey.length < 16) return send(res, 400, { error: '열쇠가 올바르지 않습니다' });
+      if (team) {
+        if (!timingSafeEq(joinKey, team.joinKey)) return badKey(req, res);
+        store.renameTeam(teamId, name);
+        return send(res, 200, { name });
+      }
       if (tooMany('create', clientIp(req), CREATE_PER_HOUR)) {
         return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
       }
-      const b = await readBody(req);
-      const name = str(b.name, 40) || '팀';
-      const team = store.createTeam({ id: rid(9), joinKey: rid(18), name });
-      return send(res, 200, { teamId: team.id, joinKey: team.joinKey, name: team.name });
+      store.createTeam({ id: teamId, joinKey, name });
+      return send(res, 200, { name });
     }
 
-    if (!teamId) return send(res, 404, { error: 'not found' });
-    const team = store.team(teamId);
     const key = url.searchParams.get('k') || '';
     // 팀이 없을 때와 키가 틀렸을 때를 같은 응답으로 돌려준다 — 팀 존재 여부를
     // 키 없이 알아낼 수 없게. 반복해서 틀리면 막는다.
-    if (!team || !timingSafeEq(key, team.joinKey)) {
-      if (tooMany('badKey', clientIp(req), BAD_KEY_PER_HOUR)) {
-        return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
-      }
-      return send(res, 403, { error: '링크가 올바르지 않습니다' });
-    }
+    if (!team || !timingSafeEq(key, team.joinKey)) return badKey(req, res);
 
     if (req.method === 'GET' && !isMe) {
       return send(res, 200, { name: team.name, members: store.members(teamId) });

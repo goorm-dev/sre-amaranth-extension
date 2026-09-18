@@ -185,17 +185,13 @@ footer span { font-size: 11px; color: #9ca3af; }
 .daycount { font-style: normal; font-size: 11.5px; font-weight: 600; color: #9ca3af; margin-left: 6px; }
 
 /* ── 팀 근무시간 공유 ─────────────────────────────────────────────── */
-/* .lvcard 의 공용 규칙이 input·button 을 둘 다 width:100% 로 잡는다.
-   가로로 붙이려면 그걸 되돌려야 한다 — 안 그러면 입력칸이 찌그러지고
-   버튼만 한 줄을 다 먹는다 (날짜 창에서 났던 것과 같은 문제). */
+/* 설정은 한 번뿐이다 — 회사 열쇠와 표시 이름. 세로로 쌓으면 충분하다.
+   .lvcard 의 공용 규칙이 input 을 width:100% 로 잡으므로 box-sizing 만 맞춰 준다. */
+.tmhelp { font-size: 11.5px; color: #6b7280; line-height: 1.5; margin: 0 0 12px; }
+.tmhelp b { color: #374151; }
 .tmlbl { display: block; font-size: 11px; color: #6b7280; margin-bottom: 10px; }
 .tmlbl input[type=text] { width: 100%; margin: 3px 0 0; box-sizing: border-box; }
-.tmor { font-size: 11px; color: #6b7280; margin: 12px 0 5px; font-weight: 600; }
-#teamSheet .erow { display: flex; gap: 6px; align-items: stretch; }
-#teamSheet .erow input[type=text] {
-  flex: 1 1 auto; width: auto; min-width: 0; margin: 0; box-sizing: border-box;
-}
-#teamSheet .erow .primary { flex: 0 0 auto; width: auto; padding: 9px 14px; }
+.tmfp { font-size: 10px; color: #9ca3af; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
 
 .tmhead { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
 .tmhead i { font-size: 11px; color: #6b7280; font-style: normal; }
@@ -231,3 +227,7 @@ footer span { font-size: 11px; color: #9ca3af; }
 .tmlist .dnone { color: #9ca3af; padding: 14px 0; text-align: center; font-size: 12px; }
 .lvmsg.ok { color: #4b5563; }
 .tmwho em { white-space: nowrap; }
+/* .lvcard .primary 는 크기만 정하고 색은 안 정한다 (다른 시트가 그대로 쓰고 있어
+   전역으로 바꾸지 않는다). 이 시트의 주요 동작만 눈에 띄게 한다. */
+#teamSheet .primary { background: #1e63d8; border: 1px solid #1e63d8; color: #fff; font-weight: 700; }
+#teamSheet .primary:disabled { background: #9db6e6; border-color: #9db6e6; }

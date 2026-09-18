@@ -111,20 +111,17 @@
   <div id="teamSheet" class="lvsheet" hidden>
     <div class="lvcard">
       <b>팀 근무시간</b>
-      <div id="tmJoin" class="tmjoin">
+
+      <div id="tmSetup" class="tmsetup" hidden>
+        <p class="tmhelp">같은 <b>부서</b>끼리 자동으로 묶입니다. 회사 열쇠만 한 번 넣으면
+          그 뒤로는 따로 할 일이 없습니다.</p>
+        <label class="tmlbl">회사 열쇠
+          <input id="tmKey" type="text" maxlength="60" placeholder="팀에서 정한 한 문장">
+        </label>
         <label class="tmlbl">표시 이름
           <input id="tmName" type="text" maxlength="12" placeholder="이름">
         </label>
-        <div class="tmor">팀 만들기</div>
-        <div class="erow">
-          <input id="tmTeamName" type="text" maxlength="20" placeholder="팀 이름 (예: SRE팀)">
-          <button id="tmCreate" class="primary">만들기</button>
-        </div>
-        <div class="tmor">받은 링크로 참여</div>
-        <div class="erow">
-          <input id="tmLink" type="text" placeholder="https://worktime.goorm.io/team?t=…">
-          <button id="tmJoinBtn" class="primary">참여</button>
-        </div>
+        <button id="tmStart" class="primary">시작</button>
       </div>
 
       <div id="tmView" class="tmview" hidden>
@@ -132,8 +129,8 @@
         <div id="tmList" class="tmlist">불러오는 중…</div>
         <div class="tmbar">
           <label class="tmshare"><input id="tmOn" type="checkbox"> 내 근무시간 공유</label>
-          <button id="tmCopy" class="link">링크 복사</button>
-          <button id="tmLeave" class="link bad">나가기</button>
+          <span id="tmFp" class="tmfp" title="같은 열쇠를 쓰는지 확인하는 값"></span>
+          <button id="tmReset" class="link bad">해제</button>
         </div>
       </div>
 

@@ -1,15 +1,21 @@
 // 팀 근무시간 공유.
 //
-// worktime.goorm.io 에 올려 둔 API 한 곳에 모은다. 계정은 없고 팀 링크가 곧 권한이다 —
-// 링크를 받은 사람만 그 팀을 읽고 쓸 수 있다.
+// 부서로 자동으로 묶인다. 팀을 만들거나 참여하는 절차가 없다 —
+// 그룹웨어가 알려 주는 부서(compSeq·deptSeq)가 곧 팀이다.
 //
-// 이 파일은 저장소를 모른다. 확장은 chrome.storage, 앱은 localStorage 를 쓰므로
-// 설정(cfg)은 부르는 쪽이 들고 있다가 넘긴다.
+// 문제는 서버가 "이 사람이 우리 회사 사람이고 정말 그 부서냐" 를 알 방법이 없다는
+// 것이다. worktime.goorm.io 는 인터넷에서 닿으므로, deptSeq 를 그냥 믿으면
+// 아무나 남의 부서 근무시간을 읽어 간다.
 //
-//   cfg = { teamId, joinKey, teamName, selfId, writeKey, on }
+// 그래서 **회사 열쇠** 하나를 쓴다. 설치할 때 한 번 넣으면 그 뒤로는 전부 자동이다.
 //
-// selfId/writeKey 는 브라우저에서 한 번 만들어 계속 쓴다. writeKey 는 "내 칸은 나만
-// 고친다" 는 용도이고 남에게 보이지 않는다 — 서버가 응답에서 빼고 준다.
+//   teamId  = HMAC(회사열쇠, "team:compSeq:deptSeq")   앞 16자
+//   joinKey = HMAC(회사열쇠, "key:compSeq:deptSeq")    앞 32자
+//
+// 열쇠를 모르면 팀 주소(teamId)를 계산조차 할 수 없다. 서버는 여전히 아무것도
+// 모른 채 "이 주소에 이 열쇠" 만 확인한다 — 회사 열쇠는 서버로 가지 않는다.
+//
+// cfg = { companyKey, myName, on, selfId, writeKey }
 (function (root) {
   const GW = (root.GW = root.GW || {});
 
@@ -18,13 +24,46 @@
 
   const rid = (n) => {
     const b = new Uint8Array(n);
-    (root.crypto || root.msCrypto).getRandomValues(b);
+    root.crypto.getRandomValues(b);
     return Array.from(b, (x) => 'abcdefghijklmnopqrstuvwxyz0123456789'[x % 36]).join('');
   };
 
   // 브라우저마다 한 번만 만든다. 같은 사람이 확장과 웹앱을 같이 쓰면 두 칸으로
   // 보이는데, 그걸 합치려면 계정이 필요하다 — 여기서는 받지 않는다.
   const newSelf = () => ({ selfId: rid(16), writeKey: rid(24) });
+
+  const b64url = (buf) => {
+    let s = '';
+    for (const b of new Uint8Array(buf)) s += String.fromCharCode(b);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+
+  // 사람이 손으로 옮겨 적는 값이다. 앞뒤 공백과 중간 연속 공백만 정리한다.
+  // 대소문자는 건드리지 않는다 — 줄이면 그만큼 추측이 쉬워진다.
+  const normKey = (k) => String(k || '').trim().replace(/\s+/g, ' ');
+
+  async function hmac(companyKey, msg) {
+    const enc = new TextEncoder();
+    const key = await root.crypto.subtle.importKey(
+      'raw', enc.encode(normKey(companyKey)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return b64url(await root.crypto.subtle.sign('HMAC', key, enc.encode(msg)));
+  }
+
+  // 부서 → 팀 주소. 같은 회사 열쇠와 같은 부서면 어디서 계산해도 같은 값이 나온다.
+  async function derive(companyKey, compSeq, deptSeq) {
+    if (!normKey(companyKey)) throw new Error('회사 열쇠가 없습니다');
+    if (!compSeq || !deptSeq) throw new Error('부서 정보를 찾지 못했습니다');
+    const tag = `${compSeq}:${deptSeq}`;
+    return {
+      teamId: (await hmac(companyKey, `team:${tag}`)).slice(0, 16),
+      joinKey: (await hmac(companyKey, `key:${tag}`)).slice(0, 32),
+    };
+  }
+
+  // 열쇠를 잘못 적으면 조용히 "나 혼자인 팀" 이 된다 — 오류가 안 난다.
+  // 네 글자를 서로 맞춰 보면 같은 열쇠를 쓰는지 바로 안다.
+  const fingerprint = async (companyKey) =>
+    (await hmac(companyKey, 'fingerprint')).slice(0, 4).toUpperCase();
 
   async function call(method, path, body) {
     let res;
@@ -43,35 +82,22 @@
     return data;
   }
 
-  const create = (name) => call('POST', '/teams', { name });
+  // 우리 부서 자리를 잡는다. 없으면 만들고, 있으면 열쇠만 확인한다.
+  // 부서명이 바뀌면 따라간다.
+  const ensure = (ids, deptName) =>
+    call('PUT', `/teams/${encodeURIComponent(ids.teamId)}`,
+      { joinKey: ids.joinKey, name: deptName || '우리 팀' });
 
-  const fetchTeam = (cfg) =>
-    call('GET', `/teams/${encodeURIComponent(cfg.teamId)}?k=${encodeURIComponent(cfg.joinKey)}`);
+  const fetchTeam = (ids) =>
+    call('GET', `/teams/${encodeURIComponent(ids.teamId)}?k=${encodeURIComponent(ids.joinKey)}`);
 
-  const publish = (cfg, me) =>
-    call('PUT', `/teams/${encodeURIComponent(cfg.teamId)}/me?k=${encodeURIComponent(cfg.joinKey)}`,
+  const publish = (ids, cfg, me) =>
+    call('PUT', `/teams/${encodeURIComponent(ids.teamId)}/me?k=${encodeURIComponent(ids.joinKey)}`,
       { ...me, id: cfg.selfId, writeKey: cfg.writeKey });
 
-  const withdraw = (cfg) =>
-    call('DELETE', `/teams/${encodeURIComponent(cfg.teamId)}/me?k=${encodeURIComponent(cfg.joinKey)}`,
+  const withdraw = (ids, cfg) =>
+    call('DELETE', `/teams/${encodeURIComponent(ids.teamId)}/me?k=${encodeURIComponent(ids.joinKey)}`,
       { id: cfg.selfId, writeKey: cfg.writeKey });
-
-  // 주고받는 링크. 웹앱이 열어서 t·k 를 읽는다.
-  const linkFor = (cfg) =>
-    `${ORIGIN}/team?t=${encodeURIComponent(cfg.teamId)}&k=${encodeURIComponent(cfg.joinKey)}`;
-
-  // 링크든 "t=…&k=…" 조각이든 받아 준다. 사람이 손으로 붙여 넣는 값이다.
-  function parseLink(text) {
-    const s = String(text || '').trim();
-    if (!s) return null;
-    let q = s;
-    const i = s.indexOf('?');
-    if (i >= 0) q = s.slice(i + 1);
-    const p = new URLSearchParams(q.replace(/^#/, ''));
-    const teamId = p.get('t');
-    const joinKey = p.get('k');
-    return teamId && joinKey ? { teamId, joinKey } : null;
-  }
 
   // 계산 결과에서 공유할 조각만 뽑는다. 원본을 통째로 보내지 않는다 —
   // 서버에 남는 건 이 필드들이 전부다.
@@ -104,5 +130,8 @@
     return me;
   }
 
-  GW.team = { ORIGIN, BASE, newSelf, create, fetchTeam, publish, withdraw, linkFor, parseLink, summarize };
+  GW.team = {
+    ORIGIN, BASE, newSelf, normKey, derive, fingerprint,
+    ensure, fetchTeam, publish, withdraw, summarize,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -56,6 +56,15 @@ class Store {
 
   team(id) { return this.data.teams[id] || null; }
 
+  // 부서명이 바뀌면 따라간다. 팀 이름은 표시용이라 아무나 못 바꾸게만 하면 된다
+  // (호출부가 joinKey 를 이미 확인한 뒤에 부른다).
+  renameTeam(id, name) {
+    const t = this.team(id);
+    if (!t || !name || t.name === name) return;
+    t.name = name;
+    this.dirty = true;
+  }
+
   putMember(teamId, member) {
     const t = this.team(teamId);
     if (!t) return null;

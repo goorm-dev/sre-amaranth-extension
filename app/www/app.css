@@ -207,17 +207,15 @@ header .nav#breakBtn { font-size: 17px; }
 #teamView .scroll { padding: 14px; }
 .tmcount { flex: none !important; font-size: 13px; font-weight: 600; opacity: .85; }
 
-.tmjoin { margin-bottom: 14px; }
-.tmlbl { display: block; font-size: 13px; color: var(--dim); }
-.tmlbl input { width: 100%; margin-top: 5px; }
-.tmor { font-size: 13px; color: var(--dim); margin: 16px 0 6px; font-weight: 600; }
-#teamView .erow { display: flex; gap: 8px; align-items: stretch; }
-#teamView .erow input { flex: 1; min-width: 0; margin: 0; }
-#teamView .erow button { flex: none; white-space: nowrap; }
-#teamView input[type=text] {
-  font: inherit; padding: 11px 12px; border: 1px solid var(--softline);
-  border-radius: 10px; background: var(--card); color: var(--fg);
+.tmhelp { font-size: 14px; color: var(--dim); line-height: 1.6; margin: 0 0 18px; }
+.tmhelp b { color: var(--fg); }
+.tmlbl { display: block; font-size: 13px; color: var(--dim); margin-bottom: 14px; }
+.tmlbl input[type=text] {
+  width: 100%; margin-top: 6px; font: inherit; padding: 11px 12px; box-sizing: border-box;
+  border: 1px solid var(--softline); border-radius: 10px; background: var(--card); color: var(--fg);
 }
+.tmfull { width: 100%; padding: 12px; }
+.tmfp { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: .5px; }
 
 .tmlist { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .tmrow {
@@ -228,8 +226,7 @@ header .nav#breakBtn { font-size: 17px; }
 .tmrow.me { background: var(--soft); }
 .tmwho { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tmwho b { font-size: 15px; }
-.tmwho i, .tmwho em { font-size: 12px; color: var(--dim); font-style: normal; }
-.tmwho em { white-space: nowrap; }
+.tmwho em { font-size: 12px; color: var(--dim); font-style: normal; white-space: nowrap; }
 .tmright { text-align: right; white-space: nowrap; display: flex; flex-direction: column; gap: 1px; }
 .tmright i { font-size: 12px; color: var(--dim); font-style: normal; }
 .tmout { font-size: 19px; font-variant-numeric: tabular-nums; }
@@ -239,7 +236,7 @@ header .nav#breakBtn { font-size: 17px; }
 .tmlist .dbad { color: var(--red); padding: 18px 13px; font-size: 14px; }
 .tmlist .dnone { color: var(--dim); padding: 22px 13px; text-align: center; font-size: 14px; }
 
-.tmbar { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.tmbar { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .tmshare { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--dim); flex: 1; }
 .tmshare input { margin: 0; }
 #teamView .link {
