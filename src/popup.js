@@ -603,7 +603,7 @@
     if (!id || !id.compSeq || !id.deptSeq) {
       throw new Error('부서 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열었다가 다시 시도해 주세요.');
     }
-    return GW.team.derive(id.compSeq, id.deptSeq);
+    return GW.team.derive(id.compSeq, id.deptName, id.deptSeq);
   }
 
   function tmPaintTabs() {
@@ -651,7 +651,7 @@
       const ids = await tmIds();
       if (!ids) return;
       const id = await tmIdentity();
-      await GW.team.ensure(ids, tmTab === 'team' ? (id && id.deptName) || cfg.teamName : '친구');
+      await GW.team.ensure(ids, tmTab === 'team' ? ids.root || cfg.teamName : '친구');
       await GW.team.publish(ids, await tmSelf(id, cfg), await tmPayload(id));
     } catch (_) { /* 공유가 안 돼도 본 기능은 막지 않는다 */ }
   }
@@ -670,7 +670,9 @@
       const id = await tmIdentity();
       let nm = '친구';
       if (tmTab === 'team') {
-        nm = (id && id.deptName) || (cfg && cfg.teamName) || '우리 팀';
+        // 묶인 이름(뿌리)을 제목으로 쓴다 — "SRE팀"·"SRE 1파트" 가 한 방이므로
+        // 어느 한쪽 이름을 걸면 다른 쪽 사람이 "여긴 내 팀이 아닌데" 로 읽는다.
+        nm = ids.root || (id && id.deptName) || (cfg && cfg.teamName) || '우리 팀';
         if (cfg && cfg.teamName !== nm) teamCfg = await GW.store.setTeam({ ...cfg, teamName: nm });
       } else {
         nm = GW.team.pretty(cfg.code);
@@ -719,7 +721,9 @@
       }
       // 한 줄에 들어가야 줄마다 높이가 같다. 여기서는 "5:22" 꼴로 짧게 쓴다.
       const sub = [
-        tmTab === 'friend' && m.dept ? esc(m.dept) : null,
+        // 하위 조직이 한 방에 모이므로 팀 탭에서도 각자 부서를 보여 준다
+        // (제목과 같으면 군더더기라 뺀다).
+        m.dept && m.dept !== $('tmTitle').textContent ? esc(m.dept) : null,
         fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
         fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
         m.monthLeftMin == null ? null
@@ -783,7 +787,7 @@
     const base = cfg || (id && id.compSeq && id.empSeq ? {} : GW.team.newSelf());
     await save({
       ...base,
-      ...(tmTab === 'team' ? { teamName: (id && id.deptName) || '우리 팀' } : {}),
+      ...(tmTab === 'team' ? { teamName: (cfg && cfg.teamName) || '우리 팀' } : {}),
       myName,
       on: true,
     });

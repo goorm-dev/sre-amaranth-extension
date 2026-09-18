@@ -555,7 +555,7 @@
     }
     const s = sess();
     if (!s.compSeq || !s.deptSeq) throw new Error('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.');
-    return GW.team.derive(s.compSeq, s.deptSeq);
+    return GW.team.derive(s.compSeq, s.deptName, s.deptSeq);
   }
 
   function tmPaintTabs() {
@@ -601,7 +601,7 @@
     try {
       const ids = await tmIds();
       if (!ids) return;
-      await GW.team.ensure(ids, tmTab === 'team' ? sess().deptName || cfg.teamName : '친구');
+      await GW.team.ensure(ids, tmTab === 'team' ? ids.root || cfg.teamName : '친구');
       await GW.team.publish(ids, await tmSelf(cfg), await tmPayload());
     } catch (_) { /* 본 기능은 막지 않는다 */ }
   }
@@ -619,7 +619,8 @@
       const ids = await tmIds();
       let nm;
       if (tmTab === 'team') {
-        nm = sess().deptName || (cfg && cfg.teamName) || '우리 팀';
+        // 묶인 이름(뿌리)을 제목으로 쓴다 — 하위 조직이 한 방에 모이기 때문이다.
+        nm = ids.root || sess().deptName || (cfg && cfg.teamName) || '우리 팀';
         if (cfg && cfg.teamName !== nm) teamCfg = await GW.store.setTeam({ ...cfg, teamName: nm });
       } else {
         nm = GW.team.pretty(cfg.code);
@@ -664,7 +665,8 @@
               m.leftMin != null ? `${T.fmtDuration(m.leftMin)} 남음` : ''}</i>`;
       }
       const sub = [
-        tmTab === 'friend' && m.dept ? esc(m.dept) : null,
+        // 하위 조직이 한 방에 모이므로 팀 탭에서도 각자 부서를 보여 준다.
+        m.dept && m.dept !== $('tmTitle').textContent ? esc(m.dept) : null,
         fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
         fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
         m.monthLeftMin == null ? null
@@ -722,7 +724,7 @@
     const base = cfg || (s.compSeq && s.empSeq ? {} : GW.team.newSelf());
     await save({
       ...base,
-      ...(tmTab === 'team' ? { teamName: s.deptName || '우리 팀' } : {}),
+      ...(tmTab === 'team' ? { teamName: (cfg && cfg.teamName) || '우리 팀' } : {}),
       myName,
       on: true,
     });

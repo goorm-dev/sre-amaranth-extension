@@ -191,9 +191,9 @@
         settings, mKey, now);
       const plan = GW.calc.todayPlan(s, settings, mKey === viewMonth ? state.live : null, now);
 
-      if (on(team) && id.deptSeq) {
-        const ids = await GW.team.derive(id.compSeq, id.deptSeq);
-        await GW.team.ensure(ids, id.deptName || team.teamName);
+      if (on(team) && (id.deptName || id.deptSeq)) {
+        const ids = await GW.team.derive(id.compSeq, id.deptName, id.deptSeq);
+        await GW.team.ensure(ids, ids.root || team.teamName);
         await GW.team.publish(ids, self || team, GW.team.summarize(s, plan, {
           name: team.myName, dept: id.deptName || '',
         }));

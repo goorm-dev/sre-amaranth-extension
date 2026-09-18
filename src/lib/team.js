@@ -4,12 +4,13 @@
 // 사용자가 고를 수 있는 것도 없다 — 팀도 이름도 그룹웨어가 알려 주는 값으로 고정한다.
 // 열쇠를 없애면서 "아무 팀이나 지목해서 들여다보기" 까지 같이 막는 방법이 이것이다.
 //
-//   teamId  = SHA-256("worktime-team-v2:" + compSeq + ":" + deptSeq)    앞 16자
-//   joinKey = SHA-256("worktime-join-v2:" + compSeq + ":" + deptSeq)    앞 32자
+//   teamId  = SHA-256("worktime-team-v3:" + compSeq + ":" + 부서뿌리)    앞 16자
+//   joinKey = SHA-256("worktime-join-v3:" + compSeq + ":" + 부서뿌리)    앞 32자
 //
-// 부서명이 아니라 deptSeq 로 만든다. 부서명은 회사마다 겹칠 수 있고("개발팀") 이름이
-// 바뀌면 팀이 갈라진다. compSeq 를 앞에 붙여 회사끼리도 겹치지 않게 한다.
-// 부서명은 화면에 보여 줄 때만 쓴다.
+// "부서뿌리" 는 부서명에서 조직 단위 꼬리를 뗀 값이다 — "SRE팀"·"SRE 1파트" 가
+// 모두 "SRE" 가 된다. deptSeq 로 만들면 하위 조직마다 방이 갈라져서 정작 같이
+// 일하는 사람들이 서로 안 보인다. compSeq 를 앞에 붙여 회사끼리는 안 겹치게 한다.
+// 부서명 원본은 화면에 보여 줄 때만 쓴다.
 //
 // **주소 자체가 비밀은 아니다.** 계산식이 이 저장소에 공개돼 있고 deptSeq 는 작은
 // 정수라, API 를 직접 부르는 사람은 여전히 값을 맞춰 볼 수 있다. joinKey 는 서버
@@ -93,14 +94,37 @@
     return b64url(buf);
   }
 
-  // 부서 → 팀 주소. 같은 부서면 어디서 계산해도 같은 값이 나온다.
+  // 조직 단위 꼬리. 긴 것부터 적어야 "부문" 이 "부" 로 먼저 잘리지 않는다.
+  const UNIT = '(?:본부|부문|사업부|부서|센터|스쿼드|스튜디오|파트|그룹|유닛|팀|실|부|과|셀|랩'
+    + '|division|department|squad|studio|group|team|part|unit|dept|div|lab)';
+
+  // "SRE팀"·"SRE 1파트"·"SRE" 를 한 값으로 모은다.
+  // 꼬리가 여러 겹일 수 있어(예: "개발1팀") 더 안 깎일 때까지 반복한다.
+  function rootName(deptName) {
+    const raw = String(deptName || '').replace(/\s+/g, '');
+    if (!raw) return '';
+    const tail = new RegExp(`(?:제)?\\d*${UNIT}$`, 'i');
+    let s = raw;
+    for (let i = 0; i < 4; i++) {
+      const next = s.replace(tail, '');
+      if (next === s || !next) break;     // 전부 깎이면 원본을 쓴다
+      s = next;
+    }
+    return (s || raw).toUpperCase();
+  }
+
+  // 부서 → 팀 주소. 같은 뿌리면 어디서 계산해도 같은 값이 나온다.
   // 인자는 그룹웨어에서 온 값만 들어온다 — 사용자가 고르는 경로가 없다.
-  async function derive(compSeq, deptSeq) {
-    if (!compSeq || !deptSeq) throw new Error('부서 정보를 찾지 못했습니다');
-    const tag = `${compSeq}:${deptSeq}`;
+  async function derive(compSeq, deptName, deptSeq) {
+    if (!compSeq) throw new Error('부서 정보를 찾지 못했습니다');
+    // 부서명을 못 읽었을 때만 deptSeq 로 떨어진다. 이 경우는 하위 조직이 갈라진다.
+    const root = rootName(deptName) || (deptSeq ? `#${deptSeq}` : '');
+    if (!root) throw new Error('부서 정보를 찾지 못했습니다');
+    const tag = `${compSeq}:${root}`;
     return {
-      teamId: (await sha(`worktime-team-v2:${tag}`)).slice(0, 16),
-      joinKey: (await sha(`worktime-join-v2:${tag}`)).slice(0, 32),
+      root,
+      teamId: (await sha(`worktime-team-v3:${tag}`)).slice(0, 16),
+      joinKey: (await sha(`worktime-join-v3:${tag}`)).slice(0, 32),
     };
   }
 
@@ -169,7 +193,7 @@
   }
 
   GW.team = {
-    ORIGIN, BASE, newSelf, selfFrom, derive, newCode, normCode, pretty, room,
+    ORIGIN, BASE, newSelf, selfFrom, derive, rootName, newCode, normCode, pretty, room,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
