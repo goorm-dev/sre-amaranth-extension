@@ -87,7 +87,7 @@
     return cfg;
   }
 
-  // 친구 방 설정 { code, myName, on }
+  // 친구 방 설정 { rooms: [{ code, label, on }], active, myName }
   async function getFriends() { return (await get('friends')) || null; }
   async function setFriends(cfg) {
     if (!cfg) { await remove('friends'); return null; }

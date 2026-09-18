@@ -110,6 +110,9 @@
       // 팀 공유의 표시 이름·부서 기본값. 키 이름이 버전마다 달라 후보를 훑는다.
       deptName: uc.deptName || '',
       userName: uc.userName || uc.korName || uc.empName || uc.name || '',
+      // 조직도 경로. 최종 소속 팀을 여기서 찾는다 (lib/team.js 의 teamFromPath).
+      path: uc.path || uc.deptPath || '',
+      pathName: uc.pathName || uc.empAllDeptPathName || uc.comOptPath || '',
     }, hit);
     GW.api.setSession(session);
 

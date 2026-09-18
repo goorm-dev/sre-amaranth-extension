@@ -129,5 +129,39 @@
     return `부서 ${uniq.length}건 — 클립보드에 복사했습니다`;
   };
 
-  return '준비됨 — 조직도 화면을 열고 트리를 펼친 뒤 __dumpOrg()';
+  // 조직도 응답에는 path 가 있었다. 문제는 **내 정보** 에도 있느냐다 —
+  // 확장은 sessionStorage.userInfo 에서 내 부서를 읽는다. 거기에 경로가 있으면
+  // API 를 새로 붙일 필요가 없다.
+  window.__dumpMe = () => {
+    let raw;
+    try { raw = sessionStorage.getItem('userInfo'); } catch (_) { return 'sessionStorage 를 못 읽습니다'; }
+    if (!raw) return 'userInfo 가 없습니다. gw 에 로그인된 탭에서 실행해 주세요.';
+    let j; try { j = JSON.parse(raw); } catch (_) { return 'userInfo 가 JSON 이 아닙니다'; }
+
+    // 부서·경로에 관련돼 보이는 키만 추린다. 이름·메일 같은 건 굳이 꺼내지 않는다.
+    const WANT = /^(dept|org|comp|group|biz|parent|path|keyPath|emp(Seq|No)|.*Path.*|.*Name)$/i;
+    const hits = [];
+    const walk = (o, at, depth) => {
+      if (!o || typeof o !== 'object' || depth > 6) return;
+      if (Array.isArray(o)) { o.forEach((v, i) => walk(v, `${at}[${i}]`, depth + 1)); return; }
+      for (const [k, v] of Object.entries(o)) {
+        if (v && typeof v === 'object') { walk(v, `${at}.${k}`, depth + 1); continue; }
+        if (v === '' || v == null) continue;
+        if (WANT.test(k) || /\|/.test(String(v)) || />/.test(String(v))) {
+          hits.push(`  ${at}.${k} = ${JSON.stringify(String(v)).slice(0, 160)}`);
+        }
+      }
+    };
+    walk(j, '', 0);
+    const s2 = hits.length
+      ? `[userInfo 의 부서·경로 관련 값 ${hits.length}개]\n${[...new Set(hits)].join('\n')}`
+      : 'userInfo 에서 부서·경로처럼 보이는 값을 못 찾았습니다.';
+    console.log(s2);
+    try { copy(s2); } catch (_) {}
+    return '클립보드에 복사했습니다';
+  };
+
+  return '준비됨 —\n'
+    + '  __dumpOrg()  조직도 화면을 열고 트리를 펼친 뒤\n'
+    + '  __dumpMe()   내 userInfo 에 부서 경로가 있는지 (지금 바로 실행 가능)';
 })();

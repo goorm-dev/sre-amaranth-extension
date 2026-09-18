@@ -168,10 +168,12 @@
     let team, friends;
     try {
       team = await GW.store.getTeam();
-      friends = await GW.store.getFriends();
+      friends = GW.team.migrateRooms(await GW.store.getFriends());
     } catch (_) { return; }
+    // 켜 둔 방마다 올린다. 방은 여러 개일 수 있다.
+    const rooms = (friends.rooms || []).filter((r) => r.on && friends.myName);
     const on = (c) => !!(c && c.on && c.myName);
-    if (!on(team) && !on(friends)) return;
+    if (!on(team) && !rooms.length) return;
     sharedAt = Date.now();
     try {
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
@@ -192,14 +194,14 @@
       const plan = GW.calc.todayPlan(s, settings, mKey === viewMonth ? state.live : null, now);
 
       if (on(team) && (id.deptName || id.deptSeq)) {
-        const ids = await GW.team.derive(id.compSeq, id.deptName, id.deptSeq);
+        const ids = await GW.team.derive(id);
         await GW.team.ensure(ids, ids.root || team.teamName);
         await GW.team.publish(ids, self || team, GW.team.summarize(s, plan, {
           name: team.myName, dept: id.deptName || '',
         }));
       }
-      if (on(friends) && friends.code) {
-        const ids = await GW.team.room(friends.code);
+      for (const r of rooms) {
+        const ids = await GW.team.room(r.code);
         await GW.team.ensure(ids, '친구');
         await GW.team.publish(ids, self || friends, GW.team.summarize(s, plan, {
           name: friends.myName, dept: id.deptName || '',
@@ -278,6 +280,11 @@
       empSeq: uc.empSeq, deptName: uc.deptName,
       // 팀 공유의 표시 이름 기본값으로 쓴다. 키 이름이 버전마다 달라 후보를 훑는다.
       name: uc.userName || uc.korName || uc.empName || uc.name || '',
+      // 조직도 경로. 최종 소속 팀을 여기서 찾는다 (lib/team.js 의 teamFromPath).
+      //   path     "1000|1000|2017|2019|2025|2255"
+      //   pathName "주식회사 구름>…>에듀팀>에듀 2파트"
+      path: uc.path || uc.deptPath || '',
+      pathName: uc.pathName || uc.empAllDeptPathName || uc.comOptPath || '',
       emailAddr: uc.emailAdd, emailDomain: uc.emailDomain, at: Date.now(),
     };
     chrome.storage.local.set({ wehagoIdentity: id }).catch(() => {});

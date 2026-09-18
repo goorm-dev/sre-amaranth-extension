@@ -4,13 +4,13 @@
 // 사용자가 고를 수 있는 것도 없다 — 팀도 이름도 그룹웨어가 알려 주는 값으로 고정한다.
 // 열쇠를 없애면서 "아무 팀이나 지목해서 들여다보기" 까지 같이 막는 방법이 이것이다.
 //
-//   teamId  = SHA-256("worktime-team-v3:" + compSeq + ":" + 부서뿌리)    앞 16자
-//   joinKey = SHA-256("worktime-join-v3:" + compSeq + ":" + 부서뿌리)    앞 32자
+//   teamId  = SHA-256("worktime-team-v4:" + compSeq + ":" + 최종소속팀 deptSeq)
+//   joinKey = SHA-256("worktime-join-v4:" + compSeq + ":" + 최종소속팀 deptSeq)
 //
-// "부서뿌리" 는 부서명에서 조직 단위 꼬리를 뗀 값이다 — "SRE팀"·"SRE 1파트" 가
-// 모두 "SRE" 가 된다. deptSeq 로 만들면 하위 조직마다 방이 갈라져서 정작 같이
-// 일하는 사람들이 서로 안 보인다. compSeq 를 앞에 붙여 회사끼리는 안 겹치게 한다.
-// 부서명 원본은 화면에 보여 줄 때만 쓴다.
+// "최종 소속 팀" 은 조직도 경로에서 뒤에서부터 찾은 첫 "…팀" 이다 (teamFromPath).
+// 본인 부서(deptSeq)로 만들면 "에듀 1파트"·"에듀 2파트" 가 갈라지고, 이름을
+// 규칙으로 깎으면 "사업1팀"·"사업2팀" 처럼 다른 팀이 합쳐진다. 조직도가 이미
+// 아는 것을 쓴다.
 //
 // **주소 자체가 비밀은 아니다.** 계산식이 이 저장소에 공개돼 있고 deptSeq 는 작은
 // 정수라, API 를 직접 부르는 사람은 여전히 값을 맞춰 볼 수 있다. joinKey 는 서버
@@ -80,6 +80,15 @@
   const normCode = (v) => String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, '')
     .replace(/[OQ]/g, '0').replace(/[IL]/g, '1').replace(/U/g, 'V');
 
+  // 예전 판본은 방을 하나만 들고 있었다 ({ code, on }). 목록 구조로 옮겨 담는다.
+  function migrateRooms(cfg) {
+    if (!cfg) return { rooms: [], active: null, myName: '' };
+    if (Array.isArray(cfg.rooms)) return cfg;
+    return cfg.code
+      ? { rooms: [{ code: cfg.code, label: '', on: !!cfg.on }], active: cfg.code, myName: cfg.myName || '' }
+      : { rooms: [], active: null, myName: cfg.myName || '' };
+  }
+
   async function room(code) {
     const c = normCode(code);
     if (c.length < 8) throw new Error('코드가 올바르지 않습니다');
@@ -94,37 +103,46 @@
     return b64url(buf);
   }
 
-  // 조직 단위 꼬리. 긴 것부터 적어야 "부문" 이 "부" 로 먼저 잘리지 않는다.
-  const UNIT = '(?:본부|부문|사업부|부서|센터|스쿼드|스튜디오|파트|그룹|유닛|팀|실|부|과|셀|랩'
-    + '|division|department|squad|studio|group|team|part|unit|dept|div|lab)';
-
-  // "SRE팀"·"SRE 1파트"·"SRE" 를 한 값으로 모은다.
-  // 꼬리가 여러 겹일 수 있어(예: "개발1팀") 더 안 깎일 때까지 반복한다.
-  function rootName(deptName) {
-    const raw = String(deptName || '').replace(/\s+/g, '');
-    if (!raw) return '';
-    const tail = new RegExp(`(?:제)?\\d*${UNIT}$`, 'i');
-    let s = raw;
-    for (let i = 0; i < 4; i++) {
-      const next = s.replace(tail, '');
-      if (next === s || !next) break;     // 전부 깎이면 원본을 쓴다
-      s = next;
+  // 조직도가 알려 주는 **최종 소속 팀** 으로 묶는다.
+  //
+  // 사원 레코드에 조상 경로가 통째로 들어 있다 —
+  //   path     : "1000|1000|2017|2019|2025|2255"
+  //   pathName : "주식회사 구름>주식회사 구름>프로덕트본부>에듀그룹>에듀팀>에듀 2파트"
+  //
+  // 뒤에서부터 "…팀" 인 첫 마디가 그 사람의 팀이다. "에듀 1파트"·"에듀 2파트" 는
+  // 둘 다 "에듀팀" 으로 모이고, "프로덕트디자인팀"·"브랜드디자인팀" 은 각각 남는다.
+  //
+  // 이름 규칙으로 깎던 방식은 버렸다. "사업1팀"·"사업2팀" 처럼 실제로 다른 팀을
+  // 한 덩어리로 합쳐 버린다 — 조직도가 이미 아는 것을 추측할 이유가 없다.
+  function teamFromPath(path, pathName) {
+    const seqs = String(path || '').split('|').map((v) => v.trim()).filter(Boolean);
+    const names = String(pathName || '').split('>').map((v) => v.trim()).filter(Boolean);
+    if (!seqs.length) return null;
+    if (seqs.length !== names.length) {
+      // 이름을 못 맞추면 팀인지 판별할 수 없다. 본인 부서로 둔다.
+      return { seq: seqs[seqs.length - 1], name: '' };
     }
-    return (s || raw).toUpperCase();
+    for (let i = names.length - 1; i >= 0; i--) {
+      if (/팀$/.test(names[i])) return { seq: seqs[i], name: names[i] };
+    }
+    return { seq: seqs[seqs.length - 1], name: names[names.length - 1] };
   }
 
-  // 부서 → 팀 주소. 같은 뿌리면 어디서 계산해도 같은 값이 나온다.
-  // 인자는 그룹웨어에서 온 값만 들어온다 — 사용자가 고르는 경로가 없다.
-  async function derive(compSeq, deptName, deptSeq) {
+  // 부서 → 팀 주소. 인자는 그룹웨어에서 온 값만 들어온다 —
+  // 사용자가 고르는 경로가 없다.
+  async function derive(id) {
+    const compSeq = id && id.compSeq;
     if (!compSeq) throw new Error('부서 정보를 찾지 못했습니다');
-    // 부서명을 못 읽었을 때만 deptSeq 로 떨어진다. 이 경우는 하위 조직이 갈라진다.
-    const root = rootName(deptName) || (deptSeq ? `#${deptSeq}` : '');
-    if (!root) throw new Error('부서 정보를 찾지 못했습니다');
-    const tag = `${compSeq}:${root}`;
+    // 경로가 있으면 최종 소속 팀, 없으면 본인 부서 그대로. 후자는 하위 조직이
+    // 갈라지지만, 아무 이름이나 합쳐 버리는 것보다는 낫다.
+    const t = teamFromPath(id.path, id.pathName)
+      || (id.deptSeq ? { seq: String(id.deptSeq), name: id.deptName || '' } : null);
+    if (!t) throw new Error('부서 정보를 찾지 못했습니다');
+    const tag = `${compSeq}:${t.seq}`;
     return {
-      root,
-      teamId: (await sha(`worktime-team-v3:${tag}`)).slice(0, 16),
-      joinKey: (await sha(`worktime-join-v3:${tag}`)).slice(0, 32),
+      root: t.name || id.deptName || '우리 팀',
+      teamId: (await sha(`worktime-team-v4:${tag}`)).slice(0, 16),
+      joinKey: (await sha(`worktime-join-v4:${tag}`)).slice(0, 32),
     };
   }
 
@@ -193,7 +211,7 @@
   }
 
   GW.team = {
-    ORIGIN, BASE, newSelf, selfFrom, derive, rootName, newCode, normCode, pretty, room,
+    ORIGIN, BASE, newSelf, selfFrom, derive, teamFromPath, newCode, normCode, pretty, room, migrateRooms,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

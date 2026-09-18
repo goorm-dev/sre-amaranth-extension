@@ -127,7 +127,7 @@
     return cfg;
   }
 
-  // 친구 방 설정 { code, myName, on }
+  // 친구 방 설정 { rooms: [{ code, label, on }], active, myName }
   async function getFriends() {
     const { friends } = await get('friends');
     return friends || null;

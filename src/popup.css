@@ -249,3 +249,15 @@ footer span { font-size: 11px; color: #9ca3af; }
 #teamSheet .erow .primary { flex: 0 0 auto; width: auto; padding: 9px 14px; }
 #frNew { margin-top: 8px; }
 .frcode { font-size: 15px; font-weight: 700; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+
+/* 참여 중인 방들. 하나를 골라 보고, 각 방은 따로 켜고 끈다. */
+.frrooms { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.frrooms button {
+  border: 1px solid #d5dae4; background: #fff; border-radius: 999px;
+  padding: 4px 10px; font: inherit; font-size: 11px; color: #4b5563; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.frrooms button.on { background: #eef4ff; border-color: #1e63d8; color: #1e63d8; font-weight: 700; }
+.frrooms button i { font-style: normal; font-size: 9px; color: #9ca3af; }
+.frrooms button.on i { color: #1e63d8; }
+.frrooms button.live::before { content: '●'; font-size: 7px; color: #0f9d58; }
