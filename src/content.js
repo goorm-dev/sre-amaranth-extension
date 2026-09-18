@@ -281,10 +281,13 @@
       // 팀 공유의 표시 이름 기본값으로 쓴다. 키 이름이 버전마다 달라 후보를 훑는다.
       name: uc.userName || uc.korName || uc.empName || uc.name || '',
       // 조직도 경로. 최종 소속 팀을 여기서 찾는다 (lib/team.js 의 teamFromPath).
-      //   path     "1000|1000|2017|2019|2025|2255"
-      //   pathName "주식회사 구름>…>에듀팀>에듀 2파트"
-      path: uc.path || uc.deptPath || '',
-      pathName: uc.pathName || uc.empAllDeptPathName || uc.comOptPath || '',
+      //   deptPath   "2038|2042"
+      //   deptPathNm "주식회사 구름|주식회사 구름|인프라본부|SRE팀"
+      // 번호 쪽에 회사 항목이 빠져 있어 길이가 다르다. 맞추는 건 teamFromPath 가 한다.
+      path: uc.deptPath || uc.path || '',
+      pathName: uc.deptPathNm
+        || (uc.ocUserInfo && uc.ocUserInfo.groupFullPathName)
+        || uc.pathName || uc.empAllDeptPathName || '',
       emailAddr: uc.emailAdd, emailDomain: uc.emailDomain, at: Date.now(),
     };
     chrome.storage.local.set({ wehagoIdentity: id }).catch(() => {});

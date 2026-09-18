@@ -111,8 +111,10 @@
       deptName: uc.deptName || '',
       userName: uc.userName || uc.korName || uc.empName || uc.name || '',
       // 조직도 경로. 최종 소속 팀을 여기서 찾는다 (lib/team.js 의 teamFromPath).
-      path: uc.path || uc.deptPath || '',
-      pathName: uc.pathName || uc.empAllDeptPathName || uc.comOptPath || '',
+      path: uc.deptPath || uc.path || '',
+      pathName: uc.deptPathNm
+        || (uc.ocUserInfo && uc.ocUserInfo.groupFullPathName)
+        || uc.pathName || uc.empAllDeptPathName || '',
     }, hit);
     GW.api.setSession(session);
 

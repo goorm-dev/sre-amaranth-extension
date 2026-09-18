@@ -105,27 +105,34 @@
 
   // 조직도가 알려 주는 **최종 소속 팀** 으로 묶는다.
   //
-  // 사원 레코드에 조상 경로가 통째로 들어 있다 —
-  //   path     : "1000|1000|2017|2019|2025|2255"
-  //   pathName : "주식회사 구름>주식회사 구름>프로덕트본부>에듀그룹>에듀팀>에듀 2파트"
+  // 경로가 두 군데에서 오는데 모양이 다르다.
+  //   내 세션(userInfo)  deptPath   "2038|2042"
+  //                      deptPathNm "주식회사 구름|주식회사 구름|인프라본부|SRE팀"
+  //   조직도 API         path       "1000|1000|2017|2019|2025|2255"
+  //                      pathName   "주식회사 구름>…>에듀그룹>에듀팀>에듀 2파트"
   //
-  // 뒤에서부터 "…팀" 인 첫 마디가 그 사람의 팀이다. "에듀 1파트"·"에듀 2파트" 는
-  // 둘 다 "에듀팀" 으로 모이고, "프로덕트디자인팀"·"브랜드디자인팀" 은 각각 남는다.
+  // 구분자가 | 이기도 하고 > 이기도 하다. 그리고 **길이가 다르다** — 번호 쪽에는
+  // 회사 항목이 빠져 있다. 그래서 뒤에서부터 맞춘다.
+  //
+  // 뒤에서부터 찾은 첫 "…팀" 이 그 사람의 팀이다. "SRE 1파트" 도 "SRE팀" 으로
+  // 모이고, "프로덕트디자인팀"·"브랜드디자인팀" 은 각각 남는다.
   //
   // 이름 규칙으로 깎던 방식은 버렸다. "사업1팀"·"사업2팀" 처럼 실제로 다른 팀을
   // 한 덩어리로 합쳐 버린다 — 조직도가 이미 아는 것을 추측할 이유가 없다.
+  const split = (v) => String(v || '').split(/[|>]/).map((x) => x.trim()).filter(Boolean);
+
   function teamFromPath(path, pathName) {
-    const seqs = String(path || '').split('|').map((v) => v.trim()).filter(Boolean);
-    const names = String(pathName || '').split('>').map((v) => v.trim()).filter(Boolean);
+    const seqs = split(path);
+    const names = split(pathName);
     if (!seqs.length) return null;
-    if (seqs.length !== names.length) {
-      // 이름을 못 맞추면 팀인지 판별할 수 없다. 본인 부서로 둔다.
-      return { seq: seqs[seqs.length - 1], name: '' };
+    const n = Math.min(seqs.length, names.length);
+    const s2 = seqs.slice(-n);
+    const n2 = names.slice(-n);
+    for (let i = n - 1; i >= 0; i--) {
+      if (/팀$/.test(n2[i])) return { seq: s2[i], name: n2[i] };
     }
-    for (let i = names.length - 1; i >= 0; i--) {
-      if (/팀$/.test(names[i])) return { seq: seqs[i], name: names[i] };
-    }
-    return { seq: seqs[seqs.length - 1], name: names[names.length - 1] };
+    // 팀이라 부를 마디가 없으면 본인 부서로 둔다 (대표이사 · 그룹 직속 등).
+    return { seq: seqs[seqs.length - 1], name: n ? n2[n - 1] : '' };
   }
 
   // 부서 → 팀 주소. 인자는 그룹웨어에서 온 값만 들어온다 —
