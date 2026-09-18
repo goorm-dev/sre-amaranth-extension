@@ -825,7 +825,12 @@ main 이 아니거나, 커밋 안 된 변경이 있거나, 태그·릴리스가 
    (cd app && node_modules/.bin/cap sync android)
 3. cd app/android && JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew assembleDebug
 4. gh release create app-v<버전> <apk> --title "앱 v<버전> — …"
+5. gh release edit v<확장 최신 버전> --latest      ← 이걸 빠뜨리면 안 된다
 ```
+
+5번을 빠뜨리면 **확장 업데이트가 APK 를 가리킵니다.** `latest.json` 의 `url` 이
+`releases/latest` 인데, 앱 릴리스를 새로 만들면 GitHub 가 그걸 Latest 로 잡습니다.
+확장 사용자가 "받기" 를 누르면 APK 페이지로 갑니다.
 
 `app/android/` 는 `cap add android` 로 만들어지는 **생성물이라 통째로 gitignore** 돼
 있습니다. 거기 적힌 `versionCode` 는 그 기계에만 있고 프로젝트를 다시 만들면 1 로
