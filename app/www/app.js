@@ -517,12 +517,12 @@
 
   // ── 팀 근무시간 공유 ────────────────────────────────────────────────────
   //
-  // 같은 부서끼리 자동으로 묶인다. 팀을 만들거나 참여하는 절차가 없다 —
-  // 회사 열쇠 한 번이면 그 뒤로는 그룹웨어가 알려 주는 부서가 곧 팀이다.
+  // 같은 팀 이름을 쓰는 사람끼리 모인다. 만들기도 참여도 링크도 없다.
+  // 팀 이름은 그룹웨어의 부서명으로 미리 채워진다.
   // 파생 규칙은 lib/team.js 에 있다 (확장과 같은 파일).
   //
-  // 로그인해야 쓸 수 있다. 부서를 알아야 팀 주소가 나오기 때문이다.
-  let teamCfg = null;      // { companyKey, myName, on, selfId, writeKey }
+  // 팀 이름은 비밀이 아니다 — 아는 사람은 누구나 그 팀을 볼 수 있다.
+  let teamCfg = null;      // { teamName, myName, on, selfId, writeKey }
   let teamIds = null;      // { teamId, joinKey }
   let lastPush = 0;
 
@@ -537,11 +537,14 @@
     show('teamView');
     tmMsg('');
     teamCfg = await GW.store.getTeam();
-    if (!teamCfg || !teamCfg.companyKey) {
+    if (!teamCfg || !teamCfg.teamName) {
       tmShowSetup();
       $('tmTitle').textContent = '팀 근무시간';
       $('tmCount').textContent = '';
-      if (!$('tmName').value) $('tmName').value = (GW.api.getSession() || {}).userName || '';
+      // 둘 다 로그인 정보에서 채워 준다 — 대개 [시작] 만 누르면 된다.
+      const sess = GW.api.getSession() || {};
+      if (!$('tmTeam').value) $('tmTeam').value = sess.deptName || '';
+      if (!$('tmName').value) $('tmName').value = sess.userName || '';
       return;
     }
     $('tmSetup').hidden = true;
@@ -550,12 +553,10 @@
     await tmRefresh();
   }
 
-  // 회사 열쇠 + 부서 → 팀 주소. 부서가 바뀌면 다음 갱신부터 새 팀으로 간다.
+  // 팀 이름 → 팀 주소.
   async function tmResolve() {
-    const s = GW.api.getSession() || {};
-    if (!s.compSeq || !s.deptSeq) throw new Error('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.');
-    teamIds = await GW.team.derive(teamCfg.companyKey, s.compSeq, s.deptSeq);
-    return s;
+    teamIds = await GW.team.derive(teamCfg.teamName);
+    return GW.api.getSession() || {};      // 부서명은 표시용이라 없어도 된다
   }
 
   async function tmPayload(sess) {
@@ -572,12 +573,12 @@
   }
 
   async function tmPushMaybe(force) {
-    if (!teamCfg || !teamCfg.companyKey || teamCfg.on === false || !state.rows.length) return;
+    if (!teamCfg || !teamCfg.teamName || teamCfg.on === false || !state.rows.length) return;
     if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
     lastPush = Date.now();
     try {
       const sess = await tmResolve();
-      await GW.team.ensure(teamIds, sess.deptName);
+      await GW.team.ensure(teamIds, teamCfg.teamName);
       await GW.team.publish(teamIds, teamCfg, await tmPayload(sess));
     } catch (_) { /* 본 기능은 막지 않는다 */ }
   }
@@ -586,9 +587,8 @@
     $('tmList').textContent = '불러오는 중…';
     try {
       const sess = await tmResolve();
-      $('tmTitle').textContent = sess.deptName || '우리 팀';
-      $('tmFp').textContent = `열쇠 ${await GW.team.fingerprint(teamCfg.companyKey)}`;
-      await GW.team.ensure(teamIds, sess.deptName);
+      $('tmTitle').textContent = teamCfg.teamName;
+      await GW.team.ensure(teamIds, teamCfg.teamName);
       if (teamCfg.on !== false && state.rows.length) {
         lastPush = Date.now();
         await GW.team.publish(teamIds, teamCfg, await tmPayload(sess));
@@ -635,15 +635,15 @@
   $('tmBack').onclick = () => show('mainView');
 
   $('tmStart').onclick = async () => {
-    const companyKey = GW.team.normKey($('tmKey').value);
+    const teamName = ($('tmTeam').value || '').trim();
     const myName = ($('tmName').value || '').trim();
-    if (!companyKey) { tmMsg('회사 열쇠를 넣어 주세요.', true); return; }
+    if (!GW.team.normName(teamName)) { tmMsg('팀 이름을 넣어 주세요.', true); return; }
     if (!myName) { tmMsg('표시 이름을 넣어 주세요.', true); return; }
     $('tmStart').disabled = true;
     tmMsg('확인 중…');
     try {
-      teamCfg = { companyKey, myName, on: true, ...GW.team.newSelf() };
-      await tmResolve();                       // 부서를 못 읽으면 여기서 걸린다
+      teamCfg = { teamName, myName, on: true, ...GW.team.newSelf() };
+      await tmResolve();
       teamCfg = await GW.store.setTeam(teamCfg);
       $('tmSetup').hidden = true;
       $('tmPanel').hidden = false;
@@ -672,7 +672,6 @@
     await GW.store.setTeam(null);
     teamCfg = null;
     teamIds = null;
-    $('tmKey').value = '';
     tmShowSetup();
     $('tmTitle').textContent = '팀 근무시간';
     $('tmCount').textContent = '';

@@ -158,8 +158,7 @@
   // 팝업은 열었을 때만 올리므로 대부분의 시간 동안 남이 보는 값이 낡는다.
   // gw 탭에 떠 있는 이 패널이 주기적으로 올려 준다 (5분에 한 번).
   //
-  // 팀은 회사 열쇠와 부서에서 계산한다 (lib/team.js). 부서가 바뀌면 다음
-  // 게시부터 새 팀으로 간다 — 옛 자리는 서버가 사흘 뒤에 지운다.
+  // 팀 주소는 팀 이름에서 계산한다 (lib/team.js).
   //
   // 실패해도 조용히 넘어간다 — 공유는 부가 기능이고, 본 화면을 막으면 안 된다.
   const SHARE_EVERY = 5 * 60 * 1000;
@@ -169,12 +168,11 @@
     if (Date.now() - sharedAt < SHARE_EVERY || !state.rows.length) return;
     let cfg;
     try { cfg = await GW.store.getTeam(); } catch (_) { return; }
-    if (!cfg || !cfg.companyKey || cfg.on === false) return;
+    if (!cfg || !cfg.teamName || cfg.on === false) return;
     sharedAt = Date.now();
     try {
+      const ids = await GW.team.derive(cfg.teamName);
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
-      if (!id || !id.compSeq || !id.deptSeq) return;
-      const ids = await GW.team.derive(cfg.companyKey, id.compSeq, id.deptSeq);
 
       const settings = await GW.store.getSettings();
       const now = new Date();
@@ -188,9 +186,9 @@
         settings, mKey, now);
       const plan = GW.calc.todayPlan(s, settings, mKey === viewMonth ? state.live : null, now);
 
-      await GW.team.ensure(ids, id.deptName);
+      await GW.team.ensure(ids, cfg.teamName);
       await GW.team.publish(ids, cfg, GW.team.summarize(s, plan, {
-        name: cfg.myName, dept: id.deptName || '',
+        name: cfg.myName, dept: (id && id.deptName) || '',
       }));
     } catch (_) { /* 다음 주기에 다시 시도한다 */ }
   }

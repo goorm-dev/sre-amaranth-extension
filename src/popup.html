@@ -113,10 +113,10 @@
       <b>팀 근무시간</b>
 
       <div id="tmSetup" class="tmsetup" hidden>
-        <p class="tmhelp">같은 <b>부서</b>끼리 자동으로 묶입니다. 회사 열쇠만 한 번 넣으면
-          그 뒤로는 따로 할 일이 없습니다.</p>
-        <label class="tmlbl">회사 열쇠
-          <input id="tmKey" type="text" maxlength="60" placeholder="팀에서 정한 한 문장">
+        <p class="tmhelp"><b>같은 팀 이름</b>을 쓰는 사람끼리 모입니다.
+          부서명이 미리 채워져 있으니 그대로 시작하면 됩니다.</p>
+        <label class="tmlbl">팀 이름
+          <input id="tmTeam" type="text" maxlength="24" placeholder="예: SRE팀">
         </label>
         <label class="tmlbl">표시 이름
           <input id="tmName" type="text" maxlength="12" placeholder="이름">
@@ -129,7 +129,6 @@
         <div id="tmList" class="tmlist">불러오는 중…</div>
         <div class="tmbar">
           <label class="tmshare"><input id="tmOn" type="checkbox"> 내 근무시간 공유</label>
-          <span id="tmFp" class="tmfp" title="같은 열쇠를 쓰는지 확인하는 값"></span>
           <button id="tmReset" class="link bad">해제</button>
         </div>
       </div>

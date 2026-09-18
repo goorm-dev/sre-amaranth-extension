@@ -559,14 +559,13 @@
 
   // ── 팀 근무시간 공유 ──────────────────────────────────────────────────
   //
-  // 부서로 자동으로 묶인다. 팀을 만들거나 참여하는 절차가 없다 —
-  // 회사 열쇠 한 번이면 그 뒤로는 그룹웨어가 알려 주는 부서가 곧 팀이다.
-  // 파생 규칙은 lib/team.js 에 있다.
+  // 같은 팀 이름을 쓰는 사람끼리 모인다. 만들기도 참여도 링크도 없다.
+  // 팀 이름은 그룹웨어의 부서명으로 미리 채워진다. 파생 규칙은 lib/team.js 에 있다.
   //
-  // 올라가는 건 이름·부서·오늘 출퇴근 시각·남은 시간뿐이다. 그룹웨어 토큰도,
-  // 회사 열쇠도 공유 서버로 가지 않는다.
-  let teamCfg = null;      // { companyKey, myName, on, selfId, writeKey }
-  let teamIds = null;      // { teamId, joinKey }  — 열쇠와 부서에서 계산한다
+  // 팀 이름은 비밀이 아니다 — 아는 사람은 누구나 그 팀을 볼 수 있다.
+  // 올라가는 건 이름·부서·오늘 출퇴근 시각·남은 시간뿐이다.
+  let teamCfg = null;      // { teamName, myName, on, selfId, writeKey }
+  let teamIds = null;      // { teamId, joinKey }  — 팀 이름에서 계산한다
   let lastPush = 0;
 
   const tmMsg = (t, bad) => {
@@ -583,12 +582,12 @@
     $('teamSheet').hidden = false;
     tmMsg('');
     teamCfg = await GW.store.getTeam();
-    if (!teamCfg || !teamCfg.companyKey) {
+    if (!teamCfg || !teamCfg.teamName) {
       tmShowSetup();
-      if (!$('tmName').value) {
-        const id = await tmIdentity();
-        if (id && id.name) $('tmName').value = id.name;
-      }
+      // 둘 다 그룹웨어에서 채워 준다 — 대개 [시작] 만 누르면 된다.
+      const id = await tmIdentity();
+      if (!$('tmTeam').value) $('tmTeam').value = (id && id.deptName) || '';
+      if (!$('tmName').value) $('tmName').value = (id && id.name) || '';
       return;
     }
     $('tmSetup').hidden = true;
@@ -597,12 +596,10 @@
     await tmRefresh();
   }
 
-  // 회사 열쇠 + 부서 → 팀 주소. 부서가 바뀌면 다음 갱신부터 새 팀으로 간다.
+  // 팀 이름 → 팀 주소.
   async function tmResolve() {
-    const id = await tmIdentity();
-    if (!id) throw new Error('부서 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열어 주세요.');
-    teamIds = await GW.team.derive(teamCfg.companyKey, id.compSeq, id.deptSeq);
-    return id;
+    teamIds = await GW.team.derive(teamCfg.teamName);
+    return await tmIdentity();      // 부서명은 표시용이라 없어도 된다
   }
 
   async function tmPayload(id) {
@@ -620,12 +617,12 @@
 
   // 화면을 새로 그릴 때마다 부른다. 자주 불려도 2분에 한 번만 올린다.
   async function tmPushMaybe(force) {
-    if (!teamCfg || !teamCfg.companyKey || teamCfg.on === false || !state.rows.length) return;
+    if (!teamCfg || !teamCfg.teamName || teamCfg.on === false || !state.rows.length) return;
     if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
     lastPush = Date.now();
     try {
       const id = await tmResolve();
-      await GW.team.ensure(teamIds, id.deptName);
+      await GW.team.ensure(teamIds, teamCfg.teamName);
       await GW.team.publish(teamIds, teamCfg, await tmPayload(id));
     } catch (_) { /* 공유가 안 돼도 본 기능은 막지 않는다 */ }
   }
@@ -635,9 +632,8 @@
     let id;
     try {
       id = await tmResolve();
-      $('tmTitle').textContent = id.deptName || '우리 팀';
-      $('tmFp').textContent = `열쇠 ${await GW.team.fingerprint(teamCfg.companyKey)}`;
-      await GW.team.ensure(teamIds, id.deptName);
+      $('tmTitle').textContent = teamCfg.teamName;
+      await GW.team.ensure(teamIds, teamCfg.teamName);
       if (teamCfg.on !== false && state.rows.length) {
         lastPush = Date.now();
         await GW.team.publish(teamIds, teamCfg, await tmPayload(id));
@@ -687,15 +683,15 @@
   $('teamSheet').onclick = (e) => { if (e.target === $('teamSheet')) $('teamSheet').hidden = true; };
 
   $('tmStart').onclick = async () => {
-    const companyKey = GW.team.normKey($('tmKey').value);
+    const teamName = ($('tmTeam').value || '').trim();
     const myName = ($('tmName').value || '').trim();
-    if (!companyKey) { tmMsg('회사 열쇠를 넣어 주세요.', true); return; }
+    if (!GW.team.normName(teamName)) { tmMsg('팀 이름을 넣어 주세요.', true); return; }
     if (!myName) { tmMsg('표시 이름을 넣어 주세요.', true); return; }
     $('tmStart').disabled = true;
     tmMsg('확인 중…');
     try {
-      teamCfg = { companyKey, myName, on: true, ...GW.team.newSelf() };
-      await tmResolve();                       // 부서를 못 읽으면 여기서 걸린다
+      teamCfg = { teamName, myName, on: true, ...GW.team.newSelf() };
+      await tmResolve();
       teamCfg = await GW.store.setTeam(teamCfg);
       $('tmSetup').hidden = true;
       $('tmView').hidden = false;
@@ -725,7 +721,6 @@
     await GW.store.setTeam(null);
     teamCfg = null;
     teamIds = null;
-    $('tmKey').value = '';
     tmShowSetup();
     tmMsg('해제했습니다. 올려 둔 내 기록도 지웠습니다.');
   };
