@@ -185,12 +185,17 @@ footer span { font-size: 11px; color: #9ca3af; }
 .daycount { font-style: normal; font-size: 11.5px; font-weight: 600; color: #9ca3af; margin-left: 6px; }
 
 /* ── 팀 근무시간 공유 ─────────────────────────────────────────────── */
-.tmlbl { display: block; font-size: 11px; color: #6b7280; margin-bottom: 8px; }
-.tmlbl input { width: 100%; margin-top: 3px; }
-.tmor { font-size: 11px; color: #6b7280; margin: 10px 0 4px; }
-#teamSheet .erow { display: flex; gap: 6px; }
-#teamSheet .erow input { flex: 1; min-width: 0; }
-#teamSheet .erow button { flex: none; white-space: nowrap; }
+/* .lvcard 의 공용 규칙이 input·button 을 둘 다 width:100% 로 잡는다.
+   가로로 붙이려면 그걸 되돌려야 한다 — 안 그러면 입력칸이 찌그러지고
+   버튼만 한 줄을 다 먹는다 (날짜 창에서 났던 것과 같은 문제). */
+.tmlbl { display: block; font-size: 11px; color: #6b7280; margin-bottom: 10px; }
+.tmlbl input[type=text] { width: 100%; margin: 3px 0 0; box-sizing: border-box; }
+.tmor { font-size: 11px; color: #6b7280; margin: 12px 0 5px; font-weight: 600; }
+#teamSheet .erow { display: flex; gap: 6px; align-items: stretch; }
+#teamSheet .erow input[type=text] {
+  flex: 1 1 auto; width: auto; min-width: 0; margin: 0; box-sizing: border-box;
+}
+#teamSheet .erow .primary { flex: 0 0 auto; width: auto; padding: 9px 14px; }
 
 .tmhead { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
 .tmhead i { font-size: 11px; color: #6b7280; font-style: normal; }
