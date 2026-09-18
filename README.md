@@ -680,15 +680,21 @@ GitHub API 가 아니라 raw 파일을 씁니다. API 는 인증 없이 **시간
 다른 기능이 들어갈 때만 올립니다. 사용자가 안내에서 보는 숫자와 릴리스
 페이지의 숫자를 같게 두기 위한 것입니다.
 
+버전을 올려 커밋한 뒤 [release.sh](release.sh) 하나로 끝냅니다.
+
 ```
-1. manifest.json 과 latest.json 의 version 을 같이 올린다
-2. node tools/check-ids.js        ← 둘이 어긋나면 여기서 걸린다
-3. sh pack-extension.sh
-4. gh release create v<그 버전> <zip> [<apk>]
+sh release.sh "팀 근무시간 공유"            # 커밋 본문을 릴리스 노트로
+sh release.sh "팀 근무시간 공유" notes.md   # 따로 쓴 노트로
 ```
 
-`latest.json` 을 안 올리면 **아무에게도 안내가 안 뜹니다.** 릴리스 태그가 아니라
-이 파일 하나만 보기 때문입니다. 눈으로는 안 잡혀서 검사에 넣었습니다.
+검사 → 패키징 → `git push` → 태그 → `gh release create` 를 한 번에 합니다.
+main 이 아니거나, 커밋 안 된 변경이 있거나, 태그·릴리스가 이미 있으면 멈춥니다.
+
+**푸시와 릴리스를 묶은 이유**: 손으로 하다가 한 번 빠뜨렸습니다. `latest.json` 은
+1.7.5 인데 릴리스가 없어서, 확장은 "새 버전 있음" 만 띄우고 받을 게 없었습니다.
+
+`latest.json` 을 안 올리면 반대로 **아무에게도 안내가 안 뜹니다.** 릴리스 태그가
+아니라 이 파일 하나만 보기 때문입니다. 눈으로는 안 잡혀서 검사에 넣었습니다.
 
 **앱만 바뀐 경우**엔 새 태그를 만들지 않고 기존 릴리스에 APK 만 교체합니다
 (`gh release upload <tag> <apk> --clobber`). 확장 사용자에게 알릴 변경이 아니므로
