@@ -8,7 +8,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const MAX_TEAMS = 500;
+// 팀 하나가 몇백 바이트다. 빈 팀은 36시간 뒤 정리되므로 넉넉해도 안 쌓인다.
+const MAX_TEAMS = 2000;
 const MAX_MEMBERS = 200;          // 팀당
 // 보여 주려는 건 "오늘 누가 언제 퇴근하나" 다. 사흘을 들고 있으면 그만둔 사람이나
 // 옛 판본이 남긴 자리가 계속 목록에 뜬다(실제로 그랬다). 어제 저녁~오늘 아침이

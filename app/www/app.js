@@ -763,7 +763,18 @@
   // 방은 여러 개 만들 수 있다. 각 방은 따로 켜고 끈다 —
   // 켜 둔 방마다 내 근무시간이 올라간다.
   $('frNew').onclick = async () => {
+    // 서버에 자리를 먼저 잡고, 성공한 뒤에만 목록에 넣는다.
+    // 거절당했는데 "만들었습니다" 라고 해 두면 없는 방이 칩으로 남는다.
     const code = GW.team.newCode();
+    $('frNew').disabled = true;
+    tmMsg('만드는 중…');
+    try {
+      await GW.team.ensure(await GW.team.room(code), '친구');
+    } catch (e) {
+      $('frNew').disabled = false;
+      return tmMsg(e.message, true);
+    }
+    $('frNew').disabled = false;
     frCfg = await GW.store.setFriends({
       ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code,
     });

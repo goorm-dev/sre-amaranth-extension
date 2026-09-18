@@ -25,10 +25,15 @@ const store = new Store(DATA);
 
 // 팀 생성만 IP 단위로 제한한다. 인터넷에 열려 있어서, 안 막으면 아무나 MAX_TEAMS 를
 // 채워 남이 팀을 못 만들게 할 수 있다. 읽기·쓰기는 키가 있어야 하므로 제외.
-const CREATE_PER_HOUR = 10;
+// 사무실이 한 공인 IP 를 쓰면 동료들 것까지 한 계정으로 합산된다. 10회는
+// 팀 주소 규칙을 한 번 바꾸거나 방 몇 개 만들면 바로 넘는다(실제로 넘었다).
+// 팀·방은 한 번 만들면 계속 쓰므로 평상시 생성은 0에 가깝다. 넉넉히 둔다.
+const CREATE_PER_HOUR = 60;
 // 키를 틀리는 건 정상 사용에서 거의 없는 일이다. 반복되면 찍어 보는 중이다.
 // 키가 18바이트라 맞힐 가능성은 없지만, 두들기는 것 자체를 막는다.
-const BAD_KEY_PER_HOUR = 30;
+// 생성이 막히면 그 방 조회가 "없는 방" 이 되어 이 계정까지 갉아먹는다.
+// 한쪽이 막혔다고 읽기까지 막히면 안 되므로 여유를 둔다.
+const BAD_KEY_PER_HOUR = 120;
 
 const buckets = { create: new Map(), badKey: new Map() };
 function tooMany(kind, ip, limit) {
