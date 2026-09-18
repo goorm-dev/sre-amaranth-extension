@@ -67,7 +67,11 @@
         <option value="amHalfComp">오전반차(보상)</option>
         <option value="pmHalfComp">오후반차(보상)</option>
       </select>
-      <input id="lvDate" type="date">
+      <div class="daterow">
+        <input id="lvDate" type="date">
+        <span>~</span>
+        <input id="lvEnd" type="date">
+      </div>
       <input id="lvStart" type="time">
       <div id="lvSpan" class="lvspan"></div>
       <button id="lvNext" class="primary">확인</button>
@@ -88,7 +92,11 @@
   <div id="breakSheet" class="lvsheet" hidden>
     <div class="lvcard">
       <b>자율휴게 신청</b>
-      <input id="brDate" type="date">
+      <div class="daterow">
+        <input id="brDate" type="date">
+        <span>~</span>
+        <input id="brEnd" type="date">
+      </div>
       <input id="brStart" type="time">
       <select id="brMin">
         <option value="60">1시간</option>

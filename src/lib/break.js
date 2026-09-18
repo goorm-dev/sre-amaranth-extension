@@ -51,17 +51,23 @@
   }
 
   // 서버가 인정 시간을 계산해 준다. 상신은 하지 않는다.
-  async function preview(dateKey, startTm, minutes, reason) {
+  //
+  // 여러 날에 걸쳐 신청할 수 있다. 날짜마다 항목을 만드는 게 아니라 항목 하나에
+  // startDt~endDt 를 담고, 그 기간 동안 매일 같은 시간대의 휴게가 잡힌다
+  // (09-14~09-18 · 17:00~18:00 → 5일 · 300분. 실제 신청을 캡처해 확인했다).
+  async function preview(startKey, endKey, startTm, minutes, reason) {
+    const from = startKey;
+    const to = endKey && endKey > startKey ? endKey : startKey;
     const sp = span(startTm, minutes);
     const d = await api().call(P_CALC, {
-      startDate: apiDate(dateKey), endDate: apiDate(dateKey),
+      startDate: apiDate(from), endDate: apiDate(to),
       startTime: sp.start, endTime: sp.end,
       atCd: AT_CD, linkAtCd: LINK_AT,
       empCd: undefined, appRmkDc: reason || '', calculateOption: 'HOLIDAY_EXCLUSION',
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
     return {
-      dateKey, span: sp, reason: reason || '',
+      startKey: from, endKey: to, dateKey: from, span: sp, reason: reason || '',
       coCd: d.coCd, empCd: d.empCd, empNm: d.empNm, deptCd: d.deptCd, deptNm: d.deptNm,
       appDy: d.applicationDaysCnt != null ? d.applicationDaysCnt : d.daysCnt,
       appTm: d.applicationMinutes != null ? d.applicationMinutes : d.dailyAppTm,
@@ -74,8 +80,9 @@
       detailSq: null, coCd: pv.coCd || sched.coCd, appDt: null, appSq: null,
       deptCd: pv.deptCd || sched.deptCd, empCd: pv.empCd,
       linkAtCd: LINK_AT, atCd: AT_CD, atYm: null,
-      atDt: apiDate(pv.dateKey), baseAtDt: null,
-      startDt: apiDate(pv.dateKey), endDt: apiDate(pv.dateKey),
+      // atDt 는 시작일이다 (캡처에서 확인: 09-14~09-18 신청의 atDt 가 20260914).
+      atDt: apiDate(pv.startKey), baseAtDt: null,
+      startDt: apiDate(pv.startKey), endDt: apiDate(pv.endKey),
       comeStTm: sched.comeStTm, leaveStTm: sched.leaveStTm,
       startTm: pv.span.start, endTm: pv.span.end,
       actStartTm: null, actEndTm: null,
@@ -88,9 +95,11 @@
     };
   }
 
+  // 서버(0hr00011)가 제목을 돌려주므로 이건 그게 없을 때의 대비책이다.
   function title(pv) {
-    const [, m, d] = pv.dateKey.split('-');
-    return `[${pv.deptNm} ${pv.empNm}] ${m}-${d} (${hhmm(pv.span.start)}~${hhmm(pv.span.end)})`
+    const md = (key) => key.slice(5);
+    const days = pv.startKey === pv.endKey ? md(pv.startKey) : `${md(pv.startKey)}~${md(pv.endKey)}`;
+    return `[${pv.deptNm} ${pv.empNm}] ${days} (${hhmm(pv.span.start)}~${hhmm(pv.span.end)})`
       + `(${Number(pv.appDy).toFixed(1)}일) 휴게신청서`;
   }
 

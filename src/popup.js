@@ -362,6 +362,14 @@
     lv('lvStart').value = hm(t.defStart);
     lvSyncSpan();
   }
+  // 대부분 하루짜리다. 시작을 고르면 종료도 같이 맞춰 두고, 필요하면 사용자가 늘린다.
+  function followEnd(startId, endId) {
+    const a = lv(startId), b = lv(endId);
+    a.addEventListener('change', () => { if (!b.value || b.value < a.value) b.value = a.value; });
+  }
+  followEnd('lvDate', 'lvEnd');
+  followEnd('brDate', 'brEnd');
+
   function lvSyncSpan() {
     const tk = lv('lvType').value;
     const sp = GW.leave.span(tk, { startTm: lv('lvStart').value });
@@ -371,17 +379,21 @@
 
   async function lvPreview() {
     const tk = lv('lvType').value, dk = lv('lvDate').value;
+    const ek = lv('lvEnd').value || dk;
     if (!dk) { lv('lvMsg').textContent = '날짜를 선택해 주세요.'; return; }
+    if (ek < dk) { lv('lvMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
     try {
       const opts = { startTm: lv('lvStart').value };
-      const pv = await GW.leave.preview(tk, dk, opts);
+      const pv = await GW.leave.preview(tk, dk, ek, opts);
       const sched = await GW.leave.profile();
       const val = await GW.leave.validate(pv, sched);
       lvState = { pv, sched };
       lv('lvPreview').hidden = false;
       lv('lvPreview').innerHTML =
         `<div class="r"><span>제목</span><b>${esc(GW.leave.title(pv))}</b></div>`
+        + `<div class="r"><span>기간</span><b>${pv.startKey === pv.endKey ? pv.startKey
+          : `${pv.startKey} ~ ${pv.endKey}`} (${Number(pv.appDy)}일)</b></div>`
         + `<div class="r"><span>구간</span><b>${hm(pv.span.start)}~${hm(pv.span.end)}</b></div>`
         + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
         + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
@@ -425,6 +437,7 @@
   lv('lvOpen').onclick = () => {
     lv('leaveSheet').hidden = false;
     lv('lvDate').value = T.toKey(new Date());
+    lv('lvEnd').value = lv('lvDate').value;
     lvSyncType();
     lv('lvMsg').textContent = '';
     lvShowLast();
@@ -453,17 +466,22 @@
 
   async function brPreview() {
     const dk = lv('brDate').value;
+    const ek = lv('brEnd').value || dk;
     const st = lv('brStart').value;
     if (!dk || !st) { lv('brMsg').textContent = '날짜와 시작 시각을 입력해 주세요.'; return; }
+    if (ek < dk) { lv('brMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     lv('brNext').disabled = true; lv('brMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.break.preview(dk, st, Number(lv('brMin').value), lv('brReason').value.trim());
+      const pv = await GW.break.preview(dk, ek, st, Number(lv('brMin').value), lv('brReason').value.trim());
       const sched = await GW.leave.profile();
       brState = { pv, sched };
       lv('brPreview').hidden = false;
       lv('brPreview').innerHTML =
-        `<div class="r"><span>날짜</span><b>${esc(T.label(T.fromKey(pv.dateKey)))}</b></div>`
-        + `<div class="r"><span>시간</span><b>${hm(pv.span.start)} ~ ${hm(pv.span.end)}</b></div>`
+        `<div class="r"><span>날짜</span><b>${pv.startKey === pv.endKey
+          ? esc(T.label(T.fromKey(pv.startKey)))
+          : `${pv.startKey} ~ ${pv.endKey} (${Number(pv.appDy)}일)`}</b></div>`
+        + `<div class="r"><span>시간</span><b>${hm(pv.span.start)} ~ ${hm(pv.span.end)}</b>`
+          + `${pv.startKey === pv.endKey ? '' : ' <i class="dim">매일</i>'}</div>`
         + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
         + `<div class="r"><span>사유</span><b>${esc(pv.reason) || '<span style="opacity:.5">없음</span>'}</b></div>`;
       lv('brActions').hidden = false;
@@ -493,6 +511,7 @@
   lv('brOpen').onclick = () => {
     lv('breakSheet').hidden = false;
     lv('brDate').value = T.toKey(new Date());
+    lv('brEnd').value = lv('brDate').value;
     const now = new Date();
     lv('brStart').value = `${String(now.getHours()).padStart(2, '0')}:00`;
     lv('brMsg').textContent = '';

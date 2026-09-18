@@ -100,18 +100,24 @@
   const hhmm = (t) => (/^\d{4}$/.test(t) ? `${t.slice(0, 2)}:${t.slice(2)}` : (t || ''));
 
   // 미리보기(확인 화면)에 필요한 값을 서버 계산으로 채운다. 상신은 하지 않는다.
-  async function preview(typeKey, dateKey, opts) {
+  //
+  // 여러 날에 걸쳐 신청할 수 있다. 날짜마다 항목을 만드는 게 아니라 항목 하나에
+  // startDt~endDt 를 담는다 (실제 신청을 캡처해 확인했다). 일수·시간·연차차감은
+  // 서버가 범위로 계산해 준다 — calculateOption: HOLIDAY_EXCLUSION 이 주말·휴일을 뺀다.
+  async function preview(typeKey, startKey, endKey, opts) {
     const t = TYPES[typeKey];
     if (!t) throw new Error('지원하지 않는 휴가 종류입니다.');
+    const from = startKey;
+    const to = endKey && endKey > startKey ? endKey : startKey;
     const sp = span(typeKey, opts);
     const d = await api().call(P_CALC, {
-      startDate: apiDate(dateKey), endDate: apiDate(dateKey),
+      startDate: apiDate(from), endDate: apiDate(to),
       startTime: sp.start, endTime: sp.end, atCd: t.atCd, linkAtCd: LINK_AT,
       empCd: undefined, appRmkDc: '', calculateOption: 'HOLIDAY_EXCLUSION',
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
     return {
-      typeKey, type: t, dateKey, span: sp,
+      typeKey, type: t, startKey: from, endKey: to, dateKey: from, span: sp,
       coCd: d.coCd, empCd: d.empCd, empNm: d.empNm, deptCd: d.deptCd, deptNm: d.deptNm,
       appDy: d.applicationDaysCnt != null ? d.applicationDaysCnt : d.daysCnt,
       appTm: d.applicationMinutes != null ? d.applicationMinutes : d.dailyAppTm,
@@ -126,8 +132,9 @@
       detailSq: null, coCd: pv.coCd || sched.coCd, appDt: null, appSq: null,
       deptCd: pv.deptCd || sched.deptCd, empCd: pv.empCd,
       linkAtCd: LINK_AT, atCd: t.atCd, atYm: null,
-      atDt: apiDate(pv.dateKey), baseAtDt: null,
-      startDt: apiDate(pv.dateKey), endDt: apiDate(pv.dateKey),
+      // atDt 는 시작일이다 (캡처에서 확인: 09-21~09-22 신청의 atDt 가 20260921).
+      atDt: apiDate(pv.startKey), baseAtDt: null,
+      startDt: apiDate(pv.startKey), endDt: apiDate(pv.endKey),
       comeStTm: sched.comeStTm, leaveStTm: sched.leaveStTm,
       startTm: pv.span.start, endTm: pv.span.end,
       actStartTm: null, actEndTm: null,
@@ -139,11 +146,13 @@
     };
   }
 
+  // 서버(0hr00011)가 제목을 돌려주므로 이건 그게 없을 때의 대비책이다.
   function title(pv) {
-    const [, m, d] = pv.dateKey.split('-');
+    const md = (key) => key.slice(5).replace('-', '-');
     const t = pv.type;
+    const days = pv.startKey === pv.endKey ? md(pv.startKey) : `${md(pv.startKey)}~${md(pv.endKey)}`;
     const range = t.full ? '' : ` (${hhmm(pv.span.start)}~${hhmm(pv.span.end)})`;
-    return `[${pv.deptNm} ${pv.empNm}]  ${m}-${d}${range}(${Number(pv.appDy).toFixed(1)}일)${t.name}신청서`;
+    return `[${pv.deptNm} ${pv.empNm}]  ${days}${range}(${Number(pv.appDy).toFixed(1)}일)${t.name}신청서`;
   }
 
   // 검증 (읽기). 문제가 있으면 메시지를 돌려준다.
@@ -155,7 +164,7 @@
       newItem: Object.assign({}, item, {
         atNm: pv.type.name, timeSetFg: pv.type.timeSetFg,
         repeatTp: 'NONE', holidayYn: 'N',
-        datePeriod: { from: apiDate(pv.dateKey), to: apiDate(pv.dateKey) },
+        datePeriod: { from: apiDate(pv.startKey), to: apiDate(pv.endKey) },
         employeeList: emp,
       }),
     }, MENU);

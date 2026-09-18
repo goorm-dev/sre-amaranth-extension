@@ -244,21 +244,25 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 `startTm`/`endTm` 이 없으면 `atNm` 이름으로 추정합니다 (반반차 = 1/4, 반차 = 1/2, 그 외 = 하루치).
 하루에 오전반차 + 오후반차가 겹치면 합산하되 그날 소정근로를 넘지 않게 자릅니다.
 
-### 여러 날에 걸친 신청 — 아직입니다
+### 여러 날에 걸친 신청
 
-지금은 하루짜리만 만듭니다. `startDt`·`endDt`·`datePeriod` 에 **같은 날짜를 박아
-넣습니다.** API 는 이미 범위를 받게 생겼고(`calculateApplicationDays` 가
-`startDate`/`endDate` 와 `calculateOption: HOLIDAY_EXCLUSION` 을 받습니다),
-`getLeaveList` 쪽은 이미 여러 날짜 휴가를 읽어 처리합니다.
+**항목 하나에 `startDt`~`endDt` 를 담습니다.** 날짜마다 항목을 만들지 않습니다.
+실제 신청을 캡처해 확인했습니다([tools/capture-range.js](tools/capture-range.js)).
 
-막히는 건 하나입니다 — 여러 날일 때 `create` 가
+    휴게  09-14~09-18   atDt=20260914  startDt=20260914  endDt=20260918
+                       appDy="5"  appTm=300   (하루 60분 × 5일)
+    휴가  09-21~09-22   atDt=20260921  startDt=20260921  endDt=20260922
+                       appDy="2"  appTm=960  ycUseCnt=2
 
-- (가) 항목 하나에 `startDt`~`endDt` 를 담는지
-- (나) 날짜마다 항목을 하나씩 만들어 배열로 보내는지
+`atDt` 는 **시작일**입니다. 일수(`appDy`)·시간(`appTm`)·연차차감(`ycUseCnt`)은 전부
+`calculateApplicationDays` 가 범위로 계산해 돌려주는 값을 그대로 씁니다 —
+`calculateOption: HOLIDAY_EXCLUSION` 이 주말·휴일을 빼 줍니다.
 
-이건 실제 신청을 지켜보는 수밖에 없습니다. 우리가 지어내서 눌러 볼 수는 없습니다 —
-진짜 결재가 올라갑니다. [tools/capture-range.js](tools/capture-range.js) 가 그
-확인용입니다. 여러 날짜로 한 번, 하루짜리로 한 번 캡처해 비교하면 답이 나옵니다.
+휴게를 여러 날로 걸면 **그 기간 동안 매일 같은 시간대**에 휴게가 잡힙니다
+(17:00~18:00 × 5일 = 300분).
+
+결재문서 제목도 서버(`0hr00011`)가 범위에 맞게 돌려줍니다 —
+`[SRE팀 오세준] 09-14~09-18 (17:00~18:00)(5.0일) 휴게신청서`. 우리가 조립하지 않습니다.
 
 ### 휴게·외출 신청 — 다루지 않습니다
 
