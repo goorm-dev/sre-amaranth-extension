@@ -77,6 +77,7 @@
       collect(j, rows, apps, 0);
     }
     const seen = new Set();
+    const sum2 = new Set();
     const line = (r) => {
       const hm = (v) => (/^\d{4}$/.test(String(v)) ? `${String(v).slice(0, 2)}:${String(v).slice(2)}` : '----');
       const span = (() => {
@@ -103,10 +104,25 @@
       .filter((r) => r.atDt && !seen.has(r.atDt) && seen.add(r.atDt))
       .sort((a, b) => String(a.atDt).localeCompare(String(b.atDt)))
       .map(line).join('\n');
+    // 화면에 보이는 총합이 어느 필드의 합인지 대조한다.
+    // API 에 합계가 따로 없고 화면이 행을 더하는 구조라, 우리가 더하는 필드가
+    // 화면과 다르면 그 차이가 그대로 "안 더해진 시간" 이 된다.
+    const uniqRows = rows.filter((r) => r.atDt && !sum2.has(r.atDt) && sum2.add(r.atDt));
+    const F = ['appworkTm', 'appworkTotalTm', 'basicworkTm', 'selfCommuteBasicWorkTm',
+      'overworkTm', 'fixoverworkTm', 'earlyworkTm', 'nightworkTm', 'holibasicworkTm',
+      'exceptworkTm', 'outgoworkTm'];
+    const fmt = (m) => `${Math.floor(m / 60)}시간 ${m % 60}분`;
+    const totals = F.map((f) => {
+      const t = uniqRows.reduce((a, r) => a + (Number(r[f]) || 0), 0);
+      return `  ${f.padEnd(24)} ${String(t).padStart(6)}분  ${fmt(t)}`;
+    }).join('\n');
+
     const ap = apps.map((a) => `  ${a.startDt}~${a.endDt} ${a.atItemNm || ''} ${a.atNm || ''}`
       + ` ${a.startTm || ''}~${a.endTm || ''} ${a.approStateNm || ''}`
       + ` atCd=${a.atCd || '?'} atItemCd=${a.atItemCd || '?'}`).join('\n');
-    const s2 = `[근무시간 행]\n${body || '(없음)'}\n\n[근태신청 ${apps.length}건]\n${ap || '(없음)'}`;
+    const s2 = `[근무시간 행 ${uniqRows.length}일]\n${body || '(없음)'}`
+      + `\n\n[필드별 합계 — 화면의 총 근무시간과 같은 줄을 찾으세요]\n${totals}`
+      + `\n\n[근태신청 ${apps.length}건]\n${ap || '(없음)'}`;
     console.log(s2);
     try { copy(s2); } catch (_) {}
     return '클립보드에 복사했습니다';
