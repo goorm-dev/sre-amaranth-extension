@@ -11,7 +11,7 @@
   let tick = null;
 
   const show = (id) => {
-    for (const v of ['loginView', 'mainView']) $(v).hidden = v !== id;
+    for (const v of ['loginView', 'mainView', 'teamView']) $(v).hidden = v !== id;
   };
 
   // ── 로그인 ──────────────────────────────────────────────────────────────
@@ -514,11 +514,220 @@
     show('loginView');
   };
 
+
+  // ── 팀 근무시간 공유 ────────────────────────────────────────────────────
+  //
+  // 팀 하나에 링크 하나. 그 링크를 가진 사람만 본다 — 계정도 로그인도 없다.
+  // 그래서 /team?t=…&k=… 로 들어오면 로그인하지 않아도 보여 준다. 링크를 받은
+  // 사람이 이 앱을 안 쓸 수도 있기 때문이다.
+  //
+  // 올리는 값은 team.js 의 summarize 가 고르는 것뿐이다 (이름·부서·오늘 출퇴근·남은 시간).
+  let teamCfg = null;
+  let lastPush = 0;
+  let tmFrom = 'mainView';   // 돌아갈 화면
+
+  const tmMsg = (t, bad) => {
+    $('tmMsg').textContent = t || '';
+    $('tmMsg').className = 'msg' + (bad ? ' bad' : '');
+  };
+
+  const loggedIn = () => !$('mainView').hidden || state.rows.length > 0;
+
+  async function tmShow(from) {
+    tmFrom = from || (($('loginView').hidden) ? 'mainView' : 'loginView');
+    show('teamView');
+    tmMsg('');
+    teamCfg = await GW.store.getTeam();
+    if (teamCfg) { tmPaint(); await tmRefresh(); return; }
+    $('tmJoin').hidden = false;
+    $('tmPanel').hidden = true;
+    $('tmTitle').textContent = '팀 근무시간';
+    $('tmCount').textContent = '';
+    if (!$('tmName').value) $('tmName').value = (GW.api.getSession() || {}).userName || '';
+  }
+
+  function tmPaint() {
+    $('tmJoin').hidden = true;
+    $('tmPanel').hidden = false;
+    $('tmTitle').textContent = teamCfg.teamName || '팀';
+    $('tmOn').checked = teamCfg.on !== false;
+    // 로그인하지 않았으면 올릴 값이 없다. 보기만 하는 상태라고 알려 준다.
+    $('tmOn').disabled = !loggedIn();
+  }
+
+  async function tmPayload() {
+    const settings = await GW.store.getSettings();
+    const plans = await GW.store.getPlans();
+    const now = new Date();
+    const s = GW.calc.summarize(
+      { rows: state.rows, leaves: state.leaves, plans, holidays: state.holidays },
+      settings, T.monthKey(now), now);
+    const plan = GW.calc.todayPlan(s, settings, state.live, now);
+    return GW.team.summarize(s, plan, { name: teamCfg.myName, dept: teamCfg.myDept || '' });
+  }
+
+  async function tmPushMaybe(force) {
+    if (!teamCfg || teamCfg.on === false || !state.rows.length) return;
+    if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
+    lastPush = Date.now();
+    try { await GW.team.publish(teamCfg, await tmPayload()); } catch (_) { /* 본 기능은 막지 않는다 */ }
+  }
+
+  async function tmRefresh() {
+    $('tmList').textContent = '불러오는 중…';
+    await tmPushMaybe(true);
+    let data;
+    try { data = await GW.team.fetchTeam(teamCfg); }
+    catch (e) { $('tmList').innerHTML = `<div class="dbad">${esc(e.message)}</div>`; return; }
+    if (data.name && data.name !== teamCfg.teamName) {
+      teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: data.name });
+      $('tmTitle').textContent = data.name;
+    }
+    tmRender(data.members || []);
+  }
+
+  function tmRender(members) {
+    $('tmCount').textContent = members.length ? `${members.length}명` : '';
+    if (!members.length) {
+      $('tmList').innerHTML = '<div class="dnone">아직 아무도 공유하지 않았습니다</div>';
+      return;
+    }
+    const today = T.toKey(new Date());
+    $('tmList').innerHTML = members.map((m) => {
+      const mine = m.id === teamCfg.selfId;
+      // 어제 올린 값을 오늘 퇴근 시각처럼 보여주면 안 된다.
+      const fresh = T.toKey(new Date(m.at)) === today;
+      let right = '<i class="tmstale">오늘 기록 없음</i>';
+      if (m.leaveNm && !m.outAt) right = `<i class="tmleave">${esc(m.leaveNm)}</i>`;
+      else if (fresh && m.outAt) {
+        right = m.leftMin != null && m.leftMin <= 0
+          ? `<b class="tmout done">${esc(m.outAt)}</b><i>퇴근</i>`
+          : `<b class="tmout">${esc(m.outAt)}</b><i>${
+              m.leftMin != null ? `${T.fmtDuration(m.leftMin)} 남음` : ''}</i>`;
+      }
+      const sub = [
+        fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
+        fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
+        m.monthLeftMin == null ? null
+          : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
+      ].filter(Boolean).join(' · ');
+      return `<div class="tmrow${mine ? ' me' : ''}">
+          <span class="tmwho"><b>${esc(m.name)}</b>${m.dept ? `<i>${esc(m.dept)}</i>` : ''}
+            ${sub ? `<em>${esc(sub)}</em>` : ''}</span>
+          <span class="tmright">${right}</span>
+        </div>`;
+    }).join('');
+  }
+
+  async function tmEnter(cfg, teamName) {
+    const myName = ($('tmName').value || '').trim();
+    if (!myName) { tmMsg('표시 이름을 입력해 주세요.', true); return false; }
+    const sess = GW.api.getSession() || {};
+    teamCfg = await GW.store.setTeam({
+      ...cfg, teamName, myName, myDept: sess.deptName || '', on: true, ...GW.team.newSelf(),
+    });
+    tmPaint();
+    await tmRefresh();
+    return true;
+  }
+
+  $('teamBtn').onclick = () => tmShow('mainView');
+  $('tmBack').onclick = () => {
+    // 링크로 바로 들어온 사람은 돌아갈 곳이 로그인 화면이다.
+    show(tmFrom === 'mainView' && !state.rows.length ? 'loginView' : tmFrom);
+    history.replaceState(null, '', '/');
+  };
+
+  $('tmCreate').onclick = async () => {
+    const name = ($('tmTeamName').value || '').trim();
+    if (!name) { tmMsg('팀 이름을 입력해 주세요.', true); return; }
+    $('tmCreate').disabled = true;
+    tmMsg('만드는 중…');
+    try {
+      const r = await GW.team.create(name);
+      if (await tmEnter({ teamId: r.teamId, joinKey: r.joinKey }, r.name)) {
+        tmMsg('만들었습니다. 링크를 복사해 팀원에게 보내세요.');
+      }
+    } catch (e) { tmMsg(e.message, true); }
+    $('tmCreate').disabled = false;
+  };
+
+  $('tmJoinBtn').onclick = async () => {
+    const cfg = GW.team.parseLink($('tmLink').value);
+    if (!cfg) { tmMsg('링크 형식이 올바르지 않습니다.', true); return; }
+    $('tmJoinBtn').disabled = true;
+    tmMsg('확인 중…');
+    try {
+      // 먼저 읽어 본다. 키가 틀리면 잘못된 설정이 저장되지 않는다.
+      const data = await GW.team.fetchTeam({ ...cfg, selfId: '', writeKey: '' });
+      if (await tmEnter(cfg, data.name)) tmMsg('참여했습니다.');
+    } catch (e) { tmMsg(e.message, true); }
+    $('tmJoinBtn').disabled = false;
+  };
+
+  $('tmOn').onchange = async () => {
+    teamCfg = await GW.store.setTeam({ ...teamCfg, on: $('tmOn').checked });
+    if (teamCfg.on) { await tmPushMaybe(true); tmMsg('공유를 켰습니다.'); }
+    else {
+      try { await GW.team.withdraw(teamCfg); } catch (_) {}
+      tmMsg('공유를 껐습니다. 올려 둔 내 기록도 지웠습니다.');
+    }
+    tmRefresh();
+  };
+
+  $('tmCopy').onclick = async () => {
+    const link = GW.team.linkFor(teamCfg);
+    try {
+      await navigator.clipboard.writeText(link);
+      tmMsg('링크를 복사했습니다. 이 링크를 가진 사람은 팀을 볼 수 있습니다.');
+    } catch (_) { tmMsg(link); }
+  };
+
+  $('tmLeave').onclick = async () => {
+    try { await GW.team.withdraw(teamCfg); } catch (_) {}
+    await GW.store.setTeam(null);
+    teamCfg = null;
+    $('tmPanel').hidden = true;
+    $('tmJoin').hidden = false;
+    $('tmTitle').textContent = '팀 근무시간';
+    $('tmCount').textContent = '';
+    tmMsg('팀에서 나왔습니다.');
+  };
+
+  // 공유 링크로 들어온 경우. 저장해 둔 팀이 있어도 링크 쪽을 따른다 —
+  // 방금 받은 링크를 열었는데 예전 팀이 뜨면 이상하다.
+  async function tmOpenFromLink() {
+    const p = GW.team.parseLink(location.search);
+    if (!p) return false;
+    show('teamView');
+    tmFrom = 'mainView';
+    const saved = await GW.store.getTeam();
+    if (saved && saved.teamId === p.teamId) { teamCfg = saved; tmPaint(); await tmRefresh(); return true; }
+    // 아직 참여 전이다. 먼저 보여 주고, 이름을 넣으면 그때 자리를 잡는다.
+    $('tmJoin').hidden = true;
+    $('tmPanel').hidden = false;
+    $('tmOn').checked = false;
+    $('tmOn').disabled = true;
+    teamCfg = { ...p, selfId: '', writeKey: '' };
+    try {
+      const data = await GW.team.fetchTeam(teamCfg);
+      $('tmTitle').textContent = data.name || '팀';
+      tmRender(data.members || []);
+      $('tmJoin').hidden = false;
+      $('tmLink').value = location.href;
+      tmMsg('이 팀을 보고 있습니다. 내 근무시간도 올리려면 이름을 넣고 참여하세요.');
+    } catch (e) {
+      $('tmPanel').hidden = true;
+      tmMsg(e.message, true);
+    }
+    return true;
+  }
+
   // subPath 로 바로 열기. 아이폰 홈 화면에 /leave · /break 를 따로 추가하면
   // 두 번 탭에 신청서가 뜬다. nginx 가 모든 경로를 index.html 로 떨어뜨린다.
   //
   // 로그인 전에 들어와도 경로를 기억했다가 로그인 뒤에 연다.
-  const ROUTES = { '/leave': 'leaveBtn', '/break': 'breakBtn' };
+  const ROUTES = { '/leave': 'leaveBtn', '/break': 'breakBtn', '/team': 'teamBtn' };
 
   function openRoute() {
     const btn = ROUTES[location.pathname.replace(/\/+$/, '') || '/'];
@@ -527,6 +736,14 @@
 
   (async () => {
     const s = await GW.auth.restore();
-    if (s) { enterMain(); openRoute(); } else { show('loginView'); }
+    // 팀 링크는 로그인보다 앞선다. 링크를 받은 사람이 계정이 없을 수도 있다.
+    const fromLink = location.pathname.replace(/\/+$/, '') === '/team' && await tmOpenFromLink();
+    if (s) {
+      // 뒤에서 조용히 불러 둔다 — 팀 화면에서 [돌아가기] 를 누르면 바로 보이게.
+      if (fromLink) { load().then(() => tmPushMaybe(true)); tmFrom = 'mainView'; }
+      else { enterMain(); openRoute(); }
+    } else if (!fromLink) {
+      show('loginView');
+    }
   })();
 })();

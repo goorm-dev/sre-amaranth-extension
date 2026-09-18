@@ -324,6 +324,8 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 | [src/lib/store.js](src/lib/store.js) | 월별 응답 캐시 + 설정 |
 | [src/popup.js](src/popup.js) | 툴바 팝업 (단독 동작) |
 | [src/content.js](src/content.js) | 근태 페이지 내 패널 (메인 창에서만) |
+| [src/lib/team.js](src/lib/team.js) | 팀 근무시간 공유 클라이언트 (확장·웹앱 공용) |
+| [server/index.js](server/index.js) | 공유 API (worktime.goorm.io/api) |
 
 팝업은 `chrome.cookies`로, 콘텐츠 스크립트는 `document.cookie`로 세션을 읽습니다.
 
@@ -554,6 +556,80 @@ POST /schres/sc111A03    (일정 모듈의 근태캘린더)
 출처라 읽을 수 있습니다(격리 세계라도 스토리지는 공유됩니다). 팝업은 다른 출처라
 못 읽으므로 콘텐츠 스크립트가 캐시해 둡니다. **그래서 `gw.goorm.io` 탭을 한 번은
 열어야** 이 기능이 동작합니다.
+
+## 팀 근무시간 공유
+
+팀원이 언제 퇴근하는지 볼 방법이 그룹웨어에 없습니다. 각자 계산한 결과를
+`worktime.goorm.io` 한 곳에 모읍니다.
+
+**계정이 없습니다. 팀 링크가 곧 권한입니다.**
+
+    POST   /api/teams                      { name }  → { teamId, joinKey }
+    GET    /api/teams/:id?k=<joinKey>                → { name, members[] }
+    PUT    /api/teams/:id/me?k=<joinKey>   { …요약 }
+    DELETE /api/teams/:id/me?k=<joinKey>
+
+팀을 만들면 `https://worktime.goorm.io/team?t=<id>&k=<joinKey>` 링크가 나옵니다.
+이 링크를 받은 사람만 그 팀을 읽고 쓸 수 있고, **로그인 없이도 열립니다** —
+링크를 받은 사람이 이 도구를 안 쓸 수도 있기 때문입니다.
+
+### 올라가는 값
+
+[team.js 의 `summarize`](src/lib/team.js) 가 고르는 것이 전부입니다.
+
+    name, dept, inAt, outAt, workedMin, leftMin, monthLeftMin, leaveNm
+
+서버는 이 목록만 화이트리스트로 받고 나머지는 버립니다([`sanitize`](server/index.js)).
+**그룹웨어 토큰·쿠키는 공유 서버로 가지 않습니다.** 근태 원본도 올리지 않습니다 —
+계산은 각자 기기에서 끝내고 결과만 보냅니다.
+
+퇴근 시각은 **정량(소정근로) 기준**을 공유합니다. 유연근무 최소 6시간은 각자 사정이라
+남이 볼 값으로 맞지 않습니다.
+
+### 자기 칸은 자기만 고칩니다
+
+`selfId`(자리)와 `writeKey`(그 자리의 열쇠)를 브라우저에서 한 번 만들어 계속 씁니다.
+`writeKey` 가 다르면 남의 칸을 덮어쓸 수 없고, 서버는 응답에서 `writeKey` 를 빼고 줍니다.
+
+같은 사람이 확장과 웹앱을 같이 쓰면 자리가 둘로 보입니다. 합치려면 계정이 필요한데,
+계정을 두지 않기로 했으므로 그대로 둡니다.
+
+### 저장과 정리
+
+파일 하나([server/store.js](server/store.js))입니다. 팀 몇 개에 사람 수십 명,
+1인당 몇백 바이트라 DB 를 세울 이유가 없습니다. 그래서 레플리카는 **1개**입니다 —
+두 벌이 같은 파일을 들면 나중에 쓴 쪽이 이깁니다.
+
+- 사흘 지난 게시물은 조회할 때 걸러지고 지워집니다.
+- 빈 채로 사흘이 지난 팀은 시간마다 도는 정리에서 삭제됩니다.
+- 팀 생성은 IP 당 시간당 10회 — 안 막으면 아무나 팀 한도(500)를 채워
+  남이 팀을 못 만들게 할 수 있습니다.
+
+### 언제 올라가나
+
+| 위치 | 주기 |
+|---|---|
+| gw.goorm.io 패널 | 5분마다 (상주하므로 이게 주력) |
+| 툴바 팝업 | 열 때 + 2분 간격 |
+| 웹앱 | 팀 화면을 열 때 |
+
+팝업만으로는 대부분의 시간 동안 남이 보는 값이 낡습니다. 그래서 패널이 올립니다.
+어제 올린 값이 오늘 퇴근 시각처럼 보이면 안 되므로, 날짜가 다르면 목록에서
+"오늘 기록 없음" 으로 접습니다.
+
+### 호스트 권한을 추가하지 않은 이유
+
+확장이 `worktime.goorm.io` 를 부르지만 `host_permissions` 에 넣지 않았습니다.
+공유 API 가 Origin 을 반영해 CORS 를 허용하므로 권한 없이도 됩니다
+(`chrome-extension://…` 오리진으로 확인). 권한이 늘면 크롬이 업데이트 후
+확장을 비활성화하고 사용자에게 재승인을 요구하는데, 그 대가가 더 큽니다.
+
+### 공개 노출
+
+`worktime.goorm.io` 는 `internal-public` ALB 라 인터넷에서 닿습니다.
+키 없는 접근은 전부 403 이고, **팀이 없을 때와 키가 틀렸을 때의 응답이 같습니다** —
+키 없이 팀 존재 여부를 알아낼 수 없게.
+
 
 ## 업데이트 확인
 

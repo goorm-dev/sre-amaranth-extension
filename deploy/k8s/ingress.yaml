@@ -24,6 +24,15 @@ spec:
     - host: worktime.goorm.io
       http:
         paths:
+          # /api 가 먼저다. ALB 는 규칙을 적은 순서대로 평가하므로 / 가 앞서면
+          # API 요청까지 nginx 로 가서 index.html 을 받는다.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: worktime-api
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

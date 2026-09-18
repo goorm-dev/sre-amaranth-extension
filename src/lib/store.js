@@ -111,8 +111,25 @@
     });
   }
 
+  // 팀 공유 설정 { teamId, joinKey, teamName, selfId, writeKey, on }
+  async function getTeam() {
+    const { team } = await get('team');
+    return team || null;
+  }
+
+  async function setTeam(cfg) {
+    if (!cfg) {
+      if (!alive()) throw new ContextGone();
+      await chrome.storage.local.remove('team');
+      return null;
+    }
+    await set({ team: cfg });
+    return cfg;
+  }
+
   GW.store = {
     DEFAULT_SETTINGS, ContextGone, alive, raw: get, rawSet: set, getSettings, setSettings, getCachedMonth, cacheMonth,
+    getTeam, setTeam,
     getPlans, setPlan, clearPlans, getCachedHolidays, cacheHolidays,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

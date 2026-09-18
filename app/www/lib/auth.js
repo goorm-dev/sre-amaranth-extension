@@ -107,6 +107,9 @@
       groupSeq, at: Date.now(),
       compSeq: uc.compSeq, deptSeq: uc.deptSeq, empSeq: uc.empSeq,
       emailAddr: uc.emailAdd, emailDomain: uc.emailDomain,
+      // 팀 공유의 표시 이름·부서 기본값. 키 이름이 버전마다 달라 후보를 훑는다.
+      deptName: uc.deptName || '',
+      userName: uc.userName || uc.korName || uc.empName || uc.name || '',
     }, hit);
     GW.api.setSession(session);
 

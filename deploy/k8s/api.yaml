@@ -1,0 +1,83 @@
+# 근무시간 공유 API.
+#
+# 팀 링크(joinKey)가 곧 권한이다 — 계정이 없다. 저장소는 파일 하나이고,
+# 그래서 레플리카는 1이다. 두 벌이 같은 파일을 들고 있으면 나중에 쓴 쪽이 이긴다.
+# 담기는 건 이름·부서·오늘 출퇴근 시각 정도이고, 그룹웨어 자격증명은 오지 않는다.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: worktime-api-data
+  namespace: worktime
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: gp3-allow-expansion
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worktime-api
+  namespace: worktime
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate        # RWO 볼륨이라 새 파드가 뜨기 전에 헌 파드가 나가야 한다
+  selector:
+    matchLabels:
+      app: worktime-api
+  template:
+    metadata:
+      labels:
+        app: worktime-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000     # node 이미지의 node 사용자
+        runAsGroup: 1000
+        fsGroup: 1000       # PVC 를 node 소유로 붙인다
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: 879684891358.dkr.ecr.ap-northeast-2.amazonaws.com/goorm/worktime-api:latest
+          ports:
+            - name: http
+              containerPort: 8081
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits:   { memory: 128Mi }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: worktime-api-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worktime-api
+  namespace: worktime
+spec:
+  type: ClusterIP
+  selector:
+    app: worktime-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

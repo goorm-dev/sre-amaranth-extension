@@ -556,6 +556,187 @@
     render();
   };
 
+
+  // ── 팀 근무시간 공유 ──────────────────────────────────────────────────
+  //
+  // worktime.goorm.io 에 팀 하나를 만들고 링크를 나눠 갖는다. 계정이 없어서
+  // 링크가 곧 권한이다 — 링크를 아는 사람만 그 팀을 본다.
+  //
+  // 올라가는 건 이름·부서·오늘 출퇴근 시각·남은 시간뿐이다(team.js 의 summarize).
+  // 그룹웨어 토큰은 공유 서버로 가지 않는다.
+  let teamCfg = null;
+  let lastPush = 0;
+
+  const tmMsg = (t, bad) => {
+    $('tmMsg').textContent = t || '';
+    $('tmMsg').className = 'lvmsg' + (bad ? '' : ' ok');
+  };
+
+  async function tmOpenSheet() {
+    $('teamSheet').hidden = false;
+    tmMsg('');
+    teamCfg = await GW.store.getTeam();
+    if (teamCfg) { tmPaintView(); tmRefresh(); return; }
+    $('tmJoin').hidden = false;
+    $('tmView').hidden = true;
+    // 이름은 사람이 정한다. 그룹웨어에 있는 부서명만 미리 채워 준다.
+    if (!$('tmName').value) {
+      const id = await GW.api.wehagoIdentity().catch(() => null);
+      if (id && id.name) $('tmName').value = id.name;
+    }
+  }
+
+  function tmPaintView() {
+    $('tmJoin').hidden = true;
+    $('tmView').hidden = false;
+    $('tmTitle').textContent = teamCfg.teamName || '팀';
+    $('tmOn').checked = teamCfg.on !== false;
+  }
+
+  // 내가 지금 화면에서 보고 있는 값과 같은 것을 올린다.
+  async function tmPayload() {
+    const settings = await GW.store.getSettings();
+    const plans = await GW.store.getPlans();
+    const now = new Date();
+    const s = GW.calc.summarize(
+      { rows: state.rows, leaves: state.leaves, plans, holidays: state.holidays },
+      settings, T.monthKey(now), now);
+    const plan = GW.calc.todayPlan(s, settings, state.live, now);
+    const id = await GW.api.wehagoIdentity().catch(() => null);
+    return GW.team.summarize(s, plan, {
+      name: teamCfg.myName,
+      dept: (id && id.deptName) || '',
+    });
+  }
+
+  // 화면을 새로 그릴 때마다 부른다. 자주 불려도 2분에 한 번만 올린다.
+  async function tmPushMaybe(force) {
+    if (!teamCfg || teamCfg.on === false || !state.rows.length) return;
+    if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
+    lastPush = Date.now();
+    try { await GW.team.publish(teamCfg, await tmPayload()); }
+    catch (_) { /* 공유가 안 돼도 본 기능은 막지 않는다 */ }
+  }
+
+  async function tmRefresh() {
+    $('tmList').textContent = '불러오는 중…';
+    await tmPushMaybe(true);
+    let data;
+    try { data = await GW.team.fetchTeam(teamCfg); }
+    catch (e) {
+      $('tmList').innerHTML = `<div class="dbad">${esc(e.message)}</div>`;
+      return;
+    }
+    if (data.name && data.name !== teamCfg.teamName) {
+      teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: data.name });
+      $('tmTitle').textContent = data.name;
+    }
+    tmRenderList(data.members || []);
+  }
+
+  // "언제 퇴근하냐" 가 핵심이다. 그 값을 오른쪽에 크게 두고 나머지는 작게.
+  function tmRenderList(members) {
+    $('tmCount').textContent = members.length ? `${members.length}명` : '';
+    if (!members.length) {
+      $('tmList').innerHTML = '<div class="dnone">아직 아무도 공유하지 않았습니다</div>';
+      return;
+    }
+    const today = T.toKey(new Date());
+    $('tmList').innerHTML = members.map((m) => {
+      const mine = m.id === teamCfg.selfId;
+      // 어제 올린 값을 오늘 퇴근 시각처럼 보여주면 안 된다. 날짜가 바뀌었으면 접는다.
+      const fresh = T.toKey(new Date(m.at)) === today;
+      let right = '<i class="tmstale">오늘 기록 없음</i>';
+      if (m.leaveNm && !m.outAt) right = `<i class="tmleave">${esc(m.leaveNm)}</i>`;
+      else if (fresh && m.outAt) {
+        right = m.leftMin != null && m.leftMin <= 0
+          ? `<b class="tmout done">${esc(m.outAt)}</b><i>퇴근</i>`
+          : `<b class="tmout">${esc(m.outAt)}</b><i>${
+              m.leftMin != null ? `${T.fmtDuration(m.leftMin)} 남음` : ''}</i>`;
+      }
+      // 한 줄에 들어가야 줄마다 높이가 같다. 여기서는 "5:22" 꼴로 짧게 쓴다.
+      const sub = [
+        fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
+        fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
+        m.monthLeftMin == null ? null
+          : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
+      ].filter(Boolean).join(' · ');
+      return `<div class="tmrow${mine ? ' me' : ''}">
+          <span class="tmwho"><b>${esc(m.name)}</b>${m.dept ? `<i>${esc(m.dept)}</i>` : ''}
+            ${sub ? `<em>${esc(sub)}</em>` : ''}</span>
+          <span class="tmright">${right}</span>
+        </div>`;
+    }).join('');
+  }
+
+  async function tmEnter(cfg, teamName) {
+    const myName = ($('tmName').value || '').trim();
+    if (!myName) { tmMsg('표시 이름을 입력해 주세요.', true); return false; }
+    teamCfg = await GW.store.setTeam({
+      ...cfg, teamName, myName, on: true, ...GW.team.newSelf(),
+    });
+    tmPaintView();
+    await tmRefresh();
+    return true;
+  }
+
+  $('tmOpen').onclick = tmOpenSheet;
+  $('tmClose').onclick = () => { $('teamSheet').hidden = true; };
+  $('teamSheet').onclick = (e) => { if (e.target === $('teamSheet')) $('teamSheet').hidden = true; };
+
+  $('tmCreate').onclick = async () => {
+    const name = ($('tmTeamName').value || '').trim();
+    if (!name) { tmMsg('팀 이름을 입력해 주세요.', true); return; }
+    $('tmCreate').disabled = true;
+    tmMsg('만드는 중…');
+    try {
+      const r = await GW.team.create(name);
+      await tmEnter({ teamId: r.teamId, joinKey: r.joinKey }, r.name);
+      tmMsg('만들었습니다. 링크를 복사해 팀원에게 보내세요.');
+    } catch (e) { tmMsg(e.message, true); }
+    $('tmCreate').disabled = false;
+  };
+
+  $('tmJoinBtn').onclick = async () => {
+    const cfg = GW.team.parseLink($('tmLink').value);
+    if (!cfg) { tmMsg('링크 형식이 올바르지 않습니다.', true); return; }
+    $('tmJoinBtn').disabled = true;
+    tmMsg('확인 중…');
+    try {
+      // 먼저 읽어 본다. 키가 틀리면 여기서 걸러져 잘못된 설정이 저장되지 않는다.
+      const data = await GW.team.fetchTeam({ ...cfg, selfId: '', writeKey: '' });
+      if (await tmEnter(cfg, data.name)) tmMsg('참여했습니다.');
+    } catch (e) { tmMsg(e.message, true); }
+    $('tmJoinBtn').disabled = false;
+  };
+
+  $('tmOn').onchange = async () => {
+    teamCfg = await GW.store.setTeam({ ...teamCfg, on: $('tmOn').checked });
+    if (teamCfg.on) { await tmPushMaybe(true); tmMsg('공유를 켰습니다.'); }
+    else {
+      // 끄면 올려 둔 값도 지운다. "껐는데 어제 값이 남아 있다" 가 없게.
+      try { await GW.team.withdraw(teamCfg); } catch (_) {}
+      tmMsg('공유를 껐습니다. 올려 둔 내 기록도 지웠습니다.');
+    }
+    tmRefresh();
+  };
+
+  $('tmCopy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(GW.team.linkFor(teamCfg));
+      tmMsg('링크를 복사했습니다. 이 링크를 가진 사람은 팀을 볼 수 있습니다.');
+    } catch (_) { tmMsg(GW.team.linkFor(teamCfg)); }
+  };
+
+  $('tmLeave').onclick = async () => {
+    try { await GW.team.withdraw(teamCfg); } catch (_) {}
+    await GW.store.setTeam(null);
+    teamCfg = null;
+    $('tmView').hidden = true;
+    $('tmJoin').hidden = false;
+    tmMsg('팀에서 나왔습니다.');
+  };
+
   // 업데이트 안내. VERSION_URL 이 비어 있으면 check() 가 hasUpdate:false 로 돌아온다.
   async function checkUpdate(force) {
     let info;
@@ -572,7 +753,10 @@
     bar.hidden = false;
   }
 
-  load();
+  load().then(async () => {
+    teamCfg = await GW.store.getTeam().catch(() => null);
+    tmPushMaybe(true);
+  });
   checkUpdate();
   // 팝업은 열 때마다 새로 조회하므로 자동 재조회는 없다.
   // 다만 열어둔 동안 경과 시간이 낡지 않도록 다시 그리기만 한다 (서버 호출 없음).

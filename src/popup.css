@@ -183,3 +183,46 @@ footer span { font-size: 11px; color: #9ca3af; }
 #daySheet .caledit button { width: auto; flex: none; white-space: nowrap; padding: 7px 14px; font-size: 12.5px; }
 #daySheet b#dayTitle { display: inline; }
 .daycount { font-style: normal; font-size: 11.5px; font-weight: 600; color: #9ca3af; margin-left: 6px; }
+
+/* ── 팀 근무시간 공유 ─────────────────────────────────────────────── */
+.tmlbl { display: block; font-size: 11px; color: #6b7280; margin-bottom: 8px; }
+.tmlbl input { width: 100%; margin-top: 3px; }
+.tmor { font-size: 11px; color: #6b7280; margin: 10px 0 4px; }
+#teamSheet .erow { display: flex; gap: 6px; }
+#teamSheet .erow input { flex: 1; min-width: 0; }
+#teamSheet .erow button { flex: none; white-space: nowrap; }
+
+.tmhead { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+.tmhead i { font-size: 11px; color: #6b7280; font-style: normal; }
+.tmlist { max-height: 240px; overflow-y: auto; }
+
+.tmrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 2px; border-bottom: 1px solid #f3f5f9;
+}
+.tmrow:last-child { border-bottom: 0; }
+.tmrow.me { background: #f2f6ff; border-radius: 5px; padding-left: 5px; padding-right: 5px; }
+.tmwho { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tmwho b { font-size: 13px; }
+.tmwho i { font-size: 10px; color: #6b7280; font-style: normal; }
+.tmwho em { font-size: 10px; color: #6b7280; font-style: normal; }
+.tmright { text-align: right; white-space: nowrap; display: flex; flex-direction: column; gap: 1px; }
+.tmright i { font-size: 10px; color: #6b7280; font-style: normal; }
+.tmout { font-size: 15px; font-variant-numeric: tabular-nums; }
+.tmout.done { color: #0f9d58; }
+.tmleave { font-size: 12px; color: #1e63d8; font-style: normal; }
+.tmstale { font-size: 11px; color: #6b7280; font-style: normal; }
+
+.tmbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.tmshare { display: flex; align-items: center; gap: 5px; font-size: 12px; flex: 1; }
+.tmshare input { margin: 0; }
+.link.bad { color: #dc2626; }
+#teamSheet .link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: 11.5px; color: #1e63d8; text-decoration: underline;
+}
+#teamSheet .link.bad { color: #dc2626; }
+.tmlist .dbad { color: #dc2626; padding: 12px 0; text-align: center; font-size: 12px; }
+.tmlist .dnone { color: #9ca3af; padding: 14px 0; text-align: center; font-size: 12px; }
+.lvmsg.ok { color: #4b5563; }
+.tmwho em { white-space: nowrap; }

@@ -79,8 +79,16 @@
   async function setSession(s) { await set('session', s); }
   async function clearSession() { await remove('session'); }
 
+  // 팀 공유 설정 { teamId, joinKey, teamName, selfId, writeKey, on }
+  async function getTeam() { return (await get('team')) || null; }
+  async function setTeam(cfg) {
+    if (!cfg) { await remove('team'); return null; }
+    await set('team', cfg);
+    return cfg;
+  }
+
   GW.store = {
-    DEFAULT_SETTINGS, getSettings, setSettings,
+    DEFAULT_SETTINGS, getSettings, setSettings, getTeam, setTeam,
     getCachedHolidays, cacheHolidays, getCachedMonth, cacheMonth,
     getPlans, setPlan, clearPlans,
     getSession, setSession, clearSession,
