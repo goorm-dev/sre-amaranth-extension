@@ -517,11 +517,9 @@
 
   // ── 팀 근무시간 공유 ────────────────────────────────────────────────────
   //
-  // 같은 팀 이름을 쓰는 사람끼리 모인다. 만들기도 참여도 링크도 없다.
-  // 팀 이름은 그룹웨어의 부서명으로 미리 채워진다.
+  // 그룹웨어의 부서가 그대로 팀이다. 만들기도 참여도 링크도 열쇠도 없고,
+  // 고를 수 있는 것도 없다 — 팀도 이름도 로그인 정보로 고정한다.
   // 파생 규칙은 lib/team.js 에 있다 (확장과 같은 파일).
-  //
-  // 팀 이름은 비밀이 아니다 — 아는 사람은 누구나 그 팀을 볼 수 있다.
   let teamCfg = null;      // { teamName, myName, on, selfId, writeKey }
   let teamIds = null;      // { teamId, joinKey }
   let lastPush = 0;
@@ -537,26 +535,45 @@
     show('teamView');
     tmMsg('');
     teamCfg = await GW.store.getTeam();
-    if (!teamCfg || !teamCfg.teamName) {
-      tmShowSetup();
-      $('tmTitle').textContent = '팀 근무시간';
-      $('tmCount').textContent = '';
-      // 둘 다 로그인 정보에서 채워 준다 — 대개 [시작] 만 누르면 된다.
-      const sess = GW.api.getSession() || {};
-      if (!$('tmTeam').value) $('tmTeam').value = sess.deptName || '';
-      if (!$('tmName').value) $('tmName').value = sess.userName || '';
-      return;
-    }
+    if (!teamCfg || !teamCfg.teamName) { tmSetupFill(); return; }
     $('tmSetup').hidden = true;
     $('tmPanel').hidden = false;
     $('tmOn').checked = teamCfg.on !== false;
     await tmRefresh();
   }
 
-  // 팀 이름 → 팀 주소.
+  // 설정 화면은 확인용이다. 고칠 수 있는 건 이름을 못 읽었을 때의 표시 이름뿐이다.
+  function tmSetupFill() {
+    tmShowSetup();
+    $('tmTitle').textContent = '팀 근무시간';
+    $('tmCount').textContent = '';
+    const sess = GW.api.getSession() || {};
+    if (!sess.compSeq || !sess.deptSeq) {
+      $('tmDept').textContent = '—';
+      $('tmWho').textContent = '—';
+      $('tmStart').disabled = true;
+      tmMsg('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.', true);
+      return;
+    }
+    $('tmDept').textContent = sess.deptName || `부서 ${sess.deptSeq}`;
+    $('tmStart').disabled = false;
+    // 이름은 응답 구조가 버전마다 달라 못 읽는 경우가 있다. 그때만 직접 넣게 한다 —
+    // 팀은 어떤 경우에도 고칠 수 없다.
+    if (sess.userName) {
+      $('tmWho').textContent = sess.userName;
+      $('tmNameWrap').hidden = true;
+    } else {
+      $('tmWho').textContent = '(읽지 못했습니다)';
+      $('tmNameWrap').hidden = false;
+    }
+  }
+
+  // 부서 → 팀 주소. 로그인 정보 말고는 들어갈 자리가 없다.
   async function tmResolve() {
-    teamIds = await GW.team.derive(teamCfg.teamName);
-    return GW.api.getSession() || {};      // 부서명은 표시용이라 없어도 된다
+    const s = GW.api.getSession() || {};
+    if (!s.compSeq || !s.deptSeq) throw new Error('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.');
+    teamIds = await GW.team.derive(s.compSeq, s.deptSeq);
+    return s;
   }
 
   async function tmPayload(sess) {
@@ -578,7 +595,7 @@
     lastPush = Date.now();
     try {
       const sess = await tmResolve();
-      await GW.team.ensure(teamIds, teamCfg.teamName);
+      await GW.team.ensure(teamIds, sess.deptName || teamCfg.teamName);
       await GW.team.publish(teamIds, teamCfg, await tmPayload(sess));
     } catch (_) { /* 본 기능은 막지 않는다 */ }
   }
@@ -587,8 +604,11 @@
     $('tmList').textContent = '불러오는 중…';
     try {
       const sess = await tmResolve();
-      $('tmTitle').textContent = teamCfg.teamName;
-      await GW.team.ensure(teamIds, teamCfg.teamName);
+      // 부서명이 바뀌면 따라간다. 주소는 deptSeq 라 그대로다.
+      const nm = sess.deptName || teamCfg.teamName;
+      if (nm !== teamCfg.teamName) teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: nm });
+      $('tmTitle').textContent = nm;
+      await GW.team.ensure(teamIds, nm);
       if (teamCfg.on !== false && state.rows.length) {
         lastPush = Date.now();
         await GW.team.publish(teamIds, teamCfg, await tmPayload(sess));
@@ -635,14 +655,18 @@
   $('tmBack').onclick = () => show('mainView');
 
   $('tmStart').onclick = async () => {
-    const teamName = ($('tmTeam').value || '').trim();
-    const myName = ($('tmName').value || '').trim();
-    if (!GW.team.normName(teamName)) { tmMsg('팀 이름을 넣어 주세요.', true); return; }
+    // 팀도 이름도 로그인 정보에서 온다. 이름을 못 읽었을 때만 입력칸이 열린다.
+    const sess = GW.api.getSession() || {};
+    if (!sess.compSeq || !sess.deptSeq) { tmMsg('부서 정보가 없습니다.', true); return; }
+    const myName = sess.userName || ($('tmName').value || '').trim();
     if (!myName) { tmMsg('표시 이름을 넣어 주세요.', true); return; }
     $('tmStart').disabled = true;
     tmMsg('확인 중…');
     try {
-      teamCfg = { teamName, myName, on: true, ...GW.team.newSelf() };
+      teamCfg = {
+        teamName: sess.deptName || `부서 ${sess.deptSeq}`,
+        myName, on: true, ...GW.team.newSelf(),
+      };
       await tmResolve();
       teamCfg = await GW.store.setTeam(teamCfg);
       $('tmSetup').hidden = true;
@@ -672,9 +696,7 @@
     await GW.store.setTeam(null);
     teamCfg = null;
     teamIds = null;
-    tmShowSetup();
-    $('tmTitle').textContent = '팀 근무시간';
-    $('tmCount').textContent = '';
+    tmSetupFill();
     tmMsg('해제했습니다. 올려 둔 내 기록도 지웠습니다.');
   };
 

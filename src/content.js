@@ -171,8 +171,9 @@
     if (!cfg || !cfg.teamName || cfg.on === false) return;
     sharedAt = Date.now();
     try {
-      const ids = await GW.team.derive(cfg.teamName);
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
+      if (!id || !id.compSeq || !id.deptSeq) return;
+      const ids = await GW.team.derive(id.compSeq, id.deptSeq);
 
       const settings = await GW.store.getSettings();
       const now = new Date();
@@ -186,9 +187,9 @@
         settings, mKey, now);
       const plan = GW.calc.todayPlan(s, settings, mKey === viewMonth ? state.live : null, now);
 
-      await GW.team.ensure(ids, cfg.teamName);
+      await GW.team.ensure(ids, id.deptName || cfg.teamName);
       await GW.team.publish(ids, cfg, GW.team.summarize(s, plan, {
-        name: cfg.myName, dept: (id && id.deptName) || '',
+        name: cfg.myName, dept: id.deptName || '',
       }));
     } catch (_) { /* 다음 주기에 다시 시도한다 */ }
   }

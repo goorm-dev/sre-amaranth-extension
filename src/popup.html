@@ -113,12 +113,13 @@
       <b>팀 근무시간</b>
 
       <div id="tmSetup" class="tmsetup" hidden>
-        <p class="tmhelp"><b>같은 팀 이름</b>을 쓰는 사람끼리 모입니다.
-          부서명이 미리 채워져 있으니 그대로 시작하면 됩니다.</p>
-        <label class="tmlbl">팀 이름
-          <input id="tmTeam" type="text" maxlength="24" placeholder="예: SRE팀">
-        </label>
-        <label class="tmlbl">표시 이름
+        <p class="tmhelp">그룹웨어의 <b>부서</b>가 그대로 팀이 됩니다.
+          팀과 이름은 그룹웨어 값으로 고정되며 바꿀 수 없습니다.</p>
+        <div class="tmfixed">
+          <div><span>팀</span><b id="tmDept">—</b></div>
+          <div><span>이름</span><b id="tmWho">—</b></div>
+        </div>
+        <label class="tmlbl" id="tmNameWrap" hidden>표시 이름
           <input id="tmName" type="text" maxlength="12" placeholder="이름">
         </label>
         <button id="tmStart" class="primary">시작</button>

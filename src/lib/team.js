@@ -1,18 +1,22 @@
 // 팀 근무시간 공유.
 //
-// **팀명이 곧 주소다.** 같은 팀명을 쓰는 사람끼리 모인다. 그게 전부다 —
-// 만들기도 참여도 링크도 열쇠도 없다. 팀명은 그룹웨어의 부서명으로 미리 채워지므로
-// 대개 손댈 것이 없고, 부서와 다른 이름으로 모이고 싶으면 고쳐 쓰면 된다.
+// **그룹웨어의 부서가 그대로 팀이다.** 만들기도 참여도 링크도 열쇠도 없고,
+// 사용자가 고를 수 있는 것도 없다 — 팀도 이름도 그룹웨어가 알려 주는 값으로 고정한다.
+// 열쇠를 없애면서 "아무 팀이나 지목해서 들여다보기" 까지 같이 막는 방법이 이것이다.
 //
-//   teamId  = SHA-256("worktime-team-v1:" + 팀명)    앞 16자
-//   joinKey = SHA-256("worktime-join-v1:" + 팀명)    앞 32자
+//   teamId  = SHA-256("worktime-team-v2:" + compSeq + ":" + deptSeq)    앞 16자
+//   joinKey = SHA-256("worktime-join-v2:" + compSeq + ":" + deptSeq)    앞 32자
 //
-// **비밀이 아니다.** 팀명을 아는 사람은 누구나 그 팀을 읽을 수 있다. 서버가 요청자를
-// 확인할 방법이 없는데(계정도 로그인도 없다) 열쇠까지 없애기로 했으므로, 팀명이
-// 사실상 공개된 주소다. joinKey 는 서버가 요구하는 형식을 맞추는 값일 뿐 보호 수단이
-// 아니다. 남의 칸을 덮어쓰지 못하게 하는 writeKey 만 실제로 동작한다.
+// 부서명이 아니라 deptSeq 로 만든다. 부서명은 회사마다 겹칠 수 있고("개발팀") 이름이
+// 바뀌면 팀이 갈라진다. compSeq 를 앞에 붙여 회사끼리도 겹치지 않게 한다.
+// 부서명은 화면에 보여 줄 때만 쓴다.
 //
-// cfg = { teamName, myName, on, selfId, writeKey }
+// **주소 자체가 비밀은 아니다.** 계산식이 이 저장소에 공개돼 있고 deptSeq 는 작은
+// 정수라, API 를 직접 부르는 사람은 여전히 값을 맞춰 볼 수 있다. joinKey 는 서버
+// 형식을 맞추는 값일 뿐 보호 수단이 아니다. 실제로 동작하는 것은 남의 칸을
+// 덮어쓰지 못하게 하는 writeKey 와, 클라이언트가 자기 부서 말고는 계산하지 않는다는 점이다.
+//
+// cfg = { teamName, myName, on, selfId, writeKey }   teamName 은 표시용
 (function (root) {
   const GW = (root.GW = root.GW || {});
 
@@ -35,22 +39,19 @@
     return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
 
-  // 사람이 손으로 적는 이름이다. "SRE팀" 과 "sre 팀" 이 갈라지면 서로 못 만난다.
-  // 공백을 모두 지우고 소문자로 맞춘 값으로 주소를 만든다 (보이는 이름은 적은 그대로).
-  const normName = (v) => String(v || '').trim().replace(/\s+/g, '').toLowerCase();
-
   async function sha(msg) {
     const buf = await root.crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
     return b64url(buf);
   }
 
-  // 팀명 → 팀 주소. 같은 팀명이면 어디서 계산해도 같은 값이 나온다.
-  async function derive(teamName) {
-    const n = normName(teamName);
-    if (!n) throw new Error('팀 이름이 없습니다');
+  // 부서 → 팀 주소. 같은 부서면 어디서 계산해도 같은 값이 나온다.
+  // 인자는 그룹웨어에서 온 값만 들어온다 — 사용자가 고르는 경로가 없다.
+  async function derive(compSeq, deptSeq) {
+    if (!compSeq || !deptSeq) throw new Error('부서 정보를 찾지 못했습니다');
+    const tag = `${compSeq}:${deptSeq}`;
     return {
-      teamId: (await sha(`worktime-team-v1:${n}`)).slice(0, 16),
-      joinKey: (await sha(`worktime-join-v1:${n}`)).slice(0, 32),
+      teamId: (await sha(`worktime-team-v2:${tag}`)).slice(0, 16),
+      joinKey: (await sha(`worktime-join-v2:${tag}`)).slice(0, 32),
     };
   }
 
@@ -119,7 +120,7 @@
   }
 
   GW.team = {
-    ORIGIN, BASE, newSelf, normName, derive,
+    ORIGIN, BASE, newSelf, derive,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
