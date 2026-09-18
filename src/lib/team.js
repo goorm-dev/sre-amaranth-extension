@@ -4,13 +4,12 @@
 // 사용자가 고를 수 있는 것도 없다 — 팀도 이름도 그룹웨어가 알려 주는 값으로 고정한다.
 // 열쇠를 없애면서 "아무 팀이나 지목해서 들여다보기" 까지 같이 막는 방법이 이것이다.
 //
-//   teamId  = SHA-256("worktime-team-v4:" + compSeq + ":" + 최종소속팀 deptSeq)
-//   joinKey = SHA-256("worktime-join-v4:" + compSeq + ":" + 최종소속팀 deptSeq)
+//   teamId  = SHA-256("worktime-team-v5:" + compSeq + ":" + 조직도 경로의 맨 끝 부서명)
+//   joinKey = SHA-256("worktime-join-v5:" + compSeq + ":" + 조직도 경로의 맨 끝 부서명)
 //
-// "최종 소속 팀" 은 조직도 경로에서 뒤에서부터 찾은 첫 "…팀" 이다 (teamFromPath).
-// 본인 부서(deptSeq)로 만들면 "에듀 1파트"·"에듀 2파트" 가 갈라지고, 이름을
-// 규칙으로 깎으면 "사업1팀"·"사업2팀" 처럼 다른 팀이 합쳐진다. 조직도가 이미
-// 아는 것을 쓴다.
+// 맨 끝, 즉 본인이 실제로 속한 부서다. 번호가 아니라 이름으로 묶는다 —
+// 조직도에 같은 팀이 여러 번호로 들어 있어서(1100 재무회계팀 / 2009 재무회계팀)
+// 번호로 묶으면 같은 팀 사람이 서로 다른 방에 떨어진다.
 //
 // **주소 자체가 비밀은 아니다.** 계산식이 이 저장소에 공개돼 있고 deptSeq 는 작은
 // 정수라, API 를 직접 부르는 사람은 여전히 값을 맞춰 볼 수 있다. joinKey 는 서버
@@ -103,7 +102,7 @@
     return b64url(buf);
   }
 
-  // 조직도가 알려 주는 **최종 소속 팀** 으로 묶는다.
+  // 조직도 경로의 **맨 끝**, 즉 본인이 실제로 속한 부서로 묶는다.
   //
   // 경로가 두 군데에서 오는데 모양이 다르다.
   //   내 세션(userInfo)  deptPath   "2038|2042"
@@ -111,28 +110,21 @@
   //   조직도 API         path       "1000|1000|2017|2019|2025|2255"
   //                      pathName   "주식회사 구름>…>에듀그룹>에듀팀>에듀 2파트"
   //
-  // 구분자가 | 이기도 하고 > 이기도 하다. 그리고 **길이가 다르다** — 번호 쪽에는
-  // 회사 항목이 빠져 있다. 그래서 뒤에서부터 맞춘다.
+  // 구분자가 | 이기도 하고 > 이기도 하다. 맨 끝만 쓰므로 길이가 달라도 상관없다.
   //
-  // 뒤에서부터 찾은 첫 "…팀" 이 그 사람의 팀이다. "SRE 1파트" 도 "SRE팀" 으로
-  // 모이고, "프로덕트디자인팀"·"브랜드디자인팀" 은 각각 남는다.
-  //
-  // 이름 규칙으로 깎던 방식은 버렸다. "사업1팀"·"사업2팀" 처럼 실제로 다른 팀을
-  // 한 덩어리로 합쳐 버린다 — 조직도가 이미 아는 것을 추측할 이유가 없다.
+  // 번호가 아니라 **이름** 으로 묶는다. 조직도에 같은 팀이 여러 번호로 들어 있다 —
+  //   1100 재무회계팀 / 2009 재무회계팀,  2013 사업1팀 / 2110 사업1팀 …
+  // 번호로 묶으면 같은 팀 사람이 서로 다른 방에 떨어진다.
   const split = (v) => String(v || '').split(/[|>]/).map((x) => x.trim()).filter(Boolean);
 
+  // "SRE팀" 과 "SRE 팀" 이 갈라지지 않게 공백을 지우고 대문자로 맞춘다.
+  const normDept = (v) => String(v || '').replace(/\s+/g, '').toUpperCase();
+
   function teamFromPath(path, pathName) {
-    const seqs = split(path);
     const names = split(pathName);
-    if (!seqs.length) return null;
-    const n = Math.min(seqs.length, names.length);
-    const s2 = seqs.slice(-n);
-    const n2 = names.slice(-n);
-    for (let i = n - 1; i >= 0; i--) {
-      if (/팀$/.test(n2[i])) return { seq: s2[i], name: n2[i] };
-    }
-    // 팀이라 부를 마디가 없으면 본인 부서로 둔다 (대표이사 · 그룹 직속 등).
-    return { seq: seqs[seqs.length - 1], name: n ? n2[n - 1] : '' };
+    if (!names.length) return null;
+    const name = names[names.length - 1];
+    return { key: normDept(name), name };
   }
 
   // 부서 → 팀 주소. 인자는 그룹웨어에서 온 값만 들어온다 —
@@ -140,16 +132,15 @@
   async function derive(id) {
     const compSeq = id && id.compSeq;
     if (!compSeq) throw new Error('부서 정보를 찾지 못했습니다');
-    // 경로가 있으면 최종 소속 팀, 없으면 본인 부서 그대로. 후자는 하위 조직이
-    // 갈라지지만, 아무 이름이나 합쳐 버리는 것보다는 낫다.
+    // 경로의 맨 끝. 경로가 없으면 부서명으로 떨어진다 — 같은 값이다.
     const t = teamFromPath(id.path, id.pathName)
-      || (id.deptSeq ? { seq: String(id.deptSeq), name: id.deptName || '' } : null);
-    if (!t) throw new Error('부서 정보를 찾지 못했습니다');
-    const tag = `${compSeq}:${t.seq}`;
+      || (id.deptName ? { key: normDept(id.deptName), name: id.deptName } : null);
+    if (!t || !t.key) throw new Error('부서 정보를 찾지 못했습니다');
+    const tag = `${compSeq}:${t.key}`;
     return {
-      root: t.name || id.deptName || '우리 팀',
-      teamId: (await sha(`worktime-team-v4:${tag}`)).slice(0, 16),
-      joinKey: (await sha(`worktime-join-v4:${tag}`)).slice(0, 32),
+      root: t.name,
+      teamId: (await sha(`worktime-team-v5:${tag}`)).slice(0, 16),
+      joinKey: (await sha(`worktime-join-v5:${tag}`)).slice(0, 32),
     };
   }
 
