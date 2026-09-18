@@ -579,6 +579,16 @@
     $('tmMsg').className = 'lvmsg' + (bad ? '' : ' ok');
   };
   const cfgOf = () => (tmTab === 'team' ? teamCfg : frCfg);
+
+  // 방 목록을 고칠 때는 언제 고쳤는지 같이 남긴다 — 기기끼리 맞출 때 기준이 된다.
+  // 올리는 건 조용히 한다. 실패해도 이 기기에서는 그대로 쓸 수 있어야 한다.
+  async function saveRooms(next) {
+    frCfg = await GW.store.setFriends({ ...next, at: Date.now() });
+    tmSelf(await tmIdentity(), frCfg)
+      .then((self) => GW.team.pushRooms(self, frCfg.rooms || [], frCfg.at))
+      .catch(() => {});
+    return frCfg;
+  }
   // 친구 탭에서 지금 보고 있는 방
   const activeRoom = () =>
     (frCfg && (frCfg.rooms || []).find((r) => r.code === frCfg.active)) || null;
@@ -642,6 +652,17 @@
     // 예전 판본은 방을 하나만 들고 있었다. 목록 구조로 옮겨 담는다.
     frCfg = GW.team.migrateRooms(await GW.store.getFriends());
     tmPaintTabs();
+    // 다른 기기에서 들어간 방을 가져온다. 안 돼도 이 기기 것으로 그냥 쓴다.
+    try {
+      const merged = await GW.team.syncRooms(await tmSelf(await tmIdentity(), frCfg), frCfg);
+      if (merged !== frCfg) {
+        frCfg = await GW.store.setFriends(merged);
+        if (!frCfg.active && (frCfg.rooms || []).length) {
+          frCfg = await GW.store.setFriends({ ...frCfg, active: frCfg.rooms[0].code });
+        }
+        tmPaintTabs();
+      }
+    } catch (_) { /* 연동은 부가 기능이다 */ }
     await tmRefresh();
   }
 
@@ -779,7 +800,7 @@
       : GW.store.setFriends(v).then((x) => (frCfg = x)));
     const setOn = (on) => (tmTab === 'team'
       ? save({ ...teamCfg, on })
-      : save({
+      : saveRooms({
         ...frCfg,
         rooms: (frCfg.rooms || []).map((r) => (r.code === frCfg.active ? { ...r, on } : r)),
       }));
@@ -840,9 +861,7 @@
       return tmMsg(e.message, true);
     }
     $('frNew').disabled = false;
-    frCfg = await GW.store.setFriends({
-      ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code,
-    });
+    await saveRooms({ ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code });
     tmPaintTabs();
     tmMsg('방을 만들었습니다. 코드를 복사해 보내세요.');
     await tmRefresh();
@@ -868,9 +887,7 @@
     tmMsg('확인 중…');
     try {
       const data = await GW.team.fetchTeam(await GW.team.room(code));   // 없는 방이면 여기서 걸린다
-      frCfg = await GW.store.setFriends({
-        ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code,
-      });
+      await saveRooms({ ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code });
       $('frInput').value = '';
       tmPaintTabs();
       tmMsg(`참여했습니다 (${(data.members || []).length}명).`);
@@ -882,6 +899,7 @@
   $('frRooms').onclick = async (ev) => {
     const b = ev.target.closest('[data-code]');
     if (!b || b.dataset.code === frCfg.active) return;
+    // 어느 방을 보고 있느냐는 기기마다 다른 것이라 올리지 않는다.
     frCfg = await GW.store.setFriends({ ...frCfg, active: b.dataset.code });
     tmMsg('');
     tmPaintTabs();
@@ -905,7 +923,7 @@
       await GW.team.withdraw(await GW.team.room(r.code), await tmSelf(await tmIdentity(), frCfg));
     } catch (_) {}
     const rooms = (frCfg.rooms || []).filter((x) => x.code !== r.code);
-    frCfg = await GW.store.setFriends({ ...frCfg, rooms, active: rooms.length ? rooms[0].code : null });
+    await saveRooms({ ...frCfg, rooms, active: rooms.length ? rooms[0].code : null });
     tmPaintTabs();
     tmMsg('방에서 나왔습니다. 올려 둔 내 기록도 지웠습니다.');
     await tmRefresh();

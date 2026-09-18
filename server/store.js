@@ -11,6 +11,10 @@ const path = require('path');
 // 팀 하나가 몇백 바이트다. 빈 팀은 36시간 뒤 정리되므로 넉넉해도 안 쌓인다.
 const MAX_TEAMS = 2000;
 const MAX_MEMBERS = 200;          // 팀당
+const MAX_PEOPLE = 5000;          // 기기 간 방 목록 동기화용
+const MAX_ROOMS = 30;             // 1인당
+// 방 목록은 근무 기록과 달리 오래 들고 있어야 한다 — 며칠 쉬었다고 지워지면 안 된다.
+const PEOPLE_STALE_MS = 90 * 24 * 60 * 60 * 1000;
 // 보여 주려는 건 "오늘 누가 언제 퇴근하나" 다. 사흘을 들고 있으면 그만둔 사람이나
 // 옛 판본이 남긴 자리가 계속 목록에 뜬다(실제로 그랬다). 어제 저녁~오늘 아침이
 // 이어 보일 만큼만 남긴다.
@@ -19,7 +23,7 @@ const STALE_MS = 36 * 60 * 60 * 1000;
 class Store {
   constructor(file) {
     this.file = file;
-    this.data = { teams: {} };
+    this.data = { teams: {}, people: {} };
     this.dirty = false;
     this.load();
     // 몰아서 쓴다. 게시가 몰려도 디스크를 계속 두들기지 않는다.
@@ -34,7 +38,8 @@ class Store {
       this.data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       if (!this.data || typeof this.data !== 'object') this.data = { teams: {} };
       if (!this.data.teams) this.data.teams = {};
-    } catch (_) { this.data = { teams: {} }; }
+      if (!this.data.people) this.data.people = {};
+    } catch (_) { this.data = { teams: {}, people: {} }; }
   }
 
   flush() {
@@ -103,6 +108,30 @@ class Store {
         delete this.data.teams[id]; this.dirty = true;
       }
     }
+    const pcut = Date.now() - PEOPLE_STALE_MS;
+    for (const [id, p] of Object.entries(this.data.people || {})) {
+      if ((p.at || 0) < pcut) { delete this.data.people[id]; this.dirty = true; }
+    }
+  }
+
+  // ── 기기 간 방 목록 ────────────────────────────────────────────────
+  //
+  // 자리(selfId)와 그 열쇠(writeKey)는 사번에서 나온다. 같은 사람의 PC 와 폰이
+  // 같은 값을 계산하므로, 그걸 열쇠 삼아 방 목록을 맡아 둔다.
+  person(id, writeKey) {
+    const p = this.data.people[id];
+    if (!p) return null;
+    if (p.writeKey !== writeKey) return 'forbidden';
+    return { rooms: p.rooms || [], at: p.at || 0 };
+  }
+
+  putPerson(id, writeKey, rooms, at) {
+    const cur = this.data.people[id];
+    if (cur && cur.writeKey !== writeKey) return 'forbidden';
+    if (!cur && Object.keys(this.data.people).length >= MAX_PEOPLE) return 'full';
+    this.data.people[id] = { writeKey, rooms: rooms.slice(0, MAX_ROOMS), at };
+    this.dirty = true;
+    return true;
   }
 
   // 오래된 게시물은 빼고 돌려준다. writeKey 는 절대 밖으로 내보내지 않는다.
@@ -120,4 +149,4 @@ class Store {
   }
 }
 
-module.exports = { Store, STALE_MS };
+module.exports = { Store, STALE_MS, MAX_ROOMS };

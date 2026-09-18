@@ -173,13 +173,27 @@
     // 켜 둔 방마다 올린다. 방은 여러 개일 수 있다.
     const rooms = (friends.rooms || []).filter((r) => r.on && friends.myName);
     const on = (c) => !!(c && c.on && c.myName);
-    if (!on(team) && !rooms.length) return;
+    // 방 목록은 아래에서 다른 기기 것과 맞춘 뒤 다시 채운다.
+    if (!on(team) && !rooms.length && !friends.myName) return;
     sharedAt = Date.now();
     try {
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
       if (!id || !id.compSeq) return;
       // 자리는 사번에서 만든다 — 기기마다 새로 만들면 같은 사람이 여러 줄로 남는다.
       const self = id.empSeq ? await GW.team.selfFrom(id.compSeq, id.empSeq) : null;
+
+      // 폰에서 새로 들어간 방에도 올려야 한다. 목록을 먼저 맞춘다.
+      if (self) {
+        try {
+          const merged = await GW.team.syncRooms(self, friends);
+          if (merged !== friends) {
+            friends = merged;
+            await GW.store.setFriends(friends);
+            rooms.length = 0;
+            for (const r of friends.rooms || []) if (r.on && friends.myName) rooms.push(r);
+          }
+        } catch (_) { /* 연동은 부가 기능이다 */ }
+      }
 
       const settings = await GW.store.getSettings();
       const now = new Date();

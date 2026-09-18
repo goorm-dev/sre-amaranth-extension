@@ -13,12 +13,18 @@
 //   PUT  /api/teams/:id/me?k=<joinKey>   { id, writeKey, name, ... }
 //   DELETE /api/teams/:id/me?k=<joinKey> { id, writeKey }
 //
+//   GET  /api/me?u=<selfId>&k=<writeKey>              → { rooms[], at }
+//   PUT  /api/me?u=<selfId>&k=<writeKey>  { rooms[], at }
+//
+// /api/me 는 기기 간 방 목록 맞추기다. selfId·writeKey 는 사번에서 나오므로
+// 같은 사람의 PC 와 폰이 같은 값을 계산한다 — 맞출 거리가 따로 필요 없다.
+//
 // writeKey 는 각자 브라우저에서 만든 값이고 서버 밖으로 나가지 않는다 —
 // 자기 칸만 갱신할 수 있게 하는 용도다.
 'use strict';
 const http = require('http');
 const crypto = require('crypto');
-const { Store } = require('./store');
+const { Store, MAX_ROOMS } = require('./store');
 
 const PORT = Number(process.env.PORT || 8081);
 const DATA = process.env.DATA_FILE || '/data/teams.json';
@@ -127,6 +133,34 @@ const server = http.createServer(async (req, res) => {
   // ALB 의 healthcheck-path 는 인그레스 하나에 하나뿐이라 웹(/healthz)과 같은 길을 쓴다.
   if (url.pathname === '/api/healthz' || url.pathname === '/healthz') {
     return send(res, 200, { ok: true });
+  }
+
+  // ── 기기 간 방 목록 ────────────────────────────────────────────────
+  if (url.pathname === '/api/me') {
+    const id = str(url.searchParams.get('u'), 64);
+    const key = str(url.searchParams.get('k'), 64);
+    if (!id || key.length < 16) return send(res, 400, { error: '잘못된 요청입니다' });
+
+    if (req.method === 'GET') {
+      const p = store.person(id, key);
+      if (p === 'forbidden') return badKey(req, res);
+      return send(res, 200, p || { rooms: [], at: 0 });
+    }
+    if (req.method === 'PUT') {
+      const b = await readBody(req);
+      // 우리가 정한 모양으로만 받는다. 남이 보낸 것을 그대로 저장하지 않는다.
+      const rooms = (Array.isArray(b.rooms) ? b.rooms : []).slice(0, MAX_ROOMS).map((r) => ({
+        code: str(r && r.code, 32),
+        label: str(r && r.label, 24),
+        on: !!(r && r.on),
+      })).filter((r) => r.code);
+      const at = Number.isFinite(b.at) ? Math.round(b.at) : Date.now();
+      const r = store.putPerson(id, key, rooms, at);
+      if (r === 'forbidden') return badKey(req, res);
+      if (r === 'full') return send(res, 409, { error: '자리가 가득 찼습니다' });
+      return send(res, 200, { ok: true, at });
+    }
+    return send(res, 405, { error: 'method not allowed' });
   }
 
   const m = url.pathname.match(/^\/api\/teams(?:\/([\w-]{1,64}))?(\/me)?$/);

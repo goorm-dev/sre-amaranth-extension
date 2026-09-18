@@ -82,11 +82,12 @@
 
   // 예전 판본은 방을 하나만 들고 있었다 ({ code, on }). 목록 구조로 옮겨 담는다.
   function migrateRooms(cfg) {
-    if (!cfg) return { rooms: [], active: null, myName: '' };
-    if (Array.isArray(cfg.rooms)) return cfg;
+    if (!cfg) return { rooms: [], active: null, myName: '', at: 0 };
+    if (Array.isArray(cfg.rooms)) return { at: 0, ...cfg };
     return cfg.code
-      ? { rooms: [{ code: cfg.code, label: '', on: !!cfg.on }], active: cfg.code, myName: cfg.myName || '' }
-      : { rooms: [], active: null, myName: cfg.myName || '' };
+      ? { rooms: [{ code: cfg.code, label: '', on: !!cfg.on }],
+        active: cfg.code, myName: cfg.myName || '', at: Date.now() }
+      : { rooms: [], active: null, myName: cfg.myName || '', at: 0 };
   }
 
   async function room(code) {
@@ -189,6 +190,32 @@
     call('DELETE', `/teams/${encodeURIComponent(ids.teamId)}/me?k=${encodeURIComponent(ids.joinKey)}`,
       { id: self.selfId, writeKey: self.writeKey });
 
+  // ── 기기 간 방 목록 맞추기 ────────────────────────────────────────────
+  //
+  // 자리(selfId)와 그 열쇠(writeKey)가 사번에서 나오므로, 같은 사람의 PC 와 폰이
+  // 같은 값을 계산한다. 맞출 거리를 따로 주고받을 필요가 없다.
+  //
+  // 대신 계산식이 공개돼 있고 사번은 조직도로 알 수 있다 — 사번을 아는 사람은
+  // 남의 방 목록을 읽을 수 있다. 알고 고른 선택이다 (README 참고).
+  const pullRooms = (self) =>
+    call('GET', `/me?u=${encodeURIComponent(self.selfId)}&k=${encodeURIComponent(self.writeKey)}`);
+
+  const pushRooms = (self, rooms, at) =>
+    call('PUT', `/me?u=${encodeURIComponent(self.selfId)}&k=${encodeURIComponent(self.writeKey)}`,
+      { rooms, at });
+
+  // 나중에 고친 쪽을 따른다. 두 기기에서 각자 고쳤으면 한쪽이 져야 하는데,
+  // "방금 고친 쪽" 이 맞다. 합치면 나간 방이 되살아난다.
+  async function syncRooms(self, local) {
+    const cfg = migrateRooms(local);
+    const mine = cfg.at || 0;
+    const remote = await pullRooms(self);
+    const theirs = (remote && remote.at) || 0;
+    if (theirs > mine) return { ...cfg, rooms: remote.rooms || [], at: theirs };
+    if (mine > theirs) await pushRooms(self, cfg.rooms || [], mine);
+    return cfg;
+  }
+
   // 계산 결과에서 공유할 조각만 뽑는다. 원본을 통째로 보내지 않는다 —
   // 서버에 남는 건 이 필드들이 전부다.
   function summarize(state, plan, who) {
@@ -221,7 +248,8 @@
   }
 
   GW.team = {
-    ORIGIN, BASE, newSelf, selfFrom, derive, teamFromPath, newCode, normCode, pretty, room, migrateRooms,
+    ORIGIN, BASE, newSelf, selfFrom, derive, teamFromPath, newCode, normCode, pretty, room,
+    migrateRooms, pullRooms, pushRooms, syncRooms,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
