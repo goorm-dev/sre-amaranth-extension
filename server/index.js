@@ -25,20 +25,32 @@ const rid = (n) => crypto.randomBytes(n).toString('base64url');
 // 팀 생성만 IP 단위로 제한한다. 인터넷에 열려 있어서, 안 막으면 아무나 MAX_TEAMS 를
 // 채워 남이 팀을 못 만들게 할 수 있다. 읽기·쓰기는 키가 있어야 하므로 제외.
 const CREATE_PER_HOUR = 10;
-const hits = new Map();
-function tooMany(ip) {
+// 키를 틀리는 건 정상 사용에서 거의 없는 일이다. 반복되면 찍어 보는 중이다.
+// 키가 18바이트라 맞힐 가능성은 없지만, 두들기는 것 자체를 막는다.
+const BAD_KEY_PER_HOUR = 30;
+
+const buckets = { create: new Map(), badKey: new Map() };
+function tooMany(kind, ip, limit) {
+  const m = buckets[kind];
   const now = Date.now(), hour = 60 * 60 * 1000;
-  const list = (hits.get(ip) || []).filter((t) => now - t < hour);
-  if (hits.size > 5000) hits.clear();          // 메모리가 무한정 늘지 않게
+  if (m.size > 5000) m.clear();                // 메모리가 무한정 늘지 않게
+  const list = (m.get(ip) || []).filter((t) => now - t < hour);
   list.push(now);
-  hits.set(ip, list);
-  return list.length > CREATE_PER_HOUR;
+  m.set(ip, list);
+  return list.length > limit;
 }
 // ALB 뒤라서 remoteAddress 는 전부 ALB 주소다. 실제 클라이언트는 XFF 맨 앞.
 const clientIp = (req) =>
   String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
   req.socket.remoteAddress || '?';
 const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+// 키 비교는 길이에 따라 빨리 끝나면 안 된다. 앞자리부터 맞춰 나가는 공격을 막는다.
+function timingSafeEq(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  if (x.length !== y.length) { crypto.timingSafeEqual(y, y); return false; }
+  return crypto.timingSafeEqual(x, y);
+}
 
 // 확장(chrome-extension://…)과 웹앱 양쪽에서 부른다. 출처가 제각각이라 열어 두되,
 // 자격증명은 안 쓴다(키가 본문·쿼리로 오므로 쿠키가 필요 없다).
@@ -110,7 +122,9 @@ const server = http.createServer(async (req, res) => {
   try {
     // 팀 만들기
     if (req.method === 'POST' && !teamId) {
-      if (tooMany(clientIp(req))) return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
+      if (tooMany('create', clientIp(req), CREATE_PER_HOUR)) {
+        return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
+      }
       const b = await readBody(req);
       const name = str(b.name, 40) || '팀';
       const team = store.createTeam({ id: rid(9), joinKey: rid(18), name });
@@ -121,8 +135,13 @@ const server = http.createServer(async (req, res) => {
     const team = store.team(teamId);
     const key = url.searchParams.get('k') || '';
     // 팀이 없을 때와 키가 틀렸을 때를 같은 응답으로 돌려준다 — 팀 존재 여부를
-    // 키 없이 알아낼 수 없게.
-    if (!team || key !== team.joinKey) return send(res, 403, { error: '링크가 올바르지 않습니다' });
+    // 키 없이 알아낼 수 없게. 반복해서 틀리면 막는다.
+    if (!team || !timingSafeEq(key, team.joinKey)) {
+      if (tooMany('badKey', clientIp(req), BAD_KEY_PER_HOUR)) {
+        return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
+      }
+      return send(res, 403, { error: '링크가 올바르지 않습니다' });
+    }
 
     if (req.method === 'GET' && !isMe) {
       return send(res, 200, { name: team.name, members: store.members(teamId) });
