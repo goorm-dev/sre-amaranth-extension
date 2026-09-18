@@ -12,3 +12,6 @@ dist/
 # 릴리스 자산 (GitHub Release 로 배포)
 *.zip
 *.apk
+
+# 젠킨스 설정 백업 — 시크릿이 들어 있다. 저장소에 두지 않는다.
+jenkins-config-backup.xml
