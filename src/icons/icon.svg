@@ -1,0 +1,16 @@
+<!-- 구름 근무시간 아이콘 원본.
+     PNG 는 전부 이 파일에서 뽑는다 (tools/make-icons.sh). 고칠 일이 있으면 여기만 고친다.
+
+     16px 까지 읽혀야 해서 형태를 단순하게 뒀다.
+     - 바늘은 12시·3시. 10시10분 같은 사선 배치는 작은 크기에서 금지 표지처럼 보인다.
+     - 시계 면을 타일에 꽉 차게(r206) 키웠다. 여백을 두면 16px 에서 바늘이 뭉갠다.
+     - 바늘 끝은 둥글게. 각지게 하면 큰 크기에서 투박하다.
+     세 가지를 16·32·48·128·512 에서 눈으로 비교해 고른 값이다. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#1e63d8"/>
+  <circle cx="256" cy="256" r="206" fill="#fff"/>
+  <g stroke="#1e63d8" stroke-linecap="round" fill="none">
+    <path d="M256 256V140" stroke-width="58"/>
+    <path d="M256 256h120" stroke-width="48"/>
+  </g>
+</svg>

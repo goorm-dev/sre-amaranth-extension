@@ -339,6 +339,27 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 문제는 `create` 결과가 `approState "2"`(미상신 초안)이라는 점입니다. 결재선에 올리는
 마지막 단계를 찾지 못했고, 절반만 재현하면 초안만 쌓입니다. 그래서 쓰지 않습니다.
 
+## 아이콘
+
+[src/icons/icon.svg](src/icons/icon.svg) 하나가 원본이고, PNG 는 전부 거기서 뽑습니다.
+
+```
+sh tools/make-icons.sh
+  src/icons/       16 · 32 · 48 · 128   확장 (manifest 의 icons · action.default_icon)
+  app/www/icons/   180 · 192 · 512      웹앱 (webmanifest · apple-touch-icon · favicon)
+```
+
+헤드리스 크롬으로 1024 한 판을 그리고 `sips` 로 줄입니다. 작은 크기를 직접 그리면
+창 최소 크기에 걸려 엉뚱하게 나옵니다. 모서리가 둥글어서 배경은 투명하게 뽑습니다
+(`--default-background-color=00000000`).
+
+**16px 에서 읽히는지가 형태를 정했습니다.** 세 가지를 16·32·48·128·512 에서 눈으로
+비교했습니다.
+
+- 바늘은 12시·3시. 10시10분 같은 사선 배치는 작은 크기에서 **금지 표지처럼** 보입니다.
+- 시계 면을 타일에 꽉 차게(`r206`) 키웠습니다. 여백을 두면 16px 에서 바늘이 뭉갭니다.
+- 바늘 끝은 둥글게. 각지게 하면 큰 크기에서 투박합니다.
+
 ## 구조
 
 | 파일 | 역할 |
@@ -351,6 +372,7 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 | [src/content.js](src/content.js) | 근태 페이지 내 패널 (메인 창에서만) |
 | [src/lib/team.js](src/lib/team.js) | 팀 근무시간 공유 클라이언트 (확장·웹앱 공용) |
 | [server/index.js](server/index.js) | 공유 API (worktime.goorm.io/api) |
+| [src/icons/icon.svg](src/icons/icon.svg) | 아이콘 원본 (PNG 는 여기서 생성) |
 
 팝업은 `chrome.cookies`로, 콘텐츠 스크립트는 `document.cookie`로 세션을 읽습니다.
 
