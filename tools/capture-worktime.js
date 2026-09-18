@@ -112,6 +112,37 @@
     return '클립보드에 복사했습니다';
   };
 
+  // 합계는 날짜가 안 붙어 있어서 __dumpWork 의 필터에 걸리지 않는다.
+  // 응답을 통째로 보되, 긴 배열은 한 건만 남겨 모양만 본다.
+  // 화면에 보이는 "총 근무시간" 이 어느 필드인지 여기서 찾는다.
+  window.__dumpShape = (urlPart) => {
+    const want = new RegExp(urlPart || 'getWorkTimeList|hpd0210|worktm|total|sum', 'i');
+    const rows = cap.filter((r) => want.test(r.url || '') && r.res);
+    if (!rows.length) {
+      return `못 찾았습니다. 잡힌 요청: ${[...new Set(cap.map((r) => (r.url || '').split('?')[0]))].join('\n')}`;
+    }
+    const trim = (o, depth) => {
+      if (Array.isArray(o)) {
+        return o.length ? [`…배열 ${o.length}건 중 1건`, trim(o[0], depth + 1)] : [];
+      }
+      if (!o || typeof o !== 'object') return o;
+      if (depth > 6) return '…';
+      const out = {};
+      for (const [k, v] of Object.entries(o)) out[k] = trim(v, depth + 1);
+      return out;
+    };
+    const out = rows.map((r) => {
+      let j; try { j = JSON.parse(r.res); } catch (_) { return `── ${r.url}\n(JSON 아님) ${String(r.res).slice(0, 300)}`; }
+      return `── ${r.method} ${r.url}\n요청: ${r.body || '(없음)'}\n${JSON.stringify(trim(j, 0), null, 1)}`;
+    });
+    // 같은 요청이 여러 번 잡히므로 중복은 접는다
+    const uniq = [...new Set(out)];
+    const s2 = uniq.join('\n\n');
+    console.log(s2);
+    try { copy(s2); } catch (_) {}
+    return `${uniq.length}건 — 클립보드에 복사했습니다`;
+  };
+
   // 응답 모양이 화면마다 달라서 키 이름으로 찾는다.
   function collect(o, rows, apps, depth) {
     if (!o || typeof o !== 'object' || depth > 6) return;
@@ -143,5 +174,6 @@
 
   return '준비됨 — 개인근무시간현황(또는 동의)을 그 달로 열고 근태신청 목록도 한 번 연 뒤,\n'
     + '  __dumpMonth()            ← 한 달치를 훑어 "★차이" 가 붙은 날을 찾는다\n'
-    + '  __dumpWork("2026-09-11") ← 특정 날짜의 원본 필드를 전부 본다';
+    + '  __dumpWork("2026-09-11") ← 특정 날짜의 원본 필드를 전부 본다\n'
+    + '  __dumpShape()            ← 응답 전체 모양 (합계가 어디 있는지 찾을 때)';
 })();
