@@ -229,13 +229,17 @@
       leftMin: null,
       monthLeftMin: state ? state.remainingMin : null,
       leaveNm: (row && row.leaveNames) || null,
+      // 실제로 퇴근 타각을 찍었는지. "목표 시간을 채웠다" 와 구분해야 한다 —
+      // leftMin 만 보면 둘 다 0 이하라서, 아직 일하는 사람이 퇴근으로 보인다.
+      done: false,
     };
     if (!plan) return me;              // 휴가·휴일이라 타각이 없는 날
     me.inAt = plan.inAt || null;
     if (plan.done) {
-      me.outAt = plan.outAt || null;
+      me.outAt = plan.outAt || null;      // 여기서는 실제 퇴근 타각
       me.workedMin = plan.workedMin;
       me.leftMin = 0;
+      me.done = true;
       return me;
     }
     // 공유하는 건 "정량(소정근로) 기준 퇴근" 이다. 최소 6시간은 각자 사정이라

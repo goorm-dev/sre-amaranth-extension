@@ -707,7 +707,7 @@ API 를 `internal-private` ALB 로 옮기거나(집·아이폰에서 못 씀), �
 
 [team.js 의 `summarize`](src/lib/team.js) 가 고르는 것이 전부입니다.
 
-    name, dept, inAt, outAt, workedMin, leftMin, monthLeftMin, leaveNm
+    name, dept, inAt, outAt, workedMin, leftMin, monthLeftMin, leaveNm, done
 
 서버도 같은 목록만 화이트리스트로 받고 나머지는 버립니다([`sanitize`](server/index.js)).
 **그룹웨어 토큰·쿠키는 공유 서버로 가지 않습니다.** 근태 원본도 올리지 않습니다 —
@@ -715,6 +715,16 @@ API 를 `internal-private` ALB 로 옮기거나(집·아이폰에서 못 씀), �
 
 퇴근 시각은 **정량(소정근로) 기준**을 공유합니다. 유연근무 최소 6시간은 각자 사정이라
 남이 볼 값으로 맞지 않습니다.
+
+`done` 은 **실제로 퇴근 타각을 찍었는지**입니다. 이게 없을 때는 `leftMin <= 0` 이면
+퇴근으로 찍었는데, 그러면 8시간을 채우고 **아직 일하는 사람이 퇴근한 것처럼**
+보였습니다. 두 경우가 전달 값에서 구분되지 않았습니다.
+
+| 상태 | `done` | `leftMin` | 화면 |
+|---|---|---|---|
+| 실제 퇴근 | `true` | 0 | **퇴근** (초록) |
+| 목표 채움, 아직 근무 | `false` | ≤ 0 | 충족 |
+| 근무 중 | `false` | > 0 | N 남음 |
 
 ### 기기 간 방 목록 맞추기
 

@@ -699,10 +699,13 @@
       let right = '<i class="tmstale">오늘 기록 없음</i>';
       if (m.leaveNm && !m.outAt) right = `<i class="tmleave">${esc(m.leaveNm)}</i>`;
       else if (fresh && m.outAt) {
-        right = m.leftMin != null && m.leftMin <= 0
-          ? `<b class="tmout done">${esc(m.outAt)}</b><i>퇴근</i>`
-          : `<b class="tmout">${esc(m.outAt)}</b><i>${
-              m.leftMin != null ? `${T.fmtDuration(m.leftMin)} 남음` : ''}</i>`;
+        // "퇴근" 은 실제로 타각을 찍었을 때만이다. 목표 시간을 채운 것과 구분한다 —
+        // 8시간을 채웠다고 퇴근으로 찍으면 아직 일하는 사람이 간 것처럼 보인다.
+        // (예전 판본은 done 을 안 보내므로 그때는 "충족" 으로 떨어진다)
+        const label = m.done ? '퇴근'
+          : m.leftMin == null ? ''
+            : m.leftMin <= 0 ? '충족' : `${T.fmtDuration(m.leftMin)} 남음`;
+        right = `<b class="tmout${m.done ? ' done' : ''}">${esc(m.outAt)}</b><i>${label}</i>`;
       }
       const sub = [
         fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,

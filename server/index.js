@@ -122,6 +122,7 @@ function sanitize(b) {
     leftMin: num(b.leftMin),               // 퇴근까지 남은
     monthLeftMin: num(b.monthLeftMin),     // 이번 달 남은
     leaveNm: str(b.leaveNm, 20) || null,   // 휴가면 그 이름
+    done: !!b.done,                        // 실제 퇴근 타각을 찍었는지
   };
 }
 
