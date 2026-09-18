@@ -153,27 +153,31 @@
     sharePush();
   }
 
-  // ── 팀 공유 게시 ──────────────────────────────────────────────────────
+  // ── 공유 게시 (우리 팀 · 친구) ────────────────────────────────────────
   //
   // 팝업은 열었을 때만 올리므로 대부분의 시간 동안 남이 보는 값이 낡는다.
   // gw 탭에 떠 있는 이 패널이 주기적으로 올려 준다 (5분에 한 번).
   //
-  // 팀 주소는 팀 이름에서 계산한다 (lib/team.js).
-  //
+  // 요약은 한 번만 만들고 켜 둔 곳마다 보낸다.
   // 실패해도 조용히 넘어간다 — 공유는 부가 기능이고, 본 화면을 막으면 안 된다.
   const SHARE_EVERY = 5 * 60 * 1000;
   let sharedAt = 0;
 
   async function sharePush() {
     if (Date.now() - sharedAt < SHARE_EVERY || !state.rows.length) return;
-    let cfg;
-    try { cfg = await GW.store.getTeam(); } catch (_) { return; }
-    if (!cfg || !cfg.on || !cfg.myName) return;
+    let team, friends;
+    try {
+      team = await GW.store.getTeam();
+      friends = await GW.store.getFriends();
+    } catch (_) { return; }
+    const on = (c) => !!(c && c.on && c.myName);
+    if (!on(team) && !on(friends)) return;
     sharedAt = Date.now();
     try {
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
-      if (!id || !id.compSeq || !id.deptSeq) return;
-      const ids = await GW.team.derive(id.compSeq, id.deptSeq);
+      if (!id || !id.compSeq) return;
+      // 자리는 사번에서 만든다 — 기기마다 새로 만들면 같은 사람이 여러 줄로 남는다.
+      const self = id.empSeq ? await GW.team.selfFrom(id.compSeq, id.empSeq) : null;
 
       const settings = await GW.store.getSettings();
       const now = new Date();
@@ -187,10 +191,20 @@
         settings, mKey, now);
       const plan = GW.calc.todayPlan(s, settings, mKey === viewMonth ? state.live : null, now);
 
-      await GW.team.ensure(ids, id.deptName || cfg.teamName);
-      await GW.team.publish(ids, cfg, GW.team.summarize(s, plan, {
-        name: cfg.myName, dept: id.deptName || '',
-      }));
+      if (on(team) && id.deptSeq) {
+        const ids = await GW.team.derive(id.compSeq, id.deptSeq);
+        await GW.team.ensure(ids, id.deptName || team.teamName);
+        await GW.team.publish(ids, self || team, GW.team.summarize(s, plan, {
+          name: team.myName, dept: id.deptName || '',
+        }));
+      }
+      if (on(friends) && friends.code) {
+        const ids = await GW.team.room(friends.code);
+        await GW.team.ensure(ids, '친구');
+        await GW.team.publish(ids, self || friends, GW.team.summarize(s, plan, {
+          name: friends.myName, dept: id.deptName || '',
+        }));
+      }
     } catch (_) { /* 다음 주기에 다시 시도한다 */ }
   }
 

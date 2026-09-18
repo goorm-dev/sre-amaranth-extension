@@ -87,8 +87,16 @@
     return cfg;
   }
 
+  // 친구 방 설정 { code, myName, on }
+  async function getFriends() { return (await get('friends')) || null; }
+  async function setFriends(cfg) {
+    if (!cfg) { await remove('friends'); return null; }
+    await set('friends', cfg);
+    return cfg;
+  }
+
   GW.store = {
-    DEFAULT_SETTINGS, getSettings, setSettings, getTeam, setTeam,
+    DEFAULT_SETTINGS, getSettings, setSettings, getTeam, setTeam, getFriends, setFriends,
     getCachedHolidays, cacheHolidays, getCachedMonth, cacheMonth,
     getPlans, setPlan, clearPlans,
     getSession, setSession, clearSession,

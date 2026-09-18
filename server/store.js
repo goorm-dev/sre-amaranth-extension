@@ -10,7 +10,10 @@ const path = require('path');
 
 const MAX_TEAMS = 500;
 const MAX_MEMBERS = 200;          // 팀당
-const STALE_MS = 3 * 24 * 60 * 60 * 1000;   // 사흘 지난 게시물은 버린다
+// 보여 주려는 건 "오늘 누가 언제 퇴근하나" 다. 사흘을 들고 있으면 그만둔 사람이나
+// 옛 판본이 남긴 자리가 계속 목록에 뜬다(실제로 그랬다). 어제 저녁~오늘 아침이
+// 이어 보일 만큼만 남긴다.
+const STALE_MS = 36 * 60 * 60 * 1000;
 
 class Store {
   constructor(file) {

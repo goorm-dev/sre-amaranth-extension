@@ -127,9 +127,25 @@
     return cfg;
   }
 
+  // 친구 방 설정 { code, myName, on }
+  async function getFriends() {
+    const { friends } = await get('friends');
+    return friends || null;
+  }
+
+  async function setFriends(cfg) {
+    if (!cfg) {
+      if (!alive()) throw new ContextGone();
+      await chrome.storage.local.remove('friends');
+      return null;
+    }
+    await set({ friends: cfg });
+    return cfg;
+  }
+
   GW.store = {
     DEFAULT_SETTINGS, ContextGone, alive, raw: get, rawSet: set, getSettings, setSettings, getCachedMonth, cacheMonth,
-    getTeam, setTeam,
+    getTeam, setTeam, getFriends, setFriends,
     getPlans, setPlan, clearPlans, getCachedHolidays, cacheHolidays,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

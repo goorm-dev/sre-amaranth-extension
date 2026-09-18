@@ -17,6 +17,9 @@
 // 덮어쓰지 못하게 하는 writeKey 와, 클라이언트가 자기 부서 말고는 계산하지 않는다는 점이다.
 //
 // cfg = { teamName, myName, on, selfId, writeKey }   teamName 은 표시용
+//
+// 친구 방은 별개다 — 부서와 무관하게 코드를 주고받은 사람끼리 모인다.
+// 아래 newCode/room 참고. 서버는 둘을 구분하지 않는다.
 (function (root) {
   const GW = (root.GW = root.GW || {});
 
@@ -29,8 +32,15 @@
     return Array.from(b, (x) => 'abcdefghijklmnopqrstuvwxyz0123456789'[x % 36]).join('');
   };
 
-  // 브라우저마다 한 번만 만든다. 같은 사람이 확장과 웹앱을 같이 쓰면 두 칸으로
-  // 보이는데, 그걸 합치려면 계정이 필요하다 — 여기서는 받지 않는다.
+  // 자리(selfId)는 **사람** 에 붙는다. 브라우저마다 새로 만들면 확장과 웹앱에서
+  // 각각 한 줄씩 생기고, 다시 켤 때마다 유령이 하나씩 쌓인다(실제로 그랬다).
+  // 그룹웨어 사번으로 고정하면 어느 기기에서 켜든 같은 칸을 덮어쓴다.
+  const selfFrom = async (compSeq, empSeq) => ({
+    selfId: (await sha(`worktime-self-v1:${compSeq}:${empSeq}`)).slice(0, 16),
+    writeKey: (await sha(`worktime-selfkey-v1:${compSeq}:${empSeq}`)).slice(0, 32),
+  });
+
+  // 사번을 못 읽었을 때만 쓴다. 이 경우는 중복을 못 막는다.
   const newSelf = () => ({ selfId: rid(16), writeKey: rid(24) });
 
   const b64url = (buf) => {
@@ -38,6 +48,45 @@
     for (const b of new Uint8Array(buf)) s += String.fromCharCode(b);
     return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
+
+  // ── 친구 방 ──────────────────────────────────────────────────────────
+  //
+  // 부서와 무관하게, 코드를 주고받은 사람끼리 모인다. 팀과 달리 여기서는 코드가
+  // 곧 열쇠다 — 무작위 60비트라 팀명과 달리 맞혀 볼 수 없다.
+  //
+  //   roomId  = SHA-256("worktime-room-v1:" + 코드)     앞 16자
+  //   joinKey = SHA-256("worktime-roomkey-v1:" + 코드)  앞 32자
+  //
+  // 서버는 이게 팀인지 방인지 모른다. 주소와 열쇠 한 쌍일 뿐이다.
+
+  // 사람이 읽고 옮겨 적는 코드다. 헷갈리는 글자(I·L·O·U)를 뺀 32자를 쓴다.
+  const CODE_ABC = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+  // 저장은 하이픈 없는 정규형으로, 보여 줄 때만 끊어 준다.
+  // 두 사람이 같은 코드를 다르게 적어도 같은 방이 되도록.
+  function newCode() {
+    const b = new Uint8Array(12);
+    root.crypto.getRandomValues(b);
+    return Array.from(b, (x) => CODE_ABC[x % 32]).join('');
+  }
+
+  const pretty = (code) => {
+    const c = normCode(code);
+    return c.length === 12 ? `${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}` : c;
+  };
+
+  // 손으로 옮겨 적다 보면 O 를 0 으로, I 를 1 로 적는다. 받아 준다.
+  const normCode = (v) => String(v || '').toUpperCase().replace(/[^0-9A-Z]/g, '')
+    .replace(/[OQ]/g, '0').replace(/[IL]/g, '1').replace(/U/g, 'V');
+
+  async function room(code) {
+    const c = normCode(code);
+    if (c.length < 8) throw new Error('코드가 올바르지 않습니다');
+    return {
+      teamId: (await sha(`worktime-room-v1:${c}`)).slice(0, 16),
+      joinKey: (await sha(`worktime-roomkey-v1:${c}`)).slice(0, 32),
+    };
+  }
 
   async function sha(msg) {
     const buf = await root.crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
@@ -80,13 +129,13 @@
   const fetchTeam = (ids) =>
     call('GET', `/teams/${encodeURIComponent(ids.teamId)}?k=${encodeURIComponent(ids.joinKey)}`);
 
-  const publish = (ids, cfg, me) =>
+  const publish = (ids, self, me) =>
     call('PUT', `/teams/${encodeURIComponent(ids.teamId)}/me?k=${encodeURIComponent(ids.joinKey)}`,
-      { ...me, id: cfg.selfId, writeKey: cfg.writeKey });
+      { ...me, id: self.selfId, writeKey: self.writeKey });
 
-  const withdraw = (ids, cfg) =>
+  const withdraw = (ids, self) =>
     call('DELETE', `/teams/${encodeURIComponent(ids.teamId)}/me?k=${encodeURIComponent(ids.joinKey)}`,
-      { id: cfg.selfId, writeKey: cfg.writeKey });
+      { id: self.selfId, writeKey: self.writeKey });
 
   // 계산 결과에서 공유할 조각만 뽑는다. 원본을 통째로 보내지 않는다 —
   // 서버에 남는 건 이 필드들이 전부다.
@@ -120,7 +169,7 @@
   }
 
   GW.team = {
-    ORIGIN, BASE, newSelf, derive,
+    ORIGIN, BASE, newSelf, selfFrom, derive, newCode, normCode, pretty, room,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
