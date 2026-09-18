@@ -170,10 +170,13 @@
     return data;
   }
 
-  // 그 팀 자리를 잡는다. 없으면 만들고, 있으면 이름만 맞춘다.
-  const ensure = (ids, deptName) =>
+  // 그 자리를 잡는다. 없으면 만들고, 있으면 열쇠만 확인한다.
+  // 이름은 줄 때만 바뀐다 — 매번 보내면 이름을 바꿔 둔 사람과 서로 덮어쓴다.
+  const ensure = (ids, name) =>
     call('PUT', `/teams/${encodeURIComponent(ids.teamId)}`,
-      { joinKey: ids.joinKey, name: deptName || '우리 팀' });
+      name ? { joinKey: ids.joinKey, name } : { joinKey: ids.joinKey });
+
+
 
   const fetchTeam = (ids) =>
     call('GET', `/teams/${encodeURIComponent(ids.teamId)}?k=${encodeURIComponent(ids.joinKey)}`);

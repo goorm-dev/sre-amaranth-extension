@@ -7,7 +7,8 @@
 //
 // worktime.goorm.io 는 인터넷에서 닿으므로 열쇠 없는 접근은 전부 막는다.
 //
-//   PUT  /api/teams/:id                  { joinKey, name }  → 있으면 확인, 없으면 생성
+//   PUT  /api/teams/:id                  { joinKey, name? } → 있으면 확인, 없으면 생성
+//                                        name 을 보내면 이름이 바뀐다 (모두에게 보인다)
 //   GET  /api/teams/:id?k=<joinKey>                      → { name, members[] }
 //   PUT  /api/teams/:id/me?k=<joinKey>   { id, writeKey, name, ... }
 //   DELETE /api/teams/:id/me?k=<joinKey> { id, writeKey }
@@ -145,18 +146,21 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PUT' && !isMe) {
       const b = await readBody(req);
       const joinKey = str(b.joinKey, 64);
-      const name = str(b.name, 40) || '팀';
+      // 이름은 선택이다. 안 보내면 쓰던 이름을 그대로 둔다 — 매번 보내게 하면
+      // 방 이름을 바꿔 둔 사람과 안 바꾼 사람이 서로 덮어쓴다.
+      const name = str(b.name, 40);
       if (joinKey.length < 16) return send(res, 400, { error: '열쇠가 올바르지 않습니다' });
       if (team) {
         if (!timingSafeEq(joinKey, team.joinKey)) return badKey(req, res);
-        store.renameTeam(teamId, name);
-        return send(res, 200, { name });
+        if (name) store.renameTeam(teamId, name);
+        return send(res, 200, { name: team.name });
       }
       if (tooMany('create', clientIp(req), CREATE_PER_HOUR)) {
         return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
       }
-      store.createTeam({ id: teamId, joinKey, name });
-      return send(res, 200, { name });
+      const nm = name || '팀';
+      store.createTeam({ id: teamId, joinKey, name: nm });
+      return send(res, 200, { name: nm });
     }
 
     const key = url.searchParams.get('k') || '';

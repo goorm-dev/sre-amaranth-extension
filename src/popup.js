@@ -741,16 +741,18 @@
       }
       // 한 줄에 들어가야 줄마다 높이가 같다. 여기서는 "5:22" 꼴로 짧게 쓴다.
       const sub = [
-        // 하위 조직이 한 방에 모이므로 팀 탭에서도 각자 부서를 보여 준다
-        // (제목과 같으면 군더더기라 뺀다).
-        m.dept && m.dept !== $('tmTitle').textContent ? esc(m.dept) : null,
         fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
         fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
         m.monthLeftMin == null ? null
           : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
       ].filter(Boolean).join(' · ');
+      // 부서는 이름 옆에 둔다. 아래 줄에 붙이면 "이달 …" 이 밀려 잘린다.
+      // 제목과 같은 부서면 군더더기라 뺀다.
+      const dept = m.dept && m.dept !== $('tmTitle').textContent ? `<i>${esc(m.dept)}</i>` : '';
       return `<div class="tmrow${m.id === myId ? ' me' : ''}">
-          <span class="tmwho"><b>${esc(m.name)}</b>${sub ? `<em>${sub}</em>` : ''}</span>
+          <span class="tmwho">
+            <span class="tmnm"><b>${esc(m.name)}</b>${dept}</span>
+            ${sub ? `<em>${sub}</em>` : ''}</span>
           <span class="tmright">${right}</span>
         </div>`;
     }).join('');

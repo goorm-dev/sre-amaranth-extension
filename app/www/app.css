@@ -221,10 +221,13 @@ header .nav#breakBtn { font-size: 17px; }
 }
 .tmrow:last-child { border-bottom: 0; }
 .tmrow.me { background: var(--soft); }
-.tmwho { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tmwho { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .tmwho b { font-size: 15px; }
-.tmwho em { font-size: 12px; color: var(--dim); font-style: normal; white-space: nowrap; }
-.tmright { text-align: right; white-space: nowrap; display: flex; flex-direction: column; gap: 1px; }
+/* 한 줄로 두되 넘치면 말줄임. nowrap 만 걸면 오른쪽 칸을 침범한다. */
+.tmwho em { font-size: 12px; color: var(--dim); font-style: normal;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* 퇴근 시각 칸은 줄지 않는다. 왼쪽이 길어지면 왼쪽이 줄어야 한다. */
+.tmright { text-align: right; white-space: nowrap; display: flex; flex-direction: column; gap: 1px; flex: 0 0 auto; }
 .tmright i { font-size: 12px; color: var(--dim); font-style: normal; }
 .tmout { font-size: 19px; font-variant-numeric: tabular-nums; }
 .tmout.done { color: var(--green); }
@@ -275,3 +278,7 @@ header .nav#breakBtn { font-size: 17px; }
 }
 .frrooms button.on { background: var(--soft); border-color: var(--blue); color: var(--blue); font-weight: 700; }
 .frrooms button.live::before { content: '●'; font-size: 8px; color: var(--green); }
+/* 이름 + 부서. 부서를 아래 줄에 붙이면 "이달 …" 이 밀려 잘린다. */
+.tmnm { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.tmnm i { font-size: 12px; color: var(--dim); font-style: normal;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
