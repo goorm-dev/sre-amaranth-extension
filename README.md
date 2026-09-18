@@ -244,6 +244,22 @@ POST https://gw.goorm.io/personal/hpd0120/0hp00001
 `startTm`/`endTm` 이 없으면 `atNm` 이름으로 추정합니다 (반반차 = 1/4, 반차 = 1/2, 그 외 = 하루치).
 하루에 오전반차 + 오후반차가 겹치면 합산하되 그날 소정근로를 넘지 않게 자릅니다.
 
+### 여러 날에 걸친 신청 — 아직입니다
+
+지금은 하루짜리만 만듭니다. `startDt`·`endDt`·`datePeriod` 에 **같은 날짜를 박아
+넣습니다.** API 는 이미 범위를 받게 생겼고(`calculateApplicationDays` 가
+`startDate`/`endDate` 와 `calculateOption: HOLIDAY_EXCLUSION` 을 받습니다),
+`getLeaveList` 쪽은 이미 여러 날짜 휴가를 읽어 처리합니다.
+
+막히는 건 하나입니다 — 여러 날일 때 `create` 가
+
+- (가) 항목 하나에 `startDt`~`endDt` 를 담는지
+- (나) 날짜마다 항목을 하나씩 만들어 배열로 보내는지
+
+이건 실제 신청을 지켜보는 수밖에 없습니다. 우리가 지어내서 눌러 볼 수는 없습니다 —
+진짜 결재가 올라갑니다. [tools/capture-range.js](tools/capture-range.js) 가 그
+확인용입니다. 여러 날짜로 한 번, 하루짜리로 한 번 캡처해 비교하면 답이 나옵니다.
+
 ### 휴게·외출 신청 — 다루지 않습니다
 
 같은 엔드포인트의 **`atPopupCd 51`** 그룹으로 함께 내려오지만 계산에 넣지 않습니다.
