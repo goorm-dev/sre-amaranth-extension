@@ -559,13 +559,17 @@
 
   // ── 팀 근무시간 공유 ──────────────────────────────────────────────────
   //
-  // 그룹웨어의 부서가 그대로 팀이다. 만들기도 참여도 링크도 열쇠도 없고,
-  // 고를 수 있는 것도 없다 — 팀도 이름도 그룹웨어 값으로 고정한다.
-  // 그래서 다른 팀을 지목해서 들여다볼 경로가 없다. 파생 규칙은 lib/team.js.
+  // 그룹웨어의 부서가 그대로 팀이다. 고를 수 있는 것이 없다 — 팀도 이름도
+  // 그룹웨어 값으로 고정한다. 그래서 다른 팀을 지목해서 들여다볼 경로가 없다.
+  // 파생 규칙은 lib/team.js.
+  //
+  // 설정 화면도, 시작 버튼도 없다. 정할 게 없으면 물어볼 것도 없다 —
+  // 열면 바로 팀이 보이고, 내 것도 올릴지는 체크박스 하나로 정한다.
+  // 읽는 것은 공유와 무관하므로 켜지 않아도 팀은 보인다.
   //
   // 올라가는 건 이름·부서·오늘 출퇴근 시각·남은 시간뿐이다.
   let teamCfg = null;      // { teamName, myName, on, selfId, writeKey }
-  let teamIds = null;      // { teamId, joinKey }  — 팀 이름에서 계산한다
+  let teamIds = null;      // { teamId, joinKey }  — 부서에서 계산한다
   let lastPush = 0;
 
   const tmMsg = (t, bad) => {
@@ -573,54 +577,25 @@
     $('tmMsg').className = 'lvmsg' + (bad ? '' : ' ok');
   };
 
-  const tmShowSetup = () => { $('tmSetup').hidden = false; $('tmView').hidden = true; };
-
   // 부서는 그룹웨어가 알려 준다. 콘텐츠 스크립트가 gw 페이지에서 캐시해 둔 값이다.
   const tmIdentity = () => GW.api.wehagoIdentity().catch(() => null);
+
+  // 부서 → 팀 주소. 그룹웨어 값 말고는 들어갈 자리가 없다.
+  async function tmResolve() {
+    const id = await tmIdentity();
+    if (!id || !id.compSeq || !id.deptSeq) {
+      throw new Error('부서 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열었다가 다시 시도해 주세요.');
+    }
+    teamIds = await GW.team.derive(id.compSeq, id.deptSeq);
+    return id;
+  }
 
   async function tmOpenSheet() {
     $('teamSheet').hidden = false;
     tmMsg('');
     teamCfg = await GW.store.getTeam();
-    if (!teamCfg || !teamCfg.teamName) { await tmSetupFill(); return; }
-    $('tmSetup').hidden = true;
-    $('tmView').hidden = false;
-    $('tmOn').checked = teamCfg.on !== false;
+    $('tmOn').checked = !!(teamCfg && teamCfg.on);
     await tmRefresh();
-  }
-
-  // 설정 화면은 확인용이다. 고칠 수 있는 건 이름을 못 읽었을 때의 표시 이름뿐이다.
-  let setupId = null;
-
-  async function tmSetupFill() {
-    tmShowSetup();
-    $('tmStart').disabled = true;
-    setupId = await tmIdentity();
-    if (!setupId || !setupId.compSeq || !setupId.deptSeq) {
-      $('tmDept').textContent = '—';
-      $('tmWho').textContent = '—';
-      tmMsg('부서 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열었다가 다시 시도해 주세요.', true);
-      return;
-    }
-    $('tmDept').textContent = setupId.deptName || `부서 ${setupId.deptSeq}`;
-    $('tmStart').disabled = false;
-    // 이름은 그룹웨어 응답 구조가 버전마다 달라 못 읽는 경우가 있다.
-    // 그때만 직접 넣게 한다 — 팀은 어떤 경우에도 고칠 수 없다.
-    if (setupId.name) {
-      $('tmWho').textContent = setupId.name;
-      $('tmNameWrap').hidden = true;
-    } else {
-      $('tmWho').textContent = '(읽지 못했습니다)';
-      $('tmNameWrap').hidden = false;
-    }
-  }
-
-  // 부서 → 팀 주소. 그룹웨어 값 말고는 들어갈 자리가 없다.
-  async function tmResolve() {
-    const id = await tmIdentity();
-    if (!id) throw new Error('부서 정보를 찾지 못했습니다. gw.goorm.io 탭을 한 번 열어 주세요.');
-    teamIds = await GW.team.derive(id.compSeq, id.deptSeq);
-    return id;
   }
 
   async function tmPayload(id) {
@@ -638,7 +613,7 @@
 
   // 화면을 새로 그릴 때마다 부른다. 자주 불려도 2분에 한 번만 올린다.
   async function tmPushMaybe(force) {
-    if (!teamCfg || !teamCfg.teamName || teamCfg.on === false || !state.rows.length) return;
+    if (!teamCfg || !teamCfg.on || !teamCfg.myName || !state.rows.length) return;
     if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
     lastPush = Date.now();
     try {
@@ -650,16 +625,14 @@
 
   async function tmRefresh() {
     $('tmList').textContent = '불러오는 중…';
-    let id;
     try {
-      id = await tmResolve();
-      // 부서명이 바뀌면 따라간다. 주소는 deptSeq 라 그대로다.
-      const nm = id.deptName || teamCfg.teamName;
-      if (nm !== teamCfg.teamName) teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: nm });
+      const id = await tmResolve();
+      const nm = id.deptName || `부서 ${id.deptSeq}`;
       $('tmTitle').textContent = nm;
       await GW.team.ensure(teamIds, nm);
-      if (teamCfg.on !== false && state.rows.length) {
+      if (teamCfg && teamCfg.on && teamCfg.myName && state.rows.length) {
         lastPush = Date.now();
+        if (teamCfg.teamName !== nm) teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: nm });
         await GW.team.publish(teamIds, teamCfg, await tmPayload(id));
       }
       tmRenderList((await GW.team.fetchTeam(teamIds)).members || []);
@@ -676,8 +649,8 @@
       return;
     }
     const today = T.toKey(new Date());
+    const myId = teamCfg && teamCfg.selfId;
     $('tmList').innerHTML = members.map((m) => {
-      const mine = m.id === teamCfg.selfId;
       // 어제 올린 값을 오늘 퇴근 시각처럼 보여주면 안 된다. 날짜가 바뀌었으면 접는다.
       const fresh = T.toKey(new Date(m.at)) === today;
       let right = '<i class="tmstale">오늘 기록 없음</i>';
@@ -695,7 +668,7 @@
         m.monthLeftMin == null ? null
           : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
       ].filter(Boolean).join(' · ');
-      return `<div class="tmrow${mine ? ' me' : ''}">
+      return `<div class="tmrow${m.id === myId ? ' me' : ''}">
           <span class="tmwho"><b>${esc(m.name)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>
           <span class="tmright">${right}</span>
         </div>`;
@@ -706,51 +679,40 @@
   $('tmClose').onclick = () => { $('teamSheet').hidden = true; };
   $('teamSheet').onclick = (e) => { if (e.target === $('teamSheet')) $('teamSheet').hidden = true; };
 
-  $('tmStart').onclick = async () => {
-    // 팀도 이름도 그룹웨어에서 온다. 이름을 못 읽었을 때만 입력칸이 열린다.
-    const id = setupId;
-    if (!id || !id.compSeq || !id.deptSeq) { tmMsg('부서 정보를 찾지 못했습니다.', true); return; }
-    const myName = id.name || ($('tmName').value || '').trim();
-    if (!myName) { tmMsg('표시 이름을 넣어 주세요.', true); return; }
-    $('tmStart').disabled = true;
-    tmMsg('확인 중…');
-    try {
-      teamCfg = {
-        teamName: id.deptName || `부서 ${id.deptSeq}`,
-        myName, on: true, ...GW.team.newSelf(),
-      };
-      await tmResolve();
-      teamCfg = await GW.store.setTeam(teamCfg);
-      $('tmSetup').hidden = true;
-      $('tmView').hidden = false;
-      $('tmOn').checked = true;
-      tmMsg('');
-      await tmRefresh();
-    } catch (e) {
-      teamCfg = null;
-      tmMsg(e.message, true);
-    }
-    $('tmStart').disabled = false;
-  };
-
+  // 공유를 켤 때만 자리를 만든다. 켜지 않으면 아무것도 올라가지 않는다.
   $('tmOn').onchange = async () => {
-    teamCfg = await GW.store.setTeam({ ...teamCfg, on: $('tmOn').checked });
-    if (teamCfg.on) { await tmPushMaybe(true); tmMsg('공유를 켰습니다.'); }
-    else {
-      // 끄면 올려 둔 값도 지운다. "껐는데 어제 값이 남아 있다" 가 없게.
-      try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
+    if (!$('tmOn').checked) {
+      if (teamCfg) {
+        // 끄면 올려 둔 값도 지운다. "껐는데 어제 값이 남아 있다" 가 없게.
+        try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
+        teamCfg = await GW.store.setTeam({ ...teamCfg, on: false });
+      }
+      $('tmNameWrap').hidden = true;
       tmMsg('공유를 껐습니다. 올려 둔 내 기록도 지웠습니다.');
+      return tmRefresh();
     }
+    let id;
+    try { id = await tmResolve(); } catch (e) { $('tmOn').checked = false; return tmMsg(e.message, true); }
+    // 이름은 그룹웨어 응답 구조가 버전마다 달라 못 읽는 경우가 있다.
+    // 그때만 직접 넣게 한다 — 팀은 어떤 경우에도 고칠 수 없다.
+    const myName = id.name || (teamCfg && teamCfg.myName) || ($('tmName').value || '').trim();
+    if (!myName) {
+      $('tmNameWrap').hidden = false;
+      $('tmName').focus();
+      $('tmOn').checked = false;
+      return tmMsg('표시 이름을 넣고 다시 켜 주세요.', true);
+    }
+    $('tmNameWrap').hidden = true;
+    // 자리(selfId)와 그 자리의 열쇠(writeKey)는 한 번만 만들어 계속 쓴다.
+    const base = teamCfg && teamCfg.selfId ? teamCfg : { ...(teamCfg || {}), ...GW.team.newSelf() };
+    teamCfg = await GW.store.setTeam({
+      ...base,
+      teamName: id.deptName || `부서 ${id.deptSeq}`,
+      myName, on: true,
+    });
+    tmMsg('공유를 켰습니다.');
+    await tmPushMaybe(true);
     tmRefresh();
-  };
-
-  $('tmReset').onclick = async () => {
-    try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
-    await GW.store.setTeam(null);
-    teamCfg = null;
-    teamIds = null;
-    await tmSetupFill();
-    tmMsg('해제했습니다. 올려 둔 내 기록도 지웠습니다.');
   };
 
   // 업데이트 안내. VERSION_URL 이 비어 있으면 check() 가 hasUpdate:false 로 돌아온다.

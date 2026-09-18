@@ -517,9 +517,11 @@
 
   // ── 팀 근무시간 공유 ────────────────────────────────────────────────────
   //
-  // 그룹웨어의 부서가 그대로 팀이다. 만들기도 참여도 링크도 열쇠도 없고,
-  // 고를 수 있는 것도 없다 — 팀도 이름도 로그인 정보로 고정한다.
-  // 파생 규칙은 lib/team.js 에 있다 (확장과 같은 파일).
+  // 그룹웨어의 부서가 그대로 팀이다. 고를 수 있는 것이 없다 — 팀도 이름도
+  // 로그인 정보로 고정한다. 파생 규칙은 lib/team.js (확장과 같은 파일).
+  //
+  // 설정 화면도, 시작 버튼도 없다. 정할 게 없으면 물어볼 것도 없다 —
+  // 열면 바로 팀이 보이고, 내 것도 올릴지는 체크박스 하나로 정한다.
   let teamCfg = null;      // { teamName, myName, on, selfId, writeKey }
   let teamIds = null;      // { teamId, joinKey }
   let lastPush = 0;
@@ -529,51 +531,20 @@
     $('tmMsg').className = 'msg' + (bad ? ' bad' : '');
   };
 
-  const tmShowSetup = () => { $('tmSetup').hidden = false; $('tmPanel').hidden = true; };
-
-  async function tmShow() {
-    show('teamView');
-    tmMsg('');
-    teamCfg = await GW.store.getTeam();
-    if (!teamCfg || !teamCfg.teamName) { tmSetupFill(); return; }
-    $('tmSetup').hidden = true;
-    $('tmPanel').hidden = false;
-    $('tmOn').checked = teamCfg.on !== false;
-    await tmRefresh();
-  }
-
-  // 설정 화면은 확인용이다. 고칠 수 있는 건 이름을 못 읽었을 때의 표시 이름뿐이다.
-  function tmSetupFill() {
-    tmShowSetup();
-    $('tmTitle').textContent = '팀 근무시간';
-    $('tmCount').textContent = '';
-    const sess = GW.api.getSession() || {};
-    if (!sess.compSeq || !sess.deptSeq) {
-      $('tmDept').textContent = '—';
-      $('tmWho').textContent = '—';
-      $('tmStart').disabled = true;
-      tmMsg('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.', true);
-      return;
-    }
-    $('tmDept').textContent = sess.deptName || `부서 ${sess.deptSeq}`;
-    $('tmStart').disabled = false;
-    // 이름은 응답 구조가 버전마다 달라 못 읽는 경우가 있다. 그때만 직접 넣게 한다 —
-    // 팀은 어떤 경우에도 고칠 수 없다.
-    if (sess.userName) {
-      $('tmWho').textContent = sess.userName;
-      $('tmNameWrap').hidden = true;
-    } else {
-      $('tmWho').textContent = '(읽지 못했습니다)';
-      $('tmNameWrap').hidden = false;
-    }
-  }
-
   // 부서 → 팀 주소. 로그인 정보 말고는 들어갈 자리가 없다.
   async function tmResolve() {
     const s = GW.api.getSession() || {};
     if (!s.compSeq || !s.deptSeq) throw new Error('부서 정보가 없습니다. 로그아웃 후 다시 로그인해 주세요.');
     teamIds = await GW.team.derive(s.compSeq, s.deptSeq);
     return s;
+  }
+
+  async function tmShow() {
+    show('teamView');
+    tmMsg('');
+    teamCfg = await GW.store.getTeam();
+    $('tmOn').checked = !!(teamCfg && teamCfg.on);
+    await tmRefresh();
   }
 
   async function tmPayload(sess) {
@@ -590,7 +561,7 @@
   }
 
   async function tmPushMaybe(force) {
-    if (!teamCfg || !teamCfg.teamName || teamCfg.on === false || !state.rows.length) return;
+    if (!teamCfg || !teamCfg.on || !teamCfg.myName || !state.rows.length) return;
     if (!force && Date.now() - lastPush < 2 * 60 * 1000) return;
     lastPush = Date.now();
     try {
@@ -604,13 +575,12 @@
     $('tmList').textContent = '불러오는 중…';
     try {
       const sess = await tmResolve();
-      // 부서명이 바뀌면 따라간다. 주소는 deptSeq 라 그대로다.
-      const nm = sess.deptName || teamCfg.teamName;
-      if (nm !== teamCfg.teamName) teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: nm });
+      const nm = sess.deptName || `부서 ${sess.deptSeq}`;
       $('tmTitle').textContent = nm;
       await GW.team.ensure(teamIds, nm);
-      if (teamCfg.on !== false && state.rows.length) {
+      if (teamCfg && teamCfg.on && teamCfg.myName && state.rows.length) {
         lastPush = Date.now();
+        if (teamCfg.teamName !== nm) teamCfg = await GW.store.setTeam({ ...teamCfg, teamName: nm });
         await GW.team.publish(teamIds, teamCfg, await tmPayload(sess));
       }
       tmRender((await GW.team.fetchTeam(teamIds)).members || []);
@@ -626,8 +596,8 @@
       return;
     }
     const today = T.toKey(new Date());
+    const myId = teamCfg && teamCfg.selfId;
     $('tmList').innerHTML = members.map((m) => {
-      const mine = m.id === teamCfg.selfId;
       // 어제 올린 값을 오늘 퇴근 시각처럼 보여주면 안 된다.
       const fresh = T.toKey(new Date(m.at)) === today;
       let right = '<i class="tmstale">오늘 기록 없음</i>';
@@ -644,7 +614,7 @@
         m.monthLeftMin == null ? null
           : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
       ].filter(Boolean).join(' · ');
-      return `<div class="tmrow${mine ? ' me' : ''}">
+      return `<div class="tmrow${m.id === myId ? ' me' : ''}">
           <span class="tmwho"><b>${esc(m.name)}</b>${sub ? `<em>${esc(sub)}</em>` : ''}</span>
           <span class="tmright">${right}</span>
         </div>`;
@@ -654,50 +624,38 @@
   $('teamBtn').onclick = tmShow;
   $('tmBack').onclick = () => show('mainView');
 
-  $('tmStart').onclick = async () => {
-    // 팀도 이름도 로그인 정보에서 온다. 이름을 못 읽었을 때만 입력칸이 열린다.
-    const sess = GW.api.getSession() || {};
-    if (!sess.compSeq || !sess.deptSeq) { tmMsg('부서 정보가 없습니다.', true); return; }
-    const myName = sess.userName || ($('tmName').value || '').trim();
-    if (!myName) { tmMsg('표시 이름을 넣어 주세요.', true); return; }
-    $('tmStart').disabled = true;
-    tmMsg('확인 중…');
-    try {
-      teamCfg = {
-        teamName: sess.deptName || `부서 ${sess.deptSeq}`,
-        myName, on: true, ...GW.team.newSelf(),
-      };
-      await tmResolve();
-      teamCfg = await GW.store.setTeam(teamCfg);
-      $('tmSetup').hidden = true;
-      $('tmPanel').hidden = false;
-      $('tmOn').checked = true;
-      tmMsg('');
-      await tmRefresh();
-    } catch (e) {
-      teamCfg = null;
-      tmMsg(e.message, true);
-    }
-    $('tmStart').disabled = false;
-  };
-
+  // 공유를 켤 때만 자리를 만든다. 켜지 않으면 아무것도 올라가지 않는다.
   $('tmOn').onchange = async () => {
-    teamCfg = await GW.store.setTeam({ ...teamCfg, on: $('tmOn').checked });
-    if (teamCfg.on) { await tmPushMaybe(true); tmMsg('공유를 켰습니다.'); }
-    else {
-      try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
+    if (!$('tmOn').checked) {
+      if (teamCfg) {
+        try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
+        teamCfg = await GW.store.setTeam({ ...teamCfg, on: false });
+      }
+      $('tmNameWrap').hidden = true;
       tmMsg('공유를 껐습니다. 올려 둔 내 기록도 지웠습니다.');
+      return tmRefresh();
     }
+    let sess;
+    try { sess = await tmResolve(); } catch (e) { $('tmOn').checked = false; return tmMsg(e.message, true); }
+    // 이름은 응답 구조가 버전마다 달라 못 읽는 경우가 있다. 그때만 직접 넣게 한다 —
+    // 팀은 어떤 경우에도 고칠 수 없다.
+    const myName = sess.userName || (teamCfg && teamCfg.myName) || ($('tmName').value || '').trim();
+    if (!myName) {
+      $('tmNameWrap').hidden = false;
+      $('tmName').focus();
+      $('tmOn').checked = false;
+      return tmMsg('표시 이름을 넣고 다시 켜 주세요.', true);
+    }
+    $('tmNameWrap').hidden = true;
+    const base = teamCfg && teamCfg.selfId ? teamCfg : { ...(teamCfg || {}), ...GW.team.newSelf() };
+    teamCfg = await GW.store.setTeam({
+      ...base,
+      teamName: sess.deptName || `부서 ${sess.deptSeq}`,
+      myName, on: true,
+    });
+    tmMsg('공유를 켰습니다.');
+    await tmPushMaybe(true);
     tmRefresh();
-  };
-
-  $('tmReset').onclick = async () => {
-    try { await GW.team.withdraw(teamIds, teamCfg); } catch (_) {}
-    await GW.store.setTeam(null);
-    teamCfg = null;
-    teamIds = null;
-    tmSetupFill();
-    tmMsg('해제했습니다. 올려 둔 내 기록도 지웠습니다.');
   };
 
   // subPath 로 바로 열기. 아이폰 홈 화면에 /leave · /break 를 따로 추가하면

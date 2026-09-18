@@ -207,14 +207,11 @@ header .nav#breakBtn { font-size: 17px; }
 #teamView .scroll { padding: 14px; }
 .tmcount { flex: none !important; font-size: 13px; font-weight: 600; opacity: .85; }
 
-.tmhelp { font-size: 14px; color: var(--dim); line-height: 1.6; margin: 0 0 18px; }
-.tmhelp b { color: var(--fg); }
 .tmlbl { display: block; font-size: 13px; color: var(--dim); margin-bottom: 14px; }
 .tmlbl input[type=text] {
   width: 100%; margin-top: 6px; font: inherit; padding: 11px 12px; box-sizing: border-box;
   border: 1px solid var(--softline); border-radius: 10px; background: var(--card); color: var(--fg);
 }
-.tmfull { width: 100%; padding: 12px; }
 .tmfp { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: .5px; }
 
 .tmlist { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
@@ -247,9 +244,3 @@ header .nav#breakBtn { font-size: 17px; }
 /* 안내 문구가 전부 빨갛게 나오지 않도록 — 오류일 때만 .bad 를 붙인다 */
 #teamView .msg { color: var(--dim); }
 #teamView .msg.bad { color: var(--red); }
-/* 팀·이름은 로그인 정보로 고정된다. 입력칸이 아니라 읽기 전용 표시다. */
-.tmfixed { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 18px; }
-.tmfixed div { display: flex; align-items: baseline; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-.tmfixed div:last-child { border-bottom: 0; }
-.tmfixed span { font-size: 13px; color: var(--dim); width: 40px; flex: none; }
-.tmfixed b { font-size: 15px; }

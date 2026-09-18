@@ -168,7 +168,7 @@
     if (Date.now() - sharedAt < SHARE_EVERY || !state.rows.length) return;
     let cfg;
     try { cfg = await GW.store.getTeam(); } catch (_) { return; }
-    if (!cfg || !cfg.teamName || cfg.on === false) return;
+    if (!cfg || !cfg.on || !cfg.myName) return;
     sharedAt = Date.now();
     try {
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');

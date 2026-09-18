@@ -160,7 +160,7 @@
 </section>
 
 
-<!-- 팀 근무시간. 그룹웨어의 부서가 그대로 팀이다 — 고를 수 있는 것이 없다. -->
+<!-- 팀 근무시간. 그룹웨어의 부서가 그대로 팀이다 — 고를 수 있는 것도, 설정할 것도 없다. -->
 <section id="teamView" class="view" hidden>
   <header>
     <button id="tmBack" class="nav">‹</button>
@@ -168,25 +168,12 @@
     <span id="tmCount" class="tmcount"></span>
   </header>
   <div class="scroll">
-    <div id="tmSetup" class="tmsetup" hidden>
-      <p class="tmhelp">그룹웨어의 <b>부서</b>가 그대로 팀이 됩니다.
-        팀과 이름은 그룹웨어 값으로 고정되며 바꿀 수 없습니다.</p>
-      <div class="tmfixed">
-        <div><span>팀</span><b id="tmDept">—</b></div>
-        <div><span>이름</span><b id="tmWho">—</b></div>
-      </div>
-      <label class="tmlbl" id="tmNameWrap" hidden>표시 이름
-        <input id="tmName" type="text" maxlength="12" placeholder="이름">
-      </label>
-      <button id="tmStart" class="primary tmfull">시작</button>
-    </div>
-
-    <div id="tmPanel" hidden>
-      <div id="tmList" class="tmlist">불러오는 중…</div>
-      <div class="tmbar">
-        <label class="tmshare"><input id="tmOn" type="checkbox"> 내 근무시간 공유</label>
-        <button id="tmReset" class="link bad">해제</button>
-      </div>
+    <div id="tmList" class="tmlist">불러오는 중…</div>
+    <label class="tmlbl" id="tmNameWrap" hidden>표시 이름
+      <input id="tmName" type="text" maxlength="12" placeholder="이름">
+    </label>
+    <div class="tmbar">
+      <label class="tmshare"><input id="tmOn" type="checkbox"> 내 근무시간 공유</label>
     </div>
     <div id="tmMsg" class="msg"></div>
   </div>
