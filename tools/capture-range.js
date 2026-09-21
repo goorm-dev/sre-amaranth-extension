@@ -6,6 +6,9 @@
 //   (나) 날짜마다 항목을 하나씩 만들어 배열로 보내는지
 // 를 모른다. 이건 실제 신청을 지켜보는 수밖에 없다 — 우리가 지어내서 눌러 볼 수는 없다.
 //
+// "식사 휴게" 처럼 우리가 모르는 종류의 atCd 를 찾는 데도 쓴다 (__dumpTypes).
+// 코드를 지어낼 수는 없다 — 틀린 값으로 신청하면 엉뚱한 결재가 올라간다.
+//
 // 쓰는 법:
 //   1) gw.goorm.io 본 창 콘솔에 붙여 넣는다
 //   2) 평소대로 **여러 날짜** 휴가(또는 자율휴게)를 신청한다.
@@ -32,7 +35,7 @@
         push(rec);
         return of.apply(this, arguments).then(async (res) => {
           rec.status = res.status;
-          try { rec.res = (await res.clone().text()).slice(0, 4000); } catch (_) {}
+          try { rec.res = (await res.clone().text()).slice(0, 20000); } catch (_) {}
           return res;
         });
       };
@@ -48,7 +51,7 @@
           x.addEventListener('loadend', () => {
             if (!rec) return;
             rec.status = x.status;
-            try { rec.res = String(x.responseText).slice(0, 4000); } catch (_) {}
+            try { rec.res = String(x.responseText).slice(0, 20000); } catch (_) {}
           });
           return send.apply(x, arguments);
         };
@@ -119,8 +122,39 @@
     return `${rows.length}건 — 클립보드에 복사했습니다`;
   };
 
+  // 근태 항목(atCd) 목록. "식사 휴게" 처럼 우리가 아직 모르는 종류의 코드를 찾는다.
+  // 코드를 지어낼 수는 없다 — 틀린 값으로 신청하면 엉뚱한 결재가 올라간다.
+  window.__dumpTypes = () => {
+    const hits = [];
+    const walk = (o, depth) => {
+      if (!o || typeof o !== 'object' || depth > 7) return;
+      if (Array.isArray(o)) { for (const v of o) walk(v, depth + 1); return; }
+      // atCd 와 이름이 같이 있는 객체가 근태 항목이다.
+      const nm = o.atNm || o.atItemNm || o.codeNm || o.name;
+      if (o.atCd && nm) {
+        hits.push(`  atCd=${String(o.atCd).padEnd(6)} linkAtCd=${String(o.linkAtCd || '-').padEnd(6)}`
+          + ` atItemCd=${String(o.atItemCd || '-').padEnd(4)} timeSetFg=${String(o.timeSetFg || '-').padEnd(6)} ${nm}`);
+      }
+      for (const v of Object.values(o)) walk(v, depth + 1);
+    };
+    for (const r of cap) {
+      if (!r.res) continue;
+      let j; try { j = JSON.parse(r.res); } catch (_) { continue; }
+      walk(j, 0);
+    }
+    const uniq = [...new Set(hits)].sort();
+    const s2 = uniq.length
+      ? `[근태 항목 ${uniq.length}종]\n${uniq.join('\n')}`
+      : '근태 항목을 못 찾았습니다. 근태신청 화면을 열고 종류를 한 번 골라 주세요.';
+    console.log(s2);
+    try { copy(s2); } catch (_) {}
+    return uniq.length ? `${uniq.length}종 — 클립보드에 복사했습니다` : s2;
+  };
+
   window.__capRClear = () => { cap.length = 0; return '비웠습니다. 이제 다음 신청을 해 보세요.'; };
 
-  return '준비됨 — 여러 날짜 휴가(또는 자율휴게)를 평소대로 신청한 뒤 __dumpRange()\n'
-    + '  하루짜리와 비교하려면 사이에 __capRClear() 로 비우고 다시 하세요.';
+  return '준비됨 —\n'
+    + '  __dumpTypes()  근태 항목(atCd) 목록 — 근태신청 화면에서 종류를 한 번 고른 뒤\n'
+    + '  __dumpRange()  신청 호출 전문 — 결재 팝업이 뜨는 데까지 진행한 뒤\n'
+    + '  __capRClear()  비우고 다시 (하루짜리와 비교할 때)';
 })();
