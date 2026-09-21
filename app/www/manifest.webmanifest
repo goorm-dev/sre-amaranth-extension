@@ -45,6 +45,17 @@
           "sizes": "192x192"
         }
       ]
+    },
+    {
+      "name": "식사 휴게 신청",
+      "short_name": "식사 휴게",
+      "url": "/meal",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

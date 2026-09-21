@@ -41,7 +41,8 @@
     <span id="monthLabel">—</span>
     <button id="nextM" class="nav">›</button>
     <button id="leaveBtn" class="nav" title="휴가 신청">＋</button>
-    <button id="breakBtn" class="nav" title="휴게 신청">☕</button>
+    <button id="breakBtn" class="nav" title="자율휴게 신청">☕</button>
+    <button id="mealBtn" class="nav" title="식사 휴게 신청">🍚</button>
     <button id="teamBtn" class="nav" title="팀 근무시간">👥</button>
     <button id="menuBtn" class="nav">⋯</button>
   </header>
@@ -138,7 +139,7 @@
 
 <section id="breakSheet" class="sheet" hidden>
   <div class="sheetcard">
-    <h2>자율휴게 신청</h2>
+    <h2 id="brTitle">자율휴게 신청</h2>
     <label>시작 날짜 <input id="brDate" type="date"></label>
     <label>종료 날짜 <input id="brEnd" type="date"></label>
     <label>시작 시각 <input id="brStart" type="time"></label>

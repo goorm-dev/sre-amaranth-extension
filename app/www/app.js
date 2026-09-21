@@ -363,6 +363,9 @@
     $('brPreview').hidden = true; $('brActions').hidden = true; brState = null;
   }
 
+  // 두 신청서가 같은 시트를 쓴다. 근태 코드도 항목 모양도 같고 결재 양식만 다르다.
+  let brKind = 'self';
+
   async function brPreview() {
     const dk = $('brDate').value, st = $('brStart').value;
     const ek = $('brEnd').value || dk;
@@ -370,7 +373,8 @@
     if (ek < dk) { $('brMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     $('brNext').disabled = true; $('brMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.break.preview(dk, ek, st, Number($('brMin').value), $('brReason').value.trim());
+      const pv = await GW.break.preview(brKind, dk, ek, st,
+        Number($('brMin').value), $('brReason').value.trim());
       const sched = await GW.leave.profile();
       brState = { pv, sched };
       $('brPreview').hidden = false;
@@ -401,15 +405,23 @@
     }
   }
 
-  $('breakBtn').onclick = () => {
+  function brReset(kind) {
+    brKind = kind;
+    $('brTitle').textContent = kind === 'meal' ? '식사 휴게 신청' : '자율휴게 신청';
+    $('brReason').placeholder = kind === 'meal' ? '예: 중식, 석식' : '예: 운동, 병원';
     $('breakSheet').hidden = false;
     $('brDate').value = T.toKey(new Date());
     $('brEnd').value = $('brDate').value;
     const n = new Date();
     $('brStart').value = `${String(n.getHours()).padStart(2, '0')}:00`;
     $('brMsg').textContent = '';
+    $('brPreview').hidden = true;
+    $('brActions').hidden = true;
+    brState = null;
     brSyncSpan();
-  };
+  }
+  $('breakBtn').onclick = () => brReset('self');
+  $('mealBtn').onclick = () => brReset('meal');
   $('brStart').onchange = brSyncSpan;
   $('brMin').onchange = brSyncSpan;
   $('brNext').onclick = brPreview;
@@ -888,7 +900,7 @@
   // 두 번 탭에 신청서가 뜬다. nginx 가 모든 경로를 index.html 로 떨어뜨린다.
   //
   // 로그인 전에 들어와도 경로를 기억했다가 로그인 뒤에 연다.
-  const ROUTES = { '/leave': 'leaveBtn', '/break': 'breakBtn', '/team': 'teamBtn' };
+  const ROUTES = { '/leave': 'leaveBtn', '/break': 'breakBtn', '/meal': 'mealBtn', '/team': 'teamBtn' };
 
   function openRoute() {
     const btn = ROUTES[location.pathname.replace(/\/+$/, '') || '/'];

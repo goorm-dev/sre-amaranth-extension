@@ -464,6 +464,15 @@
     lv('brPreview').hidden = true; lv('brActions').hidden = true; brState = null;
   }
 
+  let brKind = 'self';
+
+  function brOpenSheet(kind) {
+    brKind = kind;
+    lv('brTitle').textContent = kind === 'meal' ? '식사 휴게 신청' : '자율휴게 신청';
+    lv('brReason').placeholder = kind === 'meal' ? '사유 (예: 중식, 석식)' : '사유 (예: 운동, 병원)';
+    lv('breakSheet').hidden = false;
+  }
+
   async function brPreview() {
     const dk = lv('brDate').value;
     const ek = lv('brEnd').value || dk;
@@ -472,7 +481,8 @@
     if (ek < dk) { lv('brMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     lv('brNext').disabled = true; lv('brMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.break.preview(dk, ek, st, Number(lv('brMin').value), lv('brReason').value.trim());
+      const pv = await GW.break.preview(brKind, dk, ek, st,
+        Number(lv('brMin').value), lv('brReason').value.trim());
       const sched = await GW.leave.profile();
       brState = { pv, sched };
       lv('brPreview').hidden = false;
@@ -508,15 +518,21 @@
     }
   }
 
-  lv('brOpen').onclick = () => {
-    lv('breakSheet').hidden = false;
+  // 두 신청서가 같은 시트를 쓴다. 근태 코드도 항목 모양도 같고 결재 양식만 다르다.
+  function brReset(kind) {
+    brOpenSheet(kind);
     lv('brDate').value = T.toKey(new Date());
     lv('brEnd').value = lv('brDate').value;
     const now = new Date();
     lv('brStart').value = `${String(now.getHours()).padStart(2, '0')}:00`;
     lv('brMsg').textContent = '';
+    lv('brPreview').hidden = true;
+    lv('brActions').hidden = true;
+    brState = null;
     brSyncSpan();
-  };
+  }
+  lv('brOpen').onclick = () => brReset('self');
+  lv('mlOpen').onclick = () => brReset('meal');
   lv('brStart').onchange = brSyncSpan;
   lv('brMin').onchange = brSyncSpan;
   lv('brNext').onclick = brPreview;

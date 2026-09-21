@@ -19,13 +19,27 @@
   const MENU = 'HPD0110';
   const MAX_MIN = 60;   // 양식 설명: "최대 1시간까지 추가 휴게신청"
 
-  const FORM = {
-    id: '151',
-    dTp: 'HP_HPD0110_00052',
-    nm: '자율휴게신청서',
-    contentsApi: '/human/attendapplication/interlock/getInterlockFormContents',
-    statusApi: '/human/attendapplication/interlock/setInterlockSync',
+  // 두 신청서는 근태 코드(5201/5110)도 항목 모양도 같다. 결재 양식만 다르다 —
+  // formId 와 formNm 뿐이고 formDTp 까지 같다. 실제 신청을 캡처해 확인했다.
+  const FORMS = {
+    self: {
+      id: '151',
+      dTp: 'HP_HPD0110_00052',
+      nm: '자율휴게신청서',
+      label: '자율휴게',
+      contentsApi: '/human/attendapplication/interlock/getInterlockFormContents',
+      statusApi: '/human/attendapplication/interlock/setInterlockSync',
+    },
+    meal: {
+      id: '259',
+      dTp: 'HP_HPD0110_00052',
+      nm: '휴게·식사시간 반영 신청서',
+      label: '식사 휴게',
+      contentsApi: '/human/attendapplication/interlock/getInterlockFormContents',
+      statusApi: '/human/attendapplication/interlock/setInterlockSync',
+    },
   };
+  const formOf = (kind) => FORMS[kind] || FORMS.self;
 
   const api = () => GW.api;
   const P_CALC = '/human/common/attendapplication/calculateApplicationDays';
@@ -55,7 +69,7 @@
   // 여러 날에 걸쳐 신청할 수 있다. 날짜마다 항목을 만드는 게 아니라 항목 하나에
   // startDt~endDt 를 담고, 그 기간 동안 매일 같은 시간대의 휴게가 잡힌다
   // (09-14~09-18 · 17:00~18:00 → 5일 · 300분. 실제 신청을 캡처해 확인했다).
-  async function preview(startKey, endKey, startTm, minutes, reason) {
+  async function preview(kind, startKey, endKey, startTm, minutes, reason) {
     const from = startKey;
     const to = endKey && endKey > startKey ? endKey : startKey;
     const sp = span(startTm, minutes);
@@ -67,6 +81,7 @@
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
     return {
+      kind: FORMS[kind] ? kind : 'self',
       startKey: from, endKey: to, dateKey: from, span: sp, reason: reason || '',
       coCd: d.coCd, empCd: d.empCd, empNm: d.empNm, deptCd: d.deptCd, deptNm: d.deptNm,
       appDy: d.applicationDaysCnt != null ? d.applicationDaysCnt : d.daysCnt,
@@ -99,6 +114,7 @@
   function title(pv) {
     const md = (key) => key.slice(5);
     const days = pv.startKey === pv.endKey ? md(pv.startKey) : `${md(pv.startKey)}~${md(pv.endKey)}`;
+    // 서버가 돌려주는 제목은 두 양식 모두 "휴게신청서" 다 (캡처에서 확인).
     return `[${pv.deptNm} ${pv.empNm}] ${days} (${hhmm(pv.span.start)}~${hhmm(pv.span.end)})`
       + `(${Number(pv.appDy).toFixed(1)}일) 휴게신청서`;
   }
@@ -135,6 +151,7 @@
     const linkKey = link && link.linkKey;
     if (!linkKey) throw new Error('연동 키를 발급받지 못했습니다.');
 
+    const FORM = formOf(pv.kind);
     await api().call(P_SETENAGE, {
       approKey, formDTp: FORM.dTp, formId: FORM.id, linkKey, formNm: FORM.nm,
       docTitle: titleDc, contents: '',
@@ -152,5 +169,5 @@
     return { titleDc, appSq, appDt, coCd, approKey, linkKey, approvalHash: `#popup?${q}` };
   }
 
-  GW.break = { AT_CD, LINK_AT, FORM, MAX_MIN, span, preview, submit, title, buildItem };
+  GW.break = { AT_CD, LINK_AT, FORMS, formOf, MAX_MIN, span, preview, submit, title, buildItem };
 })(window);
