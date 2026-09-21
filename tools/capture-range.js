@@ -122,30 +122,41 @@
     return `${rows.length}건 — 클립보드에 복사했습니다`;
   };
 
-  // 근태 항목(atCd) 목록. "식사 휴게" 처럼 우리가 아직 모르는 종류의 코드를 찾는다.
-  // 코드를 지어낼 수는 없다 — 틀린 값으로 신청하면 엉뚱한 결재가 올라간다.
+  // 근태신청 항목(atCd). 근무시간 구분(9202 정상근무 · 9203 중식 …)과 섞이지 않게
+  // 신청 항목의 모양을 요구한다 — atItemCd 나 timeSetFg 를 가진 것만 센다.
+  // 그것들은 calculateApplicationDays 응답의 worktimeList 에 들어 있어서,
+  // atCd+이름만 보면 그쪽이 딸려 온다(실제로 딸려 왔다).
+  //
+  // 다만 이건 거들 뿐이다. 확실한 것은 __dumpRange() 다 — 그 신청서를 실제로
+  // 한 번 진행하면 0hr00011·create 항목에 atCd·linkAtCd 가, SetEnageGroup 에
+  // formId·formDTp·formNm 이 그대로 찍힌다. 양식까지 알아야 붙일 수 있다.
   window.__dumpTypes = () => {
     const hits = [];
-    const walk = (o, depth) => {
+    const walk = (o, where, depth) => {
       if (!o || typeof o !== 'object' || depth > 7) return;
-      if (Array.isArray(o)) { for (const v of o) walk(v, depth + 1); return; }
-      // atCd 와 이름이 같이 있는 객체가 근태 항목이다.
-      const nm = o.atNm || o.atItemNm || o.codeNm || o.name;
-      if (o.atCd && nm) {
+      if (Array.isArray(o)) { for (const v of o) walk(v, where, depth + 1); return; }
+      const nm = o.atNm || o.atItemNm;
+      const shaped = o.atItemCd != null || o.timeSetFg != null;
+      if (o.atCd && nm && shaped) {
         hits.push(`  atCd=${String(o.atCd).padEnd(6)} linkAtCd=${String(o.linkAtCd || '-').padEnd(6)}`
-          + ` atItemCd=${String(o.atItemCd || '-').padEnd(4)} timeSetFg=${String(o.timeSetFg || '-').padEnd(6)} ${nm}`);
+          + ` atItemCd=${String(o.atItemCd || '-').padEnd(4)} timeSetFg=${String(o.timeSetFg || '-').padEnd(6)}`
+          + ` ${nm}   ← ${where}`);
       }
-      for (const v of Object.values(o)) walk(v, depth + 1);
+      for (const v of Object.values(o)) walk(v, where, depth + 1);
     };
     for (const r of cap) {
       if (!r.res) continue;
       let j; try { j = JSON.parse(r.res); } catch (_) { continue; }
-      walk(j, 0);
+      walk(j, (r.url || '').split('?')[0].split('/').pop(), 0);
     }
     const uniq = [...new Set(hits)].sort();
     const s2 = uniq.length
-      ? `[근태 항목 ${uniq.length}종]\n${uniq.join('\n')}`
-      : '근태 항목을 못 찾았습니다. 근태신청 화면을 열고 종류를 한 번 골라 주세요.';
+      ? `[근태신청 항목 ${uniq.length}종]\n${uniq.join('\n')}\n\n`
+        + '양식(formId·formDTp·formNm)은 여기에 안 나옵니다. 그 신청서를 결재 팝업까지\n'
+        + '한 번 진행한 뒤 __dumpRange() 를 주세요.'
+      : '신청 항목을 못 찾았습니다.\n'
+        + '이건 목록 화면에 잘 안 나옵니다 — 그 신청서를 실제로 한 번 진행(결재 팝업까지)한 뒤\n'
+        + '__dumpRange() 를 주시면 atCd·linkAtCd·양식이 전부 찍힙니다.';
     console.log(s2);
     try { copy(s2); } catch (_) {}
     return uniq.length ? `${uniq.length}종 — 클립보드에 복사했습니다` : s2;
@@ -154,7 +165,8 @@
   window.__capRClear = () => { cap.length = 0; return '비웠습니다. 이제 다음 신청을 해 보세요.'; };
 
   return '준비됨 —\n'
-    + '  __dumpTypes()  근태 항목(atCd) 목록 — 근태신청 화면에서 종류를 한 번 고른 뒤\n'
-    + '  __dumpRange()  신청 호출 전문 — 결재 팝업이 뜨는 데까지 진행한 뒤\n'
+    + '  __dumpRange()  ← 이게 확실합니다. 그 신청서를 결재 팝업까지 한 번 진행한 뒤\n'
+    + '                 atCd·linkAtCd·양식(formId·formDTp·formNm)이 전부 찍힙니다\n'
+    + '  __dumpTypes()  근태신청 항목만 추려 보기 (거들 뿐)\n'
     + '  __capRClear()  비우고 다시 (하루짜리와 비교할 때)';
 })();
