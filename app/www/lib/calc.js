@@ -253,6 +253,8 @@
     return {
       done: false,
       inAt,
+      // 남이 내 경과·남은 시간을 직접 계산하려면 이 값이 있어야 한다 (lib/team.js 의 live).
+      brk,
       elapsedMin,
       creditMin,
       leaveNames: (row && row.leaveNames) || null,

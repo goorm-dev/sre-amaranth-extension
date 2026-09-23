@@ -707,7 +707,22 @@
     }
   }
 
+  // 마지막으로 받은 목록. 시계가 흐르는 값은 받은 값이 아니라 지금 시각으로
+  // 다시 계산하므로, 새로 받지 않아도 30초마다 다시 그려 준다.
+  let tmLast = null;
+  let tmTick = null;
+
+  function tmStartTick() {
+    clearInterval(tmTick);
+    tmTick = setInterval(() => {
+      if (!$('teamView').hidden && tmLast) tmRender(tmLast.members, tmLast.self);
+      else { clearInterval(tmTick); tmTick = null; }
+    }, 30 * 1000);
+  }
+
   function tmRender(members, self) {
+    tmLast = { members, self };
+    if (!tmTick) tmStartTick();
     // 예전 판본이 기기마다 자리를 새로 만들어서 같은 사람이 여러 줄로 남아 있을 수
     // 있다. 이름이 같으면 가장 최근 것만 남긴다.
     const byName = new Map();
@@ -726,6 +741,9 @@
     const myId = self && self.selfId;
     $('tmList').innerHTML = list.map((m) => {
       const fresh = T.toKey(new Date(m.at)) === today;
+      // 올라온 값은 5분마다 찍히는 스냅샷이다. 그대로 쓰면 5분에 한 번 훌쩍 뛰고
+      // 그 사이에는 멈춰 있다 — 지금 시각으로 다시 센다.
+      const now = GW.team.live(m, new Date());
       let right = '<i class="tmstale">오늘 기록 없음</i>';
       if (m.leaveNm && !m.outAt) right = `<i class="tmleave">${esc(m.leaveNm)}</i>`;
       else if (fresh && m.outAt) {
@@ -733,13 +751,13 @@
         // 8시간을 채웠다고 퇴근으로 찍으면 아직 일하는 사람이 간 것처럼 보인다.
         // (예전 판본은 done 을 안 보내므로 그때는 "충족" 으로 떨어진다)
         const label = m.done ? '퇴근'
-          : m.leftMin == null ? ''
-            : m.leftMin <= 0 ? '충족' : `${T.fmtDuration(m.leftMin)} 남음`;
+          : now.leftMin == null ? ''
+            : now.leftMin <= 0 ? '충족' : `${T.fmtDuration(now.leftMin)} 남음`;
         right = `<b class="tmout${m.done ? ' done' : ''}">${esc(m.outAt)}</b><i>${label}</i>`;
       }
       const sub = [
         fresh && m.inAt ? `출근 ${esc(m.inAt)}` : null,
-        fresh && m.workedMin != null ? `경과 ${short(m.workedMin)}` : null,
+        fresh && now.workedMin != null ? `경과 ${short(now.workedMin)}` : null,
         m.monthLeftMin == null ? null
           : m.monthLeftMin <= 0 ? '이달 충족' : `이달 ${short(m.monthLeftMin)}`,
       ].filter(Boolean).join(' · ');

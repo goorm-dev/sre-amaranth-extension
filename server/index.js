@@ -123,6 +123,7 @@ function sanitize(b) {
     monthLeftMin: num(b.monthLeftMin),     // 이번 달 남은
     leaveNm: str(b.leaveNm, 20) || null,   // 휴가면 그 이름
     done: !!b.done,                        // 실제 퇴근 타각을 찍었는지
+    brkMin: num(b.brkMin),                 // 보는 쪽이 경과를 시계로 계산할 때 쓴다
   };
 }
 

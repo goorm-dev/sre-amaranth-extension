@@ -216,6 +216,39 @@
     return cfg;
   }
 
+  // 남의 경과·남은 시간을 **보는 쪽 시계로** 계산한다.
+  //
+  // 올라오는 값은 5분마다 찍히는 스냅샷이다. 그대로 쓰면 5분에 한 번씩 훌쩍
+  // 뛰고 그 사이에는 멈춰 있다 — 시간이 따로 흐르는 것처럼 보인다.
+  // 출근 시각과 목표 퇴근 시각만 있으면 나머지는 지금 시각으로 다시 셀 수 있다.
+  // 내 화면(calc.js 의 todayPlan)과 같은 식을 쓴다 — 점심 12:00~13:00 겹침을 뺀다.
+  const LUNCH_ST = 12 * 60, LUNCH_ED = 13 * 60;
+  const hm = (t) => {
+    const m = /^(\d{2}):(\d{2})$/.exec(String(t || ''));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+
+  function live(m, now) {
+    const fallback = { workedMin: m.workedMin, leftMin: m.leftMin };
+    // 퇴근한 사람은 시간이 더 흐르지 않는다. 휴가도 마찬가지.
+    if (!m || m.done || m.leaveNm) return fallback;
+    const inMin = hm(m.inAt);
+    const outMin = hm(m.outAt);
+    // 예전 판본은 brkMin 을 안 보낸다. 그때는 올라온 값을 그대로 쓴다 —
+    // 점심을 모르고 계산하면 12~13시에 한 시간씩 어긋난다.
+    if (inMin == null || outMin == null || m.brkMin == null) return fallback;
+
+    const brk = Math.max(0, m.brkMin);
+    const lunchIn = (from, to) => (brk <= 0 ? 0
+      : Math.min(brk, Math.max(0, Math.min(to, LUNCH_ED) - Math.max(from, LUNCH_ST))));
+    const clock = now || new Date();
+    const nowMin = clock.getHours() * 60 + clock.getMinutes();
+    return {
+      workedMin: Math.max(0, nowMin - inMin - lunchIn(inMin, nowMin)),
+      leftMin: outMin - nowMin - lunchIn(nowMin, outMin),
+    };
+  }
+
   // 계산 결과에서 공유할 조각만 뽑는다. 원본을 통째로 보내지 않는다 —
   // 서버에 남는 건 이 필드들이 전부다.
   function summarize(state, plan, who) {
@@ -232,6 +265,8 @@
       // 실제로 퇴근 타각을 찍었는지. "목표 시간을 채웠다" 와 구분해야 한다 —
       // leftMin 만 보면 둘 다 0 이하라서, 아직 일하는 사람이 퇴근으로 보인다.
       done: false,
+      // 보는 쪽이 경과·남은 시간을 시계로 계산할 때 쓴다 (아래 live).
+      brkMin: null,
     };
     if (!plan) return me;              // 휴가·휴일이라 타각이 없는 날
     me.inAt = plan.inAt || null;
@@ -247,13 +282,14 @@
     me.outAt = plan.parOut || null;
     me.workedMin = plan.elapsedMin;
     me.leftMin = plan.parLeftMin;
+    me.brkMin = plan.brk != null ? plan.brk : null;
     if (!me.leaveNm && plan.leaveNames) me.leaveNm = plan.leaveNames;
     return me;
   }
 
   GW.team = {
     ORIGIN, BASE, newSelf, selfFrom, derive, teamFromPath, newCode, normCode, pretty, room,
-    migrateRooms, pullRooms, pushRooms, syncRooms,
+    migrateRooms, pullRooms, pushRooms, syncRooms, live,
     ensure, fetchTeam, publish, withdraw, summarize,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
