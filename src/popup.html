@@ -98,12 +98,10 @@
         <input id="brEnd" type="date">
       </div>
       <input id="brStart" type="time">
-      <select id="brMin">
-        <option value="60">1시간</option>
-        <option value="45">45분</option>
-        <option value="30">30분</option>
-        <option value="15">15분</option>
-      </select>
+      <div class="minrow">
+        <input id="brMin" type="number" min="1" step="1" inputmode="numeric" value="60">
+        <span>분</span>
+      </div>
       <input id="brReason" type="text" placeholder="사유 (예: 운동, 병원)" maxlength="50">
       <div id="brSpan" class="lvspan"></div>
       <button id="brNext" class="primary">확인</button>

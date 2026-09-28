@@ -534,7 +534,7 @@
   lv('brOpen').onclick = () => brReset('self');
   lv('mlOpen').onclick = () => brReset('meal');
   lv('brStart').onchange = brSyncSpan;
-  lv('brMin').onchange = brSyncSpan;
+  lv('brMin').oninput = brSyncSpan;
   lv('brNext').onclick = brPreview;
   lv('brSubmit').onclick = brSubmit;
   lv('brBack').onclick = () => { lv('brPreview').hidden = true; lv('brActions').hidden = true; brState = null; };

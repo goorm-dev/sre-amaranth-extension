@@ -423,7 +423,7 @@
   $('breakBtn').onclick = () => brReset('self');
   $('mealBtn').onclick = () => brReset('meal');
   $('brStart').onchange = brSyncSpan;
-  $('brMin').onchange = brSyncSpan;
+  $('brMin').oninput = brSyncSpan;
   $('brNext').onclick = brPreview;
   $('brSubmit').onclick = brSubmit;
   $('brCancel').onclick = () => { $('brPreview').hidden = true; $('brActions').hidden = true; brState = null; };

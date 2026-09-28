@@ -17,7 +17,10 @@
   const AT_CD = '5201';
   const LINK_AT = '5110';
   const MENU = 'HPD0110';
-  const MAX_MIN = 60;   // 양식 설명: "최대 1시간까지 추가 휴게신청"
+  // 비워 두면 쓰는 값. 상한이 아니다 — 분 단위로 그대로 올린다.
+  // 양식 설명에는 "최대 1시간" 이라 적혀 있지만, 실제로 받아 주는지는 서버가 정한다.
+  // 미리보기에 서버가 계산한 인정 시간이 그대로 나오므로 누르기 전에 확인할 수 있다.
+  const DEFAULT_MIN = 60;
 
   // 두 신청서는 근태 코드(5201/5110)도 항목 모양도 같다. 결재 양식만 다르다 —
   // formId 와 formNm 뿐이고 formDTp 까지 같다. 실제 신청을 캡처해 확인했다.
@@ -57,10 +60,12 @@
     return String(Math.floor(t / 60) % 24).padStart(2, '0') + String(t % 60).padStart(2, '0');
   }
 
-  // 시작 시각 + 길이(분) → 구간. 길이는 상한에서 자른다.
+  // 시작 시각 + 길이(분) → 구간. 적은 분을 그대로 쓴다.
+  // 1분 미만만 막는다 — 0분짜리 신청은 의미가 없다.
   function span(startTm, minutes) {
     const start = String(startTm || '').replace(':', '');
-    const min = Math.min(MAX_MIN, Math.max(1, minutes || MAX_MIN));
+    const n = Math.round(Number(minutes));
+    const min = Number.isFinite(n) && n >= 1 ? n : DEFAULT_MIN;
     return { start, end: addMin(start, min), minutes: min };
   }
 
@@ -169,5 +174,5 @@
     return { titleDc, appSq, appDt, coCd, approKey, linkKey, approvalHash: `#popup?${q}` };
   }
 
-  GW.break = { AT_CD, LINK_AT, FORMS, formOf, MAX_MIN, span, preview, submit, title, buildItem };
+  GW.break = { AT_CD, LINK_AT, FORMS, formOf, DEFAULT_MIN, span, preview, submit, title, buildItem };
 })(window);

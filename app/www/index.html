@@ -143,14 +143,7 @@
     <label>시작 날짜 <input id="brDate" type="date"></label>
     <label>종료 날짜 <input id="brEnd" type="date"></label>
     <label>시작 시각 <input id="brStart" type="time"></label>
-    <label>길이
-      <select id="brMin">
-        <option value="60">1시간</option>
-        <option value="45">45분</option>
-        <option value="30">30분</option>
-        <option value="15">15분</option>
-      </select>
-    </label>
+    <label>길이 <input id="brMin" type="number" min="1" step="1" inputmode="numeric" value="60"> 분</label>
     <label>사유 <input id="brReason" type="text" placeholder="예: 운동, 병원" maxlength="50"></label>
     <div id="brSpan" class="lvspan"></div>
     <button id="brNext" class="primary lvfull">확인</button>
