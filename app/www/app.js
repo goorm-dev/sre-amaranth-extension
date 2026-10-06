@@ -622,8 +622,34 @@
           + `${esc(r.label || GW.team.pretty(r.code))}</button>`;
       }).join('');
     }
+    // 설정이 없으면 켜진 것으로 본다. 꺼 둔 사람은 그대로 꺼진 채다 —
+    // 다만 이름을 못 읽어 못 켠 경우에는 켜진 척하지 않는다.
     const t = shareTarget();
-    $('tmOn').checked = !!(t && t.on);
+    $('tmOn').checked = t ? !!t.on : !tmNeedsName;
+  }
+
+  // 표시 이름. 로그인 정보에서 읽히면 그대로 쓰고, 안 되면 전에 쓰던 값이나 입력칸을 본다.
+  function nameFrom() {
+    const s = sess();
+    return s.userName || (teamCfg && teamCfg.myName) || (frCfg && frCfg.myName)
+      || ($('tmName').value || '').trim();
+  }
+
+  // 아직 설정이 없으면 켜진 상태로 시작한다. 화면에 체크가 보이는데 실제로는
+  // 안 올라가면 안 되므로, 여기서 설정을 만든다.
+  let tmNeedsName = false;
+
+  async function tmDefaultOn() {
+    if (teamCfg) return;
+    const s = sess();
+    const myName = nameFrom();
+    // 이름을 못 읽으면 켤 수가 없다. 체크만 켜 두면 올라가는 줄 알게 된다.
+    if (!myName) { tmNeedsName = true; return; }
+    tmNeedsName = false;
+    const base = s.compSeq && s.empSeq ? {} : GW.team.newSelf();
+    teamCfg = await GW.store.setTeam({
+      ...base, teamName: s.deptName || '우리 팀', myName, on: true,
+    });
   }
 
   async function tmShow() {
@@ -632,6 +658,11 @@
     teamCfg = await GW.store.getTeam();
     // 예전 판본은 방을 하나만 들고 있었다. 목록 구조로 옮겨 담는다.
     frCfg = GW.team.migrateRooms(await GW.store.getFriends());
+    await tmDefaultOn();
+    if (tmNeedsName) {
+      $('tmNameWrap').hidden = false;
+      tmMsg('표시 이름을 넣고 공유를 켜 주세요.', true);
+    }
     tmPaintTabs();
     // 다른 기기에서 들어간 방을 가져온다. 안 돼도 이 기기 것으로 그냥 쓴다.
     try {
@@ -849,7 +880,11 @@
       return tmMsg(e.message, true);
     }
     $('frNew').disabled = false;
-    await saveRooms({ ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code });
+    // 만들자마자 켜진다. 꺼 두면 켜는 걸 잊는다.
+    await saveRooms({
+      ...frCfg, myName: frCfg.myName || nameFrom(),
+      rooms: [...(frCfg.rooms || []), { code, label: '', on: true }], active: code,
+    });
     tmPaintTabs();
     tmMsg('방을 만들었습니다. 코드를 복사해 보내세요.');
     await tmRefresh();
@@ -874,7 +909,10 @@
     tmMsg('확인 중…');
     try {
       const data = await GW.team.fetchTeam(await GW.team.room(code));
-      await saveRooms({ ...frCfg, rooms: [...(frCfg.rooms || []), { code, label: '', on: false }], active: code });
+      await saveRooms({
+        ...frCfg, myName: frCfg.myName || nameFrom(),
+        rooms: [...(frCfg.rooms || []), { code, label: '', on: true }], active: code,
+      });
       $('frInput').value = '';
       tmPaintTabs();
       tmMsg(`참여했습니다 (${(data.members || []).length}명).`);
