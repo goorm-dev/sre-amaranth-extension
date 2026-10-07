@@ -693,17 +693,32 @@
   // 안 올라가면 안 되므로, 여기서 설정을 만들고 바로 한 번 올린다.
   let tmNeedsName = false;
 
+  // 열릴 때마다 켠다. 끄는 건 그 다음 로드까지만이다 —
+  // 꺼 둔 채로 잊는 사람이 많아서, 꺼짐이 쌓이지 않게 한다.
+  // (팝업은 열 때마다 새로 뜨므로 "열림" 이 곧 로드다)
   async function tmDefaultOn() {
-    if (teamCfg) return;
     const id = await tmIdentity();
     const myName = nameFrom(id);
     // 이름을 못 읽으면 켤 수가 없다. 체크만 켜 두면 올라가는 줄 알게 된다.
-    if (!myName) { tmNeedsName = true; return; }
+    if (!myName) { tmNeedsName = !teamCfg; return; }
     tmNeedsName = false;
-    const base = id && id.compSeq && id.empSeq ? {} : GW.team.newSelf();
-    teamCfg = await GW.store.setTeam({
-      ...base, teamName: (id && id.deptName) || '우리 팀', myName, on: true,
-    });
+
+    if (!teamCfg || !teamCfg.on || teamCfg.myName !== myName) {
+      const base = teamCfg || (id && id.compSeq && id.empSeq ? {} : GW.team.newSelf());
+      teamCfg = await GW.store.setTeam({
+        ...base, teamName: (teamCfg && teamCfg.teamName) || (id && id.deptName) || '우리 팀',
+        myName, on: true,
+      });
+    }
+    // 방도 같이 켠다.
+    const rooms = frCfg.rooms || [];
+    if (rooms.some((r) => !r.on) || (rooms.length && !frCfg.myName)) {
+      frCfg = await GW.store.setFriends({
+        ...frCfg, myName: frCfg.myName || myName,
+        rooms: rooms.map((r) => (r.on ? r : { ...r, on: true })),
+        at: Date.now(),
+      });
+    }
   }
 
   async function tmOpenSheet() {

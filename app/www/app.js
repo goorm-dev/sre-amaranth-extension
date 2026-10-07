@@ -638,18 +638,33 @@
   // 아직 설정이 없으면 켜진 상태로 시작한다. 화면에 체크가 보이는데 실제로는
   // 안 올라가면 안 되므로, 여기서 설정을 만든다.
   let tmNeedsName = false;
+  let tmForced = false;
 
+  // 로드될 때 한 번 켠다. 끄는 건 그 다음 로드까지만이다 —
+  // 꺼 둔 채로 잊는 사람이 많아서, 꺼짐이 쌓이지 않게 한다.
   async function tmDefaultOn() {
-    if (teamCfg) return;
     const s = sess();
     const myName = nameFrom();
-    // 이름을 못 읽으면 켤 수가 없다. 체크만 켜 두면 올라가는 줄 알게 된다.
-    if (!myName) { tmNeedsName = true; return; }
+    if (!myName) { tmNeedsName = !teamCfg; return; }
     tmNeedsName = false;
-    const base = s.compSeq && s.empSeq ? {} : GW.team.newSelf();
-    teamCfg = await GW.store.setTeam({
-      ...base, teamName: s.deptName || '우리 팀', myName, on: true,
-    });
+    if (tmForced && teamCfg) return;      // 이 로드에서는 한 번만
+    tmForced = true;
+
+    if (!teamCfg || !teamCfg.on || teamCfg.myName !== myName) {
+      const base = teamCfg || (s.compSeq && s.empSeq ? {} : GW.team.newSelf());
+      teamCfg = await GW.store.setTeam({
+        ...base, teamName: (teamCfg && teamCfg.teamName) || s.deptName || '우리 팀',
+        myName, on: true,
+      });
+    }
+    const rooms = frCfg.rooms || [];
+    if (rooms.some((r) => !r.on) || (rooms.length && !frCfg.myName)) {
+      frCfg = await GW.store.setFriends({
+        ...frCfg, myName: frCfg.myName || myName,
+        rooms: rooms.map((r) => (r.on ? r : { ...r, on: true })),
+        at: Date.now(),
+      });
+    }
   }
 
   async function tmShow() {

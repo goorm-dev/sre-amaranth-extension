@@ -162,6 +162,35 @@
   // 실패해도 조용히 넘어간다 — 공유는 부가 기능이고, 본 화면을 막으면 안 된다.
   const SHARE_EVERY = 5 * 60 * 1000;
   let sharedAt = 0;
+  let forcedShare = false;
+
+  // 페이지가 로드될 때 한 번 켠다. 끄는 건 그 다음 로드까지만이다 —
+  // 꺼 둔 채로 잊는 사람이 많아서, 꺼짐이 쌓이지 않게 한다.
+  // 여기서 하는 이유: 이 시점이면 사원 정보가 캐시돼 있다.
+  async function forceShareOnce(id, team, friends) {
+    if (forcedShare) return { team, friends };
+    forcedShare = true;
+    const myName = (id && id.name) || (team && team.myName) || (friends && friends.myName);
+    if (!myName) return { team, friends };   // 이름을 못 읽으면 켜지 않는다
+
+    let t = team;
+    if (!t || !t.on || t.myName !== myName) {
+      const base = t || (id.empSeq ? {} : GW.team.newSelf());
+      t = await GW.store.setTeam({
+        ...base, teamName: (t && t.teamName) || id.deptName || '우리 팀', myName, on: true,
+      });
+    }
+    let f = friends;
+    const rooms = (f && f.rooms) || [];
+    if (rooms.some((r) => !r.on) || (rooms.length && !f.myName)) {
+      f = await GW.store.setFriends({
+        ...f, myName: f.myName || myName,
+        rooms: rooms.map((r) => (r.on ? r : { ...r, on: true })),
+        at: Date.now(),
+      });
+    }
+    return { team: t, friends: f };
+  }
 
   async function sharePush() {
     if (Date.now() - sharedAt < SHARE_EVERY || !state.rows.length) return;
@@ -170,15 +199,16 @@
       team = await GW.store.getTeam();
       friends = GW.team.migrateRooms(await GW.store.getFriends());
     } catch (_) { return; }
-    // 켜 둔 방마다 올린다. 방은 여러 개일 수 있다.
-    const rooms = (friends.rooms || []).filter((r) => r.on && friends.myName);
     const on = (c) => !!(c && c.on && c.myName);
-    // 방 목록은 아래에서 다른 기기 것과 맞춘 뒤 다시 채운다.
-    if (!on(team) && !rooms.length && !friends.myName) return;
     sharedAt = Date.now();
     try {
       const { wehagoIdentity: id } = await GW.store.raw('wehagoIdentity');
       if (!id || !id.compSeq) return;
+      // 로드 뒤 첫 게시 때 한 번 켠다.
+      ({ team, friends } = await forceShareOnce(id, team, friends));
+      // 켜 둔 방마다 올린다. 방은 여러 개일 수 있다.
+      const rooms = (friends.rooms || []).filter((r) => r.on && friends.myName);
+      if (!on(team) && !rooms.length) return;
       // 자리는 사번에서 만든다 — 기기마다 새로 만들면 같은 사람이 여러 줄로 남는다.
       const self = id.empSeq ? await GW.team.selfFrom(id.compSeq, id.empSeq) : null;
 
