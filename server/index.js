@@ -43,8 +43,15 @@ async function notifySlack(item) {
   if (!SLACK_WEBHOOK) return;
   const who = [item.name, item.dept].filter(Boolean).join(' · ') || '이름 없음';
   const head = `개선 요청 — ${who}${item.ver ? ` (v${item.ver})` : ''}`;
-  const body = { text: `${head}\n${item.text}`, name: item.name, dept: item.dept,
-    ver: item.ver, message: item.text };
+  // 슬랙 웹훅 트리거는 선언한 변수가 본문에 없으면 거절한다. 빈 값도 위험하니
+  // 자리를 비우지 않는다 — 부서를 못 읽은 사람 때문에 알림이 통째로 날아가면 안 된다.
+  const body = {
+    text: `${head}\n${item.text}`,       // 변수를 하나만 쓸 거면 이것만 끼우면 된다
+    name: item.name || '이름 없음',
+    dept: item.dept || '-',
+    ver: item.ver || '-',
+    message: item.text,
+  };
   // 보내는 쪽을 붙잡아 두면 안 된다. 실패해도 저장은 이미 끝났다.
   const t = AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined;
   try {
