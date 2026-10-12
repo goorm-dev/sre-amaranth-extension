@@ -49,6 +49,20 @@ if (mv !== lv) {
   console.log(`✓ 버전 ${mv} (manifest = latest)`);
 }
 
+// 패치노트는 설치된 판의 것이어야 한다. 어긋나면 엉뚱한 노트를 띄운다.
+try {
+  const nv = JSON.parse(fs.readFileSync('src/notes.json', 'utf8')).version;
+  if (nv !== mv) {
+    console.log(`✗ notes.json 이 ${nv} 인데 manifest 는 ${mv} 입니다`);
+    bad++;
+  } else {
+    console.log(`✓ 패치노트 ${nv}`);
+  }
+} catch (e) {
+  console.log(`✗ src/notes.json 을 읽지 못했습니다: ${e.message}`);
+  bad++;
+}
+
 const { execFileSync } = require('child_process');
 const TARGETS = ['app/www/app.js', 'app/www/lib', 'src'];
 try {

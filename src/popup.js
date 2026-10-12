@@ -1043,6 +1043,63 @@
     await tmRefresh();
   };
 
+  // ── 바뀐 점 (버전업 뒤 한 번) ──────────────────────────────────────────
+  //
+  // 노트는 확장 안에 담아 둔다(src/notes.json). 저장소에서 받아 오면 그 사이
+  // 새 판이 나왔을 때 설치된 것과 다른 노트를 보여 주게 된다.
+  //
+  // 처음 설치한 사람에게는 띄우지 않는다 — 본 적도 없는 "바뀐 점" 은 군더더기다.
+  // 그래서 본 기록이 아예 없으면 조용히 적어만 두고 넘어간다.
+  async function showNotesOnce() {
+    let notes;
+    try { notes = await (await fetch('notes.json', { cache: 'no-store' })).json(); }
+    catch (_) { return; }
+    if (!notes || !notes.version || !(notes.items || []).length) return;
+
+    let seen;
+    try { seen = (await chrome.storage.local.get('seenNotes')).seenNotes; } catch (_) { return; }
+    if (seen === notes.version) return;
+    try { await chrome.storage.local.set({ seenNotes: notes.version }); } catch (_) {}
+    if (!seen) return;                     // 첫 설치 — 적어만 두고 띄우지 않는다
+
+    $('noteTitle').textContent = `${notes.title || '바뀐 점'} · v${esc(notes.version)}`;
+    $('noteList').innerHTML = notes.items.map((t) => `<li>${esc(t)}</li>`).join('');
+    $('noteSheet').hidden = false;
+  }
+  $('noteOk').onclick = () => { $('noteSheet').hidden = true; };
+  $('noteSheet').onclick = (e) => { if (e.target === $('noteSheet')) $('noteSheet').hidden = true; };
+
+  // ── 개선 요청 ────────────────────────────────────────────────────────
+  //
+  // 쓰는 사람이 바로 적어 보낸다. 이름을 같이 보낸다 — 누가 어떤 판에서 겪었는지
+  // 알아야 고칠 수 있다. 화면에도 그렇게 적어 둔다.
+  $('fbOpen').onclick = async () => {
+    $('fbSheet').hidden = false;
+    $('fbMsg').textContent = '';
+    $('fbText').focus();
+  };
+  $('fbClose').onclick = () => { $('fbSheet').hidden = true; };
+  $('fbSheet').onclick = (e) => { if (e.target === $('fbSheet')) $('fbSheet').hidden = true; };
+
+  $('fbSend').onclick = async () => {
+    const text = $('fbText').value.trim();
+    if (!text) { $('fbMsg').textContent = '내용을 적어 주세요.'; return; }
+    $('fbSend').disabled = true;
+    $('fbMsg').textContent = '보내는 중…';
+    try {
+      const id = await GW.api.wehagoIdentity().catch(() => null);
+      await GW.feedback.send(text, {
+        name: (id && id.name) || '', dept: (id && id.deptName) || '',
+        ver: chrome.runtime.getManifest().version,
+      });
+      $('fbText').value = '';
+      $('fbMsg').textContent = '보냈습니다. 고맙습니다.';
+    } catch (e) {
+      $('fbMsg').textContent = e.message || '보내지 못했습니다.';
+    }
+    $('fbSend').disabled = false;
+  };
+
   // 업데이트 안내. VERSION_URL 이 비어 있으면 check() 가 hasUpdate:false 로 돌아온다.
   async function checkUpdate(force) {
     let info;
@@ -1064,6 +1121,7 @@
     tmPushMaybe(true);
   });
   checkUpdate();
+  showNotesOnce();
   // 팝업은 열 때마다 새로 조회하므로 자동 재조회는 없다.
   // 다만 열어둔 동안 경과 시간이 낡지 않도록 다시 그리기만 한다 (서버 호출 없음).
   setInterval(render, 30 * 1000);

@@ -155,6 +155,27 @@
     </div>
   </div>
 
+  <div id="noteSheet" class="lvsheet" hidden>
+    <div class="lvcard">
+      <b id="noteTitle">바뀐 점</b>
+      <ul id="noteList" class="notelist"></ul>
+      <button id="noteOk" class="primary">확인</button>
+    </div>
+  </div>
+
+  <div id="fbSheet" class="lvsheet" hidden>
+    <div class="lvcard">
+      <b>개선 요청</b>
+      <p class="tmhelp">불편한 점이나 있었으면 하는 기능을 적어 주세요.
+        <b>이름과 함께</b> 전달됩니다.</p>
+      <textarea id="fbText" rows="5" maxlength="1000"
+        placeholder="예: 달력에 주간 합계도 보여주세요"></textarea>
+      <button id="fbSend" class="primary">보내기</button>
+      <div id="fbMsg" class="lvmsg"></div>
+      <button id="fbClose" class="lvx">닫기</button>
+    </div>
+  </div>
+
   <details id="settings">
     <summary>설정</summary>
     <label>하루 소정근로 <input id="daily" type="number" step="0.5" min="1" max="12"> 시간</label>
@@ -190,6 +211,7 @@
     <button id="mlOpen" class="go">식사 휴게</button>
     <button id="tmOpen" class="go">팀 공유</button>
     <button data-open="WORKTIME" class="go">근무시간</button>
+    <button id="fbOpen" class="go">개선 요청</button>
   </section>
 
   <div id="updateBar" class="updatebar" hidden></div>
@@ -207,5 +229,6 @@
 <script src="lib/updater.js"></script>
 <script src="lib/leave.js"></script>
 <script src="lib/break.js"></script>
+<script src="lib/feedback.js"></script>
 <script src="lib/team.js"></script>
 <script src="popup.js"></script>

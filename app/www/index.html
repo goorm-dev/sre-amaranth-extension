@@ -85,7 +85,31 @@
       <button id="save" class="primary">저장</button>
       <button id="closeSheet">닫기</button>
     </div>
+    <button id="fbOpen" class="link fblink">개선 요청 보내기</button>
     <button id="logout" class="danger">로그아웃</button>
+  </div>
+</section>
+
+<!-- 버전업 뒤 한 번 띄우는 바뀐 점 -->
+<section id="noteSheet" class="sheet" hidden>
+  <div class="sheetcard">
+    <h2 id="noteTitle">바뀐 점</h2>
+    <ul id="noteList" class="notelist"></ul>
+    <button id="noteOk" class="primary lvfull">확인</button>
+  </div>
+</section>
+
+<!-- 개선 요청. 쓰는 사람이 바로 적어 보낸다. -->
+<section id="fbSheet" class="sheet" hidden>
+  <div class="sheetcard">
+    <h2>개선 요청</h2>
+    <p class="tmhelp">불편한 점이나 있었으면 하는 기능을 적어 주세요.
+      <b>이름과 함께</b> 전달됩니다.</p>
+    <textarea id="fbText" rows="5" maxlength="1000"
+      placeholder="예: 달력에 주간 합계도 보여주세요"></textarea>
+    <button id="fbSend" class="primary lvfull">보내기</button>
+    <div id="fbMsg" class="msg"></div>
+    <button id="fbClose" class="lvx">닫기</button>
   </div>
 </section>
 
@@ -208,6 +232,7 @@
 <script src="lib/calc.js"></script>
 <script src="lib/leave.js"></script>
 <script src="lib/break.js"></script>
+<script src="lib/feedback.js"></script>
 <script src="lib/team.js"></script>
 <script src="lib/auth.js"></script>
 <script src="app.js"></script>

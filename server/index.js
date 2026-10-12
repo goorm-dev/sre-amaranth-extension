@@ -13,6 +13,9 @@
 //   PUT  /api/teams/:id/me?k=<joinKey>   { id, writeKey, name, ... }
 //   DELETE /api/teams/:id/me?k=<joinKey> { id, writeKey }
 //
+//   POST /api/feedback                    { text, name?, dept?, ver? }
+//   GET  /api/feedback?k=<FEEDBACK_KEY>                → { items[] }  관리자만
+//
 //   GET  /api/me?u=<selfId>&k=<writeKey>              → { rooms[], at }
 //   PUT  /api/me?u=<selfId>&k=<writeKey>  { rooms[], at }
 //
@@ -27,6 +30,8 @@ const crypto = require('crypto');
 const { Store, MAX_ROOMS } = require('./store');
 
 const PORT = Number(process.env.PORT || 8081);
+// 개선 요청을 읽는 열쇠. 안 주면 읽기가 아예 막힌다 — 받기만 한다.
+const FEEDBACK_KEY = String(process.env.FEEDBACK_KEY || '');
 const DATA = process.env.DATA_FILE || '/data/teams.json';
 const store = new Store(DATA);
 
@@ -36,13 +41,15 @@ const store = new Store(DATA);
 // 팀 주소 규칙을 한 번 바꾸거나 방 몇 개 만들면 바로 넘는다(실제로 넘었다).
 // 팀·방은 한 번 만들면 계속 쓰므로 평상시 생성은 0에 가깝다. 넉넉히 둔다.
 const CREATE_PER_HOUR = 60;
+// 개선 요청. 사람이 손으로 적는 것이라 자주 보낼 일이 없다.
+const FEEDBACK_PER_HOUR = 20;
 // 키를 틀리는 건 정상 사용에서 거의 없는 일이다. 반복되면 찍어 보는 중이다.
 // 키가 18바이트라 맞힐 가능성은 없지만, 두들기는 것 자체를 막는다.
 // 생성이 막히면 그 방 조회가 "없는 방" 이 되어 이 계정까지 갉아먹는다.
 // 한쪽이 막혔다고 읽기까지 막히면 안 되므로 여유를 둔다.
 const BAD_KEY_PER_HOUR = 120;
 
-const buckets = { create: new Map(), badKey: new Map() };
+const buckets = { create: new Map(), badKey: new Map(), feedback: new Map() };
 function tooMany(kind, ip, limit) {
   const m = buckets[kind];
   const now = Date.now(), hour = 60 * 60 * 1000;
@@ -135,6 +142,30 @@ const server = http.createServer(async (req, res) => {
   // ALB 의 healthcheck-path 는 인그레스 하나에 하나뿐이라 웹(/healthz)과 같은 길을 쓴다.
   if (url.pathname === '/api/healthz' || url.pathname === '/healthz') {
     return send(res, 200, { ok: true });
+  }
+
+  // ── 개선 요청 ──────────────────────────────────────────────────────
+  if (url.pathname === '/api/feedback') {
+    if (req.method === 'POST') {
+      if (tooMany('feedback', clientIp(req), FEEDBACK_PER_HOUR)) {
+        return send(res, 429, { error: '잠시 후 다시 시도해 주세요' });
+      }
+      const b = await readBody(req);
+      const text = str(b.text, 1000).trim();
+      if (!text) return send(res, 400, { error: '내용을 적어 주세요' });
+      const n = store.addFeedback({
+        at: Date.now(), text,
+        name: str(b.name, 24), dept: str(b.dept, 40), ver: str(b.ver, 16),
+      });
+      return send(res, 200, { ok: true, count: n });
+    }
+    if (req.method === 'GET') {
+      // 열쇠를 안 걸어 두면 아무나 남이 보낸 글을 읽는다. 없으면 읽기를 막는다.
+      const k = str(url.searchParams.get('k'), 64);
+      if (!FEEDBACK_KEY || !timingSafeEq(k, FEEDBACK_KEY)) return badKey(req, res);
+      return send(res, 200, { items: store.feedback() });
+    }
+    return send(res, 405, { error: 'method not allowed' });
   }
 
   // ── 기기 간 방 목록 ────────────────────────────────────────────────

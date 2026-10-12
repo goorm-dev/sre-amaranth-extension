@@ -305,3 +305,20 @@ footer span { font-size: 11px; color: #9ca3af; }
   font: inherit; padding: 9px; border: 1px solid #d5dae4; border-radius: 8px;
 }
 .minrow span { color: #6b7280; flex: none; }
+
+/* 버튼이 여섯이 되면 한 줄에 다 넣기엔 좁다. 3열 2행으로 둔다. */
+.links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+/* 개선 요청 */
+#fbSheet textarea {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 12px;
+  padding: 9px; margin-bottom: 8px; resize: vertical;
+  border: 1px solid #d5dae4; border-radius: 8px;
+}
+#fbSheet .primary { background: #1e63d8; border: 1px solid #1e63d8; color: #fff; font-weight: 700; }
+#fbSheet .primary:disabled { background: #9db6e6; border-color: #9db6e6; }
+
+/* 버전업 뒤 한 번 띄우는 바뀐 점 */
+.notelist { margin: 0 0 12px; padding-left: 18px; font-size: 12px; line-height: 1.65; color: #4b5563; }
+.notelist li { margin-bottom: 4px; }
+#noteSheet .primary { background: #1e63d8; border: 1px solid #1e63d8; color: #fff; font-weight: 700; }

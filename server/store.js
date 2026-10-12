@@ -12,6 +12,7 @@ const path = require('path');
 const MAX_TEAMS = 2000;
 const MAX_MEMBERS = 200;          // 팀당
 const MAX_PEOPLE = 5000;          // 기기 간 방 목록 동기화용
+const MAX_FEEDBACK = 500;         // 개선 요청. 넘치면 오래된 것부터 버린다
 const MAX_ROOMS = 30;             // 1인당
 // 방 목록은 근무 기록과 달리 오래 들고 있어야 한다 — 며칠 쉬었다고 지워지면 안 된다.
 const PEOPLE_STALE_MS = 90 * 24 * 60 * 60 * 1000;
@@ -23,7 +24,7 @@ const STALE_MS = 36 * 60 * 60 * 1000;
 class Store {
   constructor(file) {
     this.file = file;
-    this.data = { teams: {}, people: {} };
+    this.data = { teams: {}, people: {}, feedback: [] };
     this.dirty = false;
     this.load();
     // 몰아서 쓴다. 게시가 몰려도 디스크를 계속 두들기지 않는다.
@@ -39,7 +40,8 @@ class Store {
       if (!this.data || typeof this.data !== 'object') this.data = { teams: {} };
       if (!this.data.teams) this.data.teams = {};
       if (!this.data.people) this.data.people = {};
-    } catch (_) { this.data = { teams: {}, people: {} }; }
+      if (!Array.isArray(this.data.feedback)) this.data.feedback = [];
+    } catch (_) { this.data = { teams: {}, people: {}, feedback: [] }; }
   }
 
   flush() {
@@ -113,6 +115,21 @@ class Store {
       if ((p.at || 0) < pcut) { delete this.data.people[id]; this.dirty = true; }
     }
   }
+
+  // ── 개선 요청 ──────────────────────────────────────────────────────
+  //
+  // 쓰는 사람이 바로 적어 보낼 수 있어야 한다. 읽는 건 관리자뿐이다.
+  addFeedback(item) {
+    this.data.feedback.push(item);
+    // 오래된 것부터 버린다. 받은 걸 지우는 화면이 없으니 무한정 쌓이면 안 된다.
+    if (this.data.feedback.length > MAX_FEEDBACK) {
+      this.data.feedback = this.data.feedback.slice(-MAX_FEEDBACK);
+    }
+    this.dirty = true;
+    return this.data.feedback.length;
+  }
+
+  feedback() { return this.data.feedback.slice().reverse(); }   // 최신 먼저
 
   // ── 기기 간 방 목록 ────────────────────────────────────────────────
   //

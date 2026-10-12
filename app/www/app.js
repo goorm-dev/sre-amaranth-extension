@@ -1,5 +1,7 @@
 // 화면 orchestration. 계산은 전부 lib/calc.js (확장과 동일한 파일) 가 한다.
 (function () {
+  // 개선 요청에 같이 보낼 버전. 앱은 manifest 가 없어 여기 적어 둔다.
+  const APP_VER = 'app 1.5.7';
   const T = GW.time;
   const $ = (id) => document.getElementById(id);
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g,
@@ -971,6 +973,48 @@
     await tmRefresh();
   };
 
+  // ── 바뀐 점 (버전업 뒤 한 번) ────────────────────────────────────────────
+  // 확장과 같은 notes.json 을 쓴다. 처음 들어온 사람에게는 띄우지 않는다.
+  async function showNotesOnce() {
+    let notes;
+    try { notes = await (await fetch('/notes.json', { cache: 'no-store' })).json(); }
+    catch (_) { return; }
+    if (!notes || !notes.version || !(notes.items || []).length) return;
+    let seen;
+    try { seen = localStorage.getItem('seenNotes'); } catch (_) { return; }
+    try { localStorage.setItem('seenNotes', notes.version); } catch (_) {}
+    if (seen === notes.version || !seen) return;
+    $('noteTitle').textContent = `${notes.title || '바뀐 점'} · v${notes.version}`;
+    $('noteList').innerHTML = notes.items.map((t) => `<li>${esc(t)}</li>`).join('');
+    $('noteSheet').hidden = false;
+  }
+  $('noteOk').onclick = () => { $('noteSheet').hidden = true; };
+
+  // ── 개선 요청 ──────────────────────────────────────────────────────────
+  $('fbOpen').onclick = () => {
+    $('sheet').hidden = true;
+    $('fbSheet').hidden = false;
+    $('fbMsg').textContent = '';
+    $('fbText').focus();
+  };
+  $('fbClose').onclick = () => { $('fbSheet').hidden = true; };
+
+  $('fbSend').onclick = async () => {
+    const text = $('fbText').value.trim();
+    if (!text) { $('fbMsg').textContent = '내용을 적어 주세요.'; return; }
+    $('fbSend').disabled = true;
+    $('fbMsg').textContent = '보내는 중…';
+    try {
+      const s = GW.api.getSession() || {};
+      await GW.feedback.send(text, { name: s.userName || '', dept: s.deptName || '', ver: APP_VER });
+      $('fbText').value = '';
+      $('fbMsg').textContent = '보냈습니다. 고맙습니다.';
+    } catch (e) {
+      $('fbMsg').textContent = e.message || '보내지 못했습니다.';
+    }
+    $('fbSend').disabled = false;
+  };
+
   // subPath 로 바로 열기. 아이폰 홈 화면에 /leave · /break 를 따로 추가하면
   // 두 번 탭에 신청서가 뜬다. nginx 가 모든 경로를 index.html 로 떨어뜨린다.
   //
@@ -984,6 +1028,6 @@
 
   (async () => {
     const s = await GW.auth.restore();
-    if (s) { enterMain(); openRoute(); } else { show('loginView'); }
+    if (s) { enterMain(); openRoute(); showNotesOnce(); } else { show('loginView'); }
   })();
 })();
