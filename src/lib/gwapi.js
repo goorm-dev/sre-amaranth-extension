@@ -137,7 +137,10 @@
       inAt: hhmm(r.appcomeTm) || hhmm(r.comeTm),
       outAt: hhmm(r.appleaveTm) || hhmm(r.leaveTm),
       resultNm: r.attresultNm === '-' ? null : r.attresultNm,  // 정상근무 / 휴일 / 지각 / 부족 …
-      leaveNm: r.atNm || null,                        // 오전반차 등
+      leaveNm: r.atNm || null,                        // 오전반차 · 휴게 등
+      // 휴가인지. atNm 만 보면 "휴게" 도 걸린다 — atCd 앞자리로 가른다
+      // (1xxx 휴가 · 5xxx 휴게). 지난 휴가를 달력에 표시하려면 이게 필요하다.
+      onLeave: String(r.atCd || '')[0] === '1',
       statusNm: r.worktmNm || null,                   // 승인 / 대기
       holiday: r.holiYn === 'Y',
       workTypeNm: r.workNm || null,                   // 자율출퇴근

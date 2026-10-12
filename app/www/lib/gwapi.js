@@ -143,6 +143,9 @@
       outAt: hhmm(r.appleaveTm) || hhmm(r.leaveTm),
       resultNm: r.attresultNm === '-' ? null : r.attresultNm,
       leaveNm: r.atNm || null,
+      // 휴가인지. atNm 만 보면 "휴게" 도 걸린다 — atCd 앞자리로 가른다
+      // (1xxx 휴가 · 5xxx 휴게). 지난 휴가를 달력에 표시하려면 이게 필요하다.
+      onLeave: String(r.atCd || '')[0] === '1',
       statusNm: r.worktmNm || null,
       holiday: r.holiYn === 'Y',
       empCd: r.empCd,

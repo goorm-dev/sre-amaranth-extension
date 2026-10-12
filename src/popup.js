@@ -43,6 +43,12 @@
       const cls = ['cal-day'];
       let value = '';
 
+      // 휴가는 지났든 안 지났든 휴가로 보여야 한다. 전에는 지난 날이 전부
+      // '마감' 으로 빠져서, 내가 쉰 날이 평범한 지난 근무일과 똑같이 보였다.
+      // 서버가 이미 반영한 휴가는 creditMin 이 0 이므로 onLeave 로 가른다.
+      const onLeave = r.creditMin > 0 || r.onLeave;
+      if (r.standardMin && onLeave) cls.push('leave');
+
       if (!r.standardMin) {
         cls.push('off');
       } else if (past) {
@@ -53,7 +59,6 @@
         cls.push('plan');
         value = short(r.planMin);
       } else if (r.creditMin > 0) {
-        cls.push('leave');
         value = short(Math.max(0, r.standardMin - r.creditMin));
       } else if (s.avgNeededMin != null) {
         value = short(s.avgNeededMin);

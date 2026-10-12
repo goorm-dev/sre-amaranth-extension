@@ -66,21 +66,43 @@ footer span { font-size: 11px; color: #9ca3af; }
 .calhead span:first-child { color: #dc2626; }
 .calhead span:last-child { color: #1e63d8; }
 .cal button {
-  border: 1px solid transparent; background: #f5f7fb; border-radius: 6px;
+  border: 1px solid #e5e9f2; background: #fff; border-radius: 6px;
   padding: 2px 0 3px; cursor: pointer; font: inherit; color: #374151;
   display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 30px;
+  position: relative; overflow: hidden;
 }
 .cal button .d { font-size: 11px; font-weight: 600; line-height: 1; }
 .cal button .v { font-size: 9.5px; color: #9ca3af; line-height: 1; font-variant-numeric: tabular-nums; }
-.cal button.blank { background: none; cursor: default; }
-.cal button.off { background: none; color: #d1d5db; cursor: default; }
+.cal button.blank { background: none; border-color: transparent; cursor: default; }
+
+/* 휴일·주말 — 아무것도 아닌 날. 가장 흐리게. */
+.cal button.off { background: none; border-color: transparent; color: #cbd1da; cursor: default; }
 .cal button.off .v { color: #e5e7eb; }
-.cal button.done { background: #eef1f6; }
+
+/* 마감 — 지나간 근무일. 회색으로 눌러 둔다.
+   전에는 #eef1f6 이라 일반 칸(#f5f7fb)과 구분이 안 됐다. */
+.cal button.done { background: #dde2ea; border-color: #d3d9e3; color: #4b5563; }
 .cal button.done .v { color: #6b7280; }
-.cal button.leave { background: #e8f0fe; }
-.cal button.leave .d, .cal button.leave .v { color: #1e63d8; }
-.cal button.plan { background: #fff; border-color: #1e63d8; }
+
+/* 휴가 — 한눈에 들어와야 한다. 채우고, 글씨를 굵게 파랗게,
+   왼쪽에 띠를 둔다. 색만으로는 작은 칸에서 잘 안 보인다. */
+.cal button.leave { background: #cfe0fa; border-color: #a9c6f3; }
+.cal button.leave .d { color: #11479e; font-weight: 800; }
+.cal button.leave .v { color: #1e63d8; }
+.cal button.leave::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #1e63d8;
+}
+/* 지나간 휴가도 휴가로 보인다 — 조금만 가라앉힌다. */
+.cal button.leave.done { background: #d9e5f7; border-color: #bed2f0; }
+
+/* 계획 — 내가 정한 날. 테두리를 굵히면 안쪽 높이가 줄어 값이 잘린다.
+   같은 1px 테두리에 안쪽 링을 겹쳐 두께만 키운다. */
+.cal button.plan {
+  background: #fff; border-color: #1e63d8;
+  box-shadow: inset 0 0 0 1px #1e63d8;
+}
 .cal button.plan .v { color: #1e63d8; font-weight: 700; }
+
 .cal button.today { outline: 2px solid #f59e0b; outline-offset: -2px; }
 .cal button.sel { border-color: #111827; }
 
@@ -93,9 +115,10 @@ footer span { font-size: 11px; color: #9ca3af; }
 
 .callegend { display: flex; align-items: center; gap: 9px; margin-top: 7px; font-size: 10.5px; color: #9ca3af; }
 .callegend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 3px; vertical-align: -1px; }
-.callegend .lg-plan { background: #fff; border: 1px solid #1e63d8; }
-.callegend .lg-leave { background: #e8f0fe; }
-.callegend .lg-done { background: #eef1f6; }
+.callegend .lg-plan { background: #fff; border: 1px solid #1e63d8; box-shadow: inset 0 0 0 1px #1e63d8; }
+.callegend .lg-leave { background: #cfe0fa; border: 1px solid #1e63d8; }
+.callegend .lg-done { background: #dde2ea; border: 1px solid #d3d9e3; }
+.callegend .lg-off { background: #fff; border: 1px solid #e5e9f2; }
 .links { display: flex; gap: 6px; margin: 12px 12px 0; }
 .links .go { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid #d5dae4; background: #fff; color: #374151; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .links .go:hover { background: #f5f7fb; }

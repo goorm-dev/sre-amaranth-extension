@@ -1,8 +1,13 @@
 :root { color-scheme: light dark; --bg:#f5f7fb; --card:#fff; --fg:#1f2937; --dim:#6b7280;
-  --line:#eef1f6; --blue:#1e63d8; --green:#0f9d58; --amber:#d97706; --red:#dc2626; --soft:#eef4ff; --softline:#d6e4ff; }
+  --line:#eef1f6; --blue:#1e63d8; --green:#0f9d58; --amber:#d97706; --red:#dc2626; --soft:#eef4ff; --softline:#d6e4ff;
+  /* 달력 — 마감·휴가·일반이 서로 확실히 갈려야 한다 */
+  --cal-done:#dde2ea; --cal-done-line:#d3d9e3; --cal-done-fg:#4b5563;
+  --cal-leave:#cfe0fa; --cal-leave-line:#a9c6f3; --cal-leave-fg:#11479e; }
 @media (prefers-color-scheme: dark) {
   :root { --bg:#12151c; --card:#1b1f27; --fg:#e5e7eb; --dim:#9aa3b2;
-    --line:#262b34; --soft:#1a2333; --softline:#2b3a55; }
+    --line:#262b34; --soft:#1a2333; --softline:#2b3a55;
+    --cal-done:#2a303b; --cal-done-line:#343b48; --cal-done-fg:#9aa3b2;
+    --cal-leave:#16365e; --cal-leave-line:#25507f; --cal-leave-fg:#a8caf8; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; margin: 0; }
@@ -79,9 +84,23 @@ header span { flex: 1; text-align: center; font-size: 17px; }
 .cal button .v { font-size: 10.5px; color: var(--dim); line-height: 1; font-variant-numeric: tabular-nums; }
 .cal button.blank { background: none; }
 .cal button.off { background: none; color: color-mix(in srgb, var(--dim) 45%, transparent); }
-.cal button.done { background: color-mix(in srgb, var(--dim) 12%, transparent); }
-.cal button.leave { background: #e8f0fe; } .cal button.leave .d { color: var(--blue); }
-.cal button.plan { border-color: var(--blue); }
+
+/* 마감 — 지나간 근무일. 전에는 너무 옅어 일반 칸과 구분이 안 됐다. */
+.cal button.done { background: var(--cal-done); border-color: var(--cal-done-line); }
+.cal button.done .d { color: var(--cal-done-fg); }
+
+/* 휴가 — 한눈에 들어와야 한다. 채우고, 글씨를 굵게, 왼쪽에 띠를 둔다. */
+.cal button.leave { background: var(--cal-leave); border-color: var(--cal-leave-line); overflow: hidden; }
+.cal button.leave .d { color: var(--cal-leave-fg); font-weight: 800; }
+.cal button.leave .v { color: var(--blue); }
+.cal button.leave::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--blue);
+}
+/* 지나간 휴가도 휴가로 보인다 — 조금만 가라앉힌다. */
+.cal button.leave.done { background: color-mix(in srgb, var(--cal-leave) 80%, var(--cal-done)); }
+
+/* 계획 — 테두리를 굵히면 안쪽 높이가 줄어 값이 잘린다. 안쪽 링을 겹친다. */
+.cal button.plan { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
 .cal button.plan .v { color: var(--blue); font-weight: 700; }
 .cal button.today { outline: 2px solid var(--amber); outline-offset: -2px; }
 .cal button.sel { border-color: var(--fg); }
@@ -92,9 +111,10 @@ header span { flex: 1; text-align: center; font-size: 17px; }
 .caledit .unit { font-size: 13px; color: var(--dim); }
 .callegend { display: flex; gap: 11px; margin-top: 10px; font-size: 11.5px; color: var(--dim); }
 .callegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
-.lg-plan { background: var(--card); border: 1px solid var(--blue); }
-.lg-leave { background: #e8f0fe; }
-.lg-done { background: color-mix(in srgb, var(--dim) 25%, transparent); }
+.lg-plan { background: var(--card); border: 1px solid var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+.lg-leave { background: var(--cal-leave); border: 1px solid var(--blue); }
+.lg-done { background: var(--cal-done); border: 1px solid var(--cal-done-line); }
+.lg-off { background: var(--card); border: 1px solid var(--line); }
 
 .hint { margin: 14px; font-size: 13px; color: var(--amber);
   background: color-mix(in srgb, var(--amber) 12%, transparent); border-radius: 10px; padding: 10px 12px; }
