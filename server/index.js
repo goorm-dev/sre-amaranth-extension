@@ -14,7 +14,8 @@
 //   DELETE /api/teams/:id/me?k=<joinKey> { id, writeKey }
 //
 //   POST /api/feedback                    { text, name?, dept?, ver? }
-//   GET  /api/feedback?k=<FEEDBACK_KEY>                → { items[] }  관리자만
+//   GET    /api/feedback?k=<FEEDBACK_KEY>              → { items[] }  관리자만
+//   DELETE /api/feedback?k=…&at=<ts>  또는 &all=1       읽고 처리한 것 지우기
 //   SLACK_WEBHOOK 이 있으면 요청이 올 때마다 거기로도 쏜다 (DM 받기용).
 //
 //   GET  /api/me?u=<selfId>&k=<writeKey>              → { rooms[], at }
@@ -100,7 +101,7 @@ function timingSafeEq(a, b) {
 // 자격증명은 안 쓴다(키가 본문·쿼리로 오므로 쿠키가 필요 없다).
 function cors(res, origin) {
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'content-type');
   res.setHeader('Access-Control-Max-Age', '600');
   res.setHeader('Vary', 'Origin');
@@ -183,11 +184,22 @@ const server = http.createServer(async (req, res) => {
       notifySlack(item);          // 기다리지 않는다
       return send(res, 200, { ok: true, count: n });
     }
+    // 읽기·지우기는 열쇠가 있어야 한다. 열쇠를 안 걸어 두면 아무나 남이 보낸
+    // 글을 읽는다 — 그래서 열쇠가 없으면 아예 막는다.
+    const k = str(url.searchParams.get('k'), 64);
+    const admin = FEEDBACK_KEY && timingSafeEq(k, FEEDBACK_KEY);
+
     if (req.method === 'GET') {
-      // 열쇠를 안 걸어 두면 아무나 남이 보낸 글을 읽는다. 없으면 읽기를 막는다.
-      const k = str(url.searchParams.get('k'), 64);
-      if (!FEEDBACK_KEY || !timingSafeEq(k, FEEDBACK_KEY)) return badKey(req, res);
+      if (!admin) return badKey(req, res);
       return send(res, 200, { items: store.feedback() });
+    }
+    if (req.method === 'DELETE') {
+      if (!admin) return badKey(req, res);
+      // at 하나만 지우거나, all=1 로 전부 비운다.
+      const at = Number(url.searchParams.get('at'));
+      const all = url.searchParams.get('all') === '1';
+      if (!all && !Number.isFinite(at)) return send(res, 400, { error: 'at 또는 all=1 이 필요합니다' });
+      return send(res, 200, { ok: true, removed: store.dropFeedback(all ? null : at) });
     }
     return send(res, 405, { error: 'method not allowed' });
   }

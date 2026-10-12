@@ -131,6 +131,17 @@ class Store {
 
   feedback() { return this.data.feedback.slice().reverse(); }   // 최신 먼저
 
+  // 읽고 처리한 것은 지운다. 안 지우면 다음에 또 같은 걸 읽게 된다.
+  dropFeedback(at) {
+    const before = this.data.feedback.length;
+    this.data.feedback = at
+      ? this.data.feedback.filter((f) => f.at !== at)
+      : [];
+    const gone = before - this.data.feedback.length;
+    if (gone) this.dirty = true;
+    return gone;
+  }
+
   // ── 기기 간 방 목록 ────────────────────────────────────────────────
   //
   // 자리(selfId)와 그 열쇠(writeKey)는 사번에서 나온다. 같은 사람의 PC 와 폰이

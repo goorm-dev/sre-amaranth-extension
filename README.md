@@ -905,8 +905,12 @@ PC 와 폰이 들어간 방을 서로 맞춥니다. 맞출 거리를 주고받�
 
 쓰는 사람이 화면에서 바로 적어 보냅니다. 읽는 것은 관리자뿐입니다.
 
-    POST /api/feedback                    { text, name?, dept?, ver? }
-    GET  /api/feedback?k=<FEEDBACK_KEY>                → { items[] }
+    POST   /api/feedback                  { text, name?, dept?, ver? }
+    GET    /api/feedback?k=<FEEDBACK_KEY>              → { items[] }   최신 먼저
+    DELETE /api/feedback?k=…&at=<ts>                   한 건 지우기
+    DELETE /api/feedback?k=…&all=1                     전부 비우기
+
+읽고 처리한 것은 지웁니다. 안 지우면 다음에 또 같은 걸 읽게 됩니다.
 
 `FEEDBACK_KEY` 는 k8s 시크릿(`worktime-api/feedback-key`)에서 환경변수로 들어갑니다.
 **안 주면 읽기가 아예 막힙니다** — 받기만 하고 아무도 못 읽습니다. 열쇠를 안 걸어
