@@ -15,6 +15,7 @@
 //
 //   POST /api/feedback                    { text, name?, dept?, ver? }
 //   GET  /api/feedback?k=<FEEDBACK_KEY>                → { items[] }  관리자만
+//   SLACK_WEBHOOK 이 있으면 요청이 올 때마다 거기로도 쏜다 (DM 받기용).
 //
 //   GET  /api/me?u=<selfId>&k=<writeKey>              → { rooms[], at }
 //   PUT  /api/me?u=<selfId>&k=<writeKey>  { rooms[], at }
@@ -32,6 +33,29 @@ const { Store, MAX_ROOMS } = require('./store');
 const PORT = Number(process.env.PORT || 8081);
 // 개선 요청을 읽는 열쇠. 안 주면 읽기가 아예 막힌다 — 받기만 한다.
 const FEEDBACK_KEY = String(process.env.FEEDBACK_KEY || '');
+// 개선 요청이 오면 여기로도 쏜다. 안 주면 안 쏜다 — 저장만 한다.
+// 슬랙 Incoming Webhook 과 Workflow Builder 웹훅 둘 다 받을 수 있게 보낸다
+// (전자는 text 를, 후자는 이름 붙은 칸을 읽는다).
+const SLACK_WEBHOOK = String(process.env.SLACK_WEBHOOK || '');
+
+async function notifySlack(item) {
+  if (!SLACK_WEBHOOK) return;
+  const who = [item.name, item.dept].filter(Boolean).join(' · ') || '이름 없음';
+  const head = `개선 요청 — ${who}${item.ver ? ` (v${item.ver})` : ''}`;
+  const body = { text: `${head}\n${item.text}`, name: item.name, dept: item.dept,
+    ver: item.ver, message: item.text };
+  // 보내는 쪽을 붙잡아 두면 안 된다. 실패해도 저장은 이미 끝났다.
+  const t = AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined;
+  try {
+    const res = await fetch(SLACK_WEBHOOK, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body), signal: t,
+    });
+    if (!res.ok) console.error('[slack] 실패:', res.status);
+  } catch (e) {
+    console.error('[slack] 실패:', e.message);
+  }
+}
 const DATA = process.env.DATA_FILE || '/data/teams.json';
 const store = new Store(DATA);
 
@@ -153,10 +177,10 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const text = str(b.text, 1000).trim();
       if (!text) return send(res, 400, { error: '내용을 적어 주세요' });
-      const n = store.addFeedback({
-        at: Date.now(), text,
-        name: str(b.name, 24), dept: str(b.dept, 40), ver: str(b.ver, 16),
-      });
+      const item = { at: Date.now(), text,
+        name: str(b.name, 24), dept: str(b.dept, 40), ver: str(b.ver, 16) };
+      const n = store.addFeedback(item);
+      notifySlack(item);          // 기다리지 않는다
       return send(res, 200, { ok: true, count: n });
     }
     if (req.method === 'GET') {

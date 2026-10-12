@@ -47,6 +47,11 @@ spec:
             - name: FEEDBACK_KEY
               valueFrom:
                 secretKeyRef: { name: worktime-api, key: feedback-key }
+            # 개선 요청이 오면 여기로도 쏜다. 없으면 안 쏜다 — optional 로 둬서
+            # 열쇠를 안 넣어도 파드가 뜬다.
+            - name: SLACK_WEBHOOK
+              valueFrom:
+                secretKeyRef: { name: worktime-api, key: slack-webhook, optional: true }
           ports:
             - name: http
               containerPort: 8081
