@@ -1046,31 +1046,57 @@
     await tmRefresh();
   };
 
-  // ── 바뀐 점 (버전업 뒤 한 번) ──────────────────────────────────────────
+  // ── 바뀐 점 ──────────────────────────────────────────────────────────
   //
   // 노트는 확장 안에 담아 둔다(src/notes.json). 저장소에서 받아 오면 그 사이
   // 새 판이 나왔을 때 설치된 것과 다른 노트를 보여 주게 된다.
   //
+  // 아래 "바뀐 점" 으로 **언제든** 다시 볼 수 있다. 버전업 뒤 한 번 띄우는 건
+  // 거들 뿐이라, 못 보고 지나가도 잃는 게 없다.
+  let notesDoc = null;
+  async function loadNotes() {
+    if (notesDoc) return notesDoc;
+    let n;
+    try { n = await (await fetch('notes.json', { cache: 'no-store' })).json(); }
+    catch (_) { return null; }
+    if (!n || !n.version || !(n.items || []).length) return null;
+    notesDoc = n;
+    return notesDoc;
+  }
+  function paintNotes(n) {
+    $('noteTitle').textContent = `${n.title || '바뀐 점'} · v${n.version}`;
+    $('noteList').innerHTML = n.items.map((t) => `<li>${esc(t)}</li>`).join('');
+    $('noteSheet').hidden = false;
+  }
+
+  // 본 것으로 적는 건 **닫을 때** 다. 띄우자마자 적어 버리면, 버전업 직후
+  // 팝업이 gw.goorm.io 세션을 못 잡아 새로고침부터 하게 되는 상황에서
+  // 노트를 읽어 보기도 전에 사라진다.
+  //
   // 처음 설치한 사람에게는 띄우지 않는다 — 본 적도 없는 "바뀐 점" 은 군더더기다.
   // 그래서 본 기록이 아예 없으면 조용히 적어만 두고 넘어간다.
   async function showNotesOnce() {
-    let notes;
-    try { notes = await (await fetch('notes.json', { cache: 'no-store' })).json(); }
-    catch (_) { return; }
-    if (!notes || !notes.version || !(notes.items || []).length) return;
-
+    const n = await loadNotes();
+    if (!n) return;
     let seen;
     try { seen = (await chrome.storage.local.get('seenNotes')).seenNotes; } catch (_) { return; }
-    if (seen === notes.version) return;
-    try { await chrome.storage.local.set({ seenNotes: notes.version }); } catch (_) {}
-    if (!seen) return;                     // 첫 설치 — 적어만 두고 띄우지 않는다
-
-    $('noteTitle').textContent = `${notes.title || '바뀐 점'} · v${esc(notes.version)}`;
-    $('noteList').innerHTML = notes.items.map((t) => `<li>${esc(t)}</li>`).join('');
-    $('noteSheet').hidden = false;
+    if (seen === n.version) return;
+    if (!seen) {                           // 첫 설치 — 적어만 두고 띄우지 않는다
+      try { await chrome.storage.local.set({ seenNotes: n.version }); } catch (_) {}
+      return;
+    }
+    paintNotes(n);
   }
-  $('noteOk').onclick = () => { $('noteSheet').hidden = true; };
-  $('noteSheet').onclick = (e) => { if (e.target === $('noteSheet')) $('noteSheet').hidden = true; };
+  function closeNotes() {
+    $('noteSheet').hidden = true;
+    if (notesDoc) chrome.storage.local.set({ seenNotes: notesDoc.version }).catch(() => {});
+  }
+  $('noteOk').onclick = closeNotes;
+  $('noteSheet').onclick = (e) => { if (e.target === $('noteSheet')) closeNotes(); };
+  $('noteOpen').onclick = async () => {
+    const n = await loadNotes();
+    if (n) paintNotes(n);
+  };
 
   // ── 개선 요청 ────────────────────────────────────────────────────────
   //

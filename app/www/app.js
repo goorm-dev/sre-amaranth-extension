@@ -976,22 +976,44 @@
     await tmRefresh();
   };
 
-  // ── 바뀐 점 (버전업 뒤 한 번) ────────────────────────────────────────────
-  // 확장과 같은 notes.json 을 쓴다. 처음 들어온 사람에게는 띄우지 않는다.
-  async function showNotesOnce() {
-    let notes;
-    try { notes = await (await fetch('/notes.json', { cache: 'no-store' })).json(); }
-    catch (_) { return; }
-    if (!notes || !notes.version || !(notes.items || []).length) return;
-    let seen;
-    try { seen = localStorage.getItem('seenNotes'); } catch (_) { return; }
-    try { localStorage.setItem('seenNotes', notes.version); } catch (_) {}
-    if (seen === notes.version || !seen) return;
-    $('noteTitle').textContent = `${notes.title || '바뀐 점'} · v${notes.version}`;
-    $('noteList').innerHTML = notes.items.map((t) => `<li>${esc(t)}</li>`).join('');
+  // ── 바뀐 점 ────────────────────────────────────────────────────────────
+  // 확장과 같은 notes.json 을 쓴다. 아래 "바뀐 점" 으로 언제든 다시 볼 수 있고,
+  // 버전업 뒤 한 번 띄우는 건 거들 뿐이다.
+  let notesDoc = null;
+  async function loadNotes() {
+    if (notesDoc) return notesDoc;
+    let n;
+    try { n = await (await fetch('/notes.json', { cache: 'no-store' })).json(); }
+    catch (_) { return null; }
+    if (!n || !n.version || !(n.items || []).length) return null;
+    notesDoc = n;
+    return notesDoc;
+  }
+  function paintNotes(n) {
+    $('noteTitle').textContent = `${n.title || '바뀐 점'} · v${n.version}`;
+    $('noteList').innerHTML = n.items.map((t) => `<li>${esc(t)}</li>`).join('');
     $('noteSheet').hidden = false;
   }
-  $('noteOk').onclick = () => { $('noteSheet').hidden = true; };
+  // 본 것으로 적는 건 닫을 때다 — 띄우자마자 적으면 읽어 보기도 전에 사라진다.
+  // 처음 들어온 사람에게는 띄우지 않는다.
+  async function showNotesOnce() {
+    const n = await loadNotes();
+    if (!n) return;
+    let seen;
+    try { seen = localStorage.getItem('seenNotes'); } catch (_) { return; }
+    if (seen === n.version) return;
+    if (!seen) { try { localStorage.setItem('seenNotes', n.version); } catch (_) {} return; }
+    paintNotes(n);
+  }
+  function closeNotes() {
+    $('noteSheet').hidden = true;
+    if (notesDoc) { try { localStorage.setItem('seenNotes', notesDoc.version); } catch (_) {} }
+  }
+  $('noteOk').onclick = closeNotes;
+  $('noteOpen').onclick = async () => {
+    const n = await loadNotes();
+    if (n) paintNotes(n);
+  };
 
   // ── 개선 요청 ──────────────────────────────────────────────────────────
   $('fbOpen').onclick = () => {
