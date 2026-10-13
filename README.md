@@ -16,7 +16,7 @@
 ## 배포
 
 - 확장: `./pack-extension.sh` → `amaranth-extension-vX.zip`
-- 앱: `cd app && npx cap sync android && (cd android && ./gradlew assembleDebug)` → APK
+- 앱: `cd app && npx cap sync android && (cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@21 ./gradlew assembleDebug)` → APK
 - GitHub 릴리스에 두 산출물을 올리면, 확장이 [src/lib/updater.js](src/lib/updater.js) 로
   최신 태그와 버전을 비교해 **업데이트 알림**을 띄웁니다.
 
