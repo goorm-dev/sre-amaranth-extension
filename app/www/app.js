@@ -116,6 +116,9 @@
     $('rows').innerHTML = [
       row('이번 달 인정근무', T.fmtDuration(s.workedMin)),
       s.creditMin ? row('휴가 인정 (예정)', T.fmtDuration(s.creditMin)) : '',
+      // 쉬는 날 근무는 소정을 대체하지 않는다(보상휴가로 나간다). 그래도 한 일이
+      // 사라져 보이면 안 되므로 따로 적는다.
+      s.offDayWorkMin ? row('쉬는 날 근무', `${T.fmtDuration(s.offDayWorkMin)} (보상휴가)`) : '',
       row('월 소정근로', `${T.fmtDuration(s.requiredMin)} (${s.workdayCount}일)`),
       row('남은 근무일', `${s.remainingWorkdays}일`),
       row('하루 필요', s.avgNeededMin != null ? T.fmtDuration(s.avgNeededMin)

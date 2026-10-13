@@ -110,7 +110,15 @@
     const estimatedCount = month.filter((r) => r.estimated).length;
 
     const requiredMin = month.reduce((a, r) => a + r.standardMin, 0);
-    const workedMin = month.reduce((a, r) => a + r.workedMin, 0);
+    // 인정근무는 **근무일만** 센다.
+    //
+    // 주말·공휴일에 일한 시간은 소정근로를 대체하지 않는다 — 보상휴가로 나간다.
+    // 그걸 더하면 월 소정을 이미 채운 것처럼 보여서 남은 시간이 그만큼 적게 찍힌다.
+    // (한글날 348분 + 토요일 408분을 일한 달에 남은 시간이 12시간 36분 모자라게
+    //  나왔다. 그 시간은 나중에 보상휴가로 받는 것이지 이번 달 소정이 아니다)
+    const workedMin = month.reduce((a, r) => a + (r.standardMin > 0 ? r.workedMin : 0), 0);
+    // 쉬는 날에 일한 시간. 소정에는 안 들어가지만 보이기는 해야 한다.
+    const offDayWorkMin = month.reduce((a, r) => a + (r.standardMin > 0 ? 0 : r.workedMin), 0);
     const creditMin = month.reduce((a, r) => a + r.creditMin, 0);
     const fulfilledMin = workedMin + creditMin;
     const remainingMin = requiredMin - fulfilledMin;
@@ -120,17 +128,12 @@
     // 휴가로 하루가 통째로 채워지는 날은 "출근해야 하는 날"에서 뺀다.
     const remaining = workdays.filter((r) => r.key >= todayKey && r.creditMin < r.standardMin);
 
-    // 누적은 **지나간 모든 날**을 센다 — 근무일만 세면 안 된다.
+    // 누적도 근무일 기준이다. 인정근무와 같은 범위를 세야 한다 —
+    // 쉬는 날 근무는 양쪽 모두에서 빠진다.
     //
-    // 쉬는 날에 일한 시간은 인정근무에 들어가서 "남은 시간" 을 줄인다. 그런데
-    // 누적에서만 빼면 같은 화면의 두 숫자가 서로 다른 말을 한다. 실제로 그랬다 —
-    // 한글날 348분 + 토요일 408분을 일한 달에 남은 시간은 그만큼 줄었는데
-    // 누적은 +0:55 로 거의 앞서지 않은 것처럼 찍혔다 (맞는 값은 +13:31).
-    //
-    //   남은 근무일 소정 합계 − 누적 = 남은 시간
-    // 이 등식이 성립해야 한다. 쉬는 날은 소정이 0 이라 일한 만큼 그대로 더해진다.
-    const closedAll = month.filter((r) => r.key < todayKey);
-    const paceMin = closedAll.reduce((a, r) => a + (r.workedMin + r.creditMin - r.standardMin), 0);
+    // 1.8.8 에서 이걸 "지나간 모든 날" 로 바꿨다가 되돌렸다. 두 숫자가 어긋나
+    // 보인 원인은 누적이 아니라 인정근무가 쉬는 날을 더하고 있던 것이었다.
+    const paceMin = closed.reduce((a, r) => a + (r.workedMin + r.creditMin - r.standardMin), 0);
     const leaveDays = month.filter((r) => r.creditMin > 0);
 
     // 근태 이상: 타각은 남아 있는데 인정근무가 0인 날.
@@ -189,7 +192,7 @@
       remainingWorkdays,
       isTodayWorkday: !!(todayRow && todayRow.standardMin > 0),
       todayRow,
-      paceMin, avgNeededMin, dailyMin, estimatedCount,
+      paceMin, avgNeededMin, dailyMin, estimatedCount, offDayWorkMin,
       holidaySource: holidays && holidays.complete ? 'server' : 'table',
       anomalies,
       openWorkdays: openDays.length,
