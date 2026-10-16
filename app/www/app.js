@@ -1016,7 +1016,8 @@
   };
 
   // ── 개선 요청 ──────────────────────────────────────────────────────────
-  $('fbOpen').onclick = () => {
+  // 설정 시트 안에만 있으면 아무도 못 찾는다. 메인 화면 위쪽에도 버튼으로 둔다.
+  $('fbOpen').onclick = $('fbOpenTop').onclick = () => {
     $('sheet').hidden = true;
     $('fbSheet').hidden = false;
     $('fbMsg').textContent = '';
