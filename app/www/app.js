@@ -260,7 +260,8 @@
     if (ek < dk) { $('lvMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     $('lvNext').disabled = true; $('lvMsg').textContent = '확인 중…';
     try {
-      const pv = await GW.leave.preview($('lvType').value, dk, ek, { startTm: $('lvStart').value });
+      const pv = await GW.leave.preview($('lvType').value, dk, ek,
+        { startTm: $('lvStart').value, reason: $('lvReason').value });
       const sched = await GW.leave.profile();
       const val = await GW.leave.validate(pv, sched);
       lvState = { pv, sched };
@@ -273,6 +274,7 @@
         + `<div class="r"><span>시간</span><b>${lvHm(pv.span.start)} ~ ${lvHm(pv.span.end)}</b></div>`
         + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
         + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
+        + `<div class="r"><span>비고</span><b>${esc(pv.reason) || '—'}</b></div>`
         + (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
       $('lvActions').hidden = false;
       $('lvSubmit').disabled = !val.ok;
@@ -347,11 +349,13 @@
     $('leaveSheet').hidden = false;
     $('lvDate').value = T.toKey(new Date());
     $('lvEnd').value = $('lvDate').value;
+    $('lvReason').value = '';
     $('lvMsg').textContent = '';
     lvSyncType();
   };
   $('lvType').onchange = lvSyncType;
   $('lvStart').onchange = lvSyncSpan;
+  $('lvReason').oninput = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };
   $('lvNext').onclick = lvPreview;
   $('lvSubmit').onclick = lvSubmit;
   $('lvCancel').onclick = () => { $('lvPreview').hidden = true; $('lvActions').hidden = true; lvState = null; };

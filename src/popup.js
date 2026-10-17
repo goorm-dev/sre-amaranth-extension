@@ -392,7 +392,7 @@
     if (ek < dk) { lv('lvMsg').textContent = '종료 날짜가 시작보다 앞섭니다.'; return; }
     lv('lvNext').disabled = true; lv('lvMsg').textContent = '확인 중…';
     try {
-      const opts = { startTm: lv('lvStart').value };
+      const opts = { startTm: lv('lvStart').value, reason: lv('lvReason').value };
       const pv = await GW.leave.preview(tk, dk, ek, opts);
       const sched = await GW.leave.profile();
       const val = await GW.leave.validate(pv, sched);
@@ -405,6 +405,7 @@
         + `<div class="r"><span>구간</span><b>${hm(pv.span.start)}~${hm(pv.span.end)}</b></div>`
         + `<div class="r"><span>인정 시간</span><b>${T.fmtDuration(pv.appTm)}</b></div>`
         + `<div class="r"><span>연차 차감</span><b>${pv.ycUseCnt}일</b></div>`
+        + `<div class="r"><span>비고</span><b>${esc(pv.reason) || '<span style="opacity:.5">없음</span>'}</b></div>`
         + (val.ok ? '' : `<div class="warn">⚠ ${esc(val.problems.join(', '))}</div>`);
       lv('lvActions').hidden = false;
       lv('lvSubmit').disabled = !val.ok;
@@ -446,12 +447,14 @@
     lv('leaveSheet').hidden = false;
     lv('lvDate').value = T.toKey(new Date());
     lv('lvEnd').value = lv('lvDate').value;
+    lv('lvReason').value = '';
     lvSyncType();
     lv('lvMsg').textContent = '';
     lvShowLast();
   };
   lv('lvType').onchange = lvSyncType;
   lv('lvStart').onchange = lvSyncSpan;
+  lv('lvReason').oninput = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };
   lv('lvNext').onclick = lvPreview;
   lv('lvSubmit').onclick = lvSubmit;
   lv('lvBack').onclick = () => { lv('lvPreview').hidden = true; lv('lvActions').hidden = true; lvState = null; };

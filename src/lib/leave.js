@@ -104,8 +104,10 @@
   // 여러 날에 걸쳐 신청할 수 있다. 날짜마다 항목을 만드는 게 아니라 항목 하나에
   // startDt~endDt 를 담는다 (실제 신청을 캡처해 확인했다). 일수·시간·연차차감은
   // 서버가 범위로 계산해 준다 — calculateOption: HOLIDAY_EXCLUSION 이 주말·휴일을 뺀다.
+  // opts.reason 은 비고(사유)다. 휴게와 같은 appRmkDc 칸에 들어간다.
   async function preview(typeKey, startKey, endKey, opts) {
     const t = TYPES[typeKey];
+    const reason = String((opts || {}).reason || '').trim().slice(0, 50);
     if (!t) throw new Error('지원하지 않는 휴가 종류입니다.');
     const from = startKey;
     const to = endKey && endKey > startKey ? endKey : startKey;
@@ -113,11 +115,11 @@
     const d = await api().call(P_CALC, {
       startDate: apiDate(from), endDate: apiDate(to),
       startTime: sp.start, endTime: sp.end, atCd: t.atCd, linkAtCd: LINK_AT,
-      empCd: undefined, appRmkDc: '', calculateOption: 'HOLIDAY_EXCLUSION',
+      empCd: undefined, appRmkDc: reason, calculateOption: 'HOLIDAY_EXCLUSION',
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
     return {
-      typeKey, type: t, startKey: from, endKey: to, dateKey: from, span: sp,
+      typeKey, type: t, startKey: from, endKey: to, dateKey: from, span: sp, reason,
       coCd: d.coCd, empCd: d.empCd, empNm: d.empNm, deptCd: d.deptCd, deptNm: d.deptNm,
       appDy: d.applicationDaysCnt != null ? d.applicationDaysCnt : d.daysCnt,
       appTm: d.applicationMinutes != null ? d.applicationMinutes : d.dailyAppTm,
@@ -138,7 +140,7 @@
       comeStTm: sched.comeStTm, leaveStTm: sched.leaveStTm,
       startTm: pv.span.start, endTm: pv.span.end,
       actStartTm: null, actEndTm: null,
-      appDyFg: 'D', appDy: String(pv.appDy), appTm: pv.appTm, appRmkDc: '',
+      appDyFg: 'D', appDy: String(pv.appDy), appTm: pv.appTm, appRmkDc: pv.reason || '',
       ycUseCnt: pv.ycUseCnt, ycGrantCnt: 0,
       workTp: sched.workTp, groupCd: pv.groupCd || sched.groupCd, timeCd: sched.timeCd,
       reportCancYn: 'N', cancellationApplication: false,
