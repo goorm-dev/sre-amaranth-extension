@@ -1045,6 +1045,64 @@
     $('fbSend').disabled = false;
   };
 
+  // ── 키보드 · 뒤로가기 ──────────────────────────────────────────────────
+  // 시트를 여닫는 코드가 곳곳에서 hidden 을 직접 바꾼다. 그걸 다 고치는 대신
+  // hidden 이 바뀌는 걸 지켜보다가 기록(history)을 맞춘다.
+  //
+  // 무엇이든 하나 열려 있으면 기록을 한 칸 쌓아 두고, 뒤로가기가 오면 맨 위
+  // 하나를 닫는다(아직 열린 게 남으면 다시 한 칸 쌓는다). 코드가 전부 닫으면
+  // 쌓아 둔 칸을 걷어 낸다. 시트끼리 갈아탈 때(설정 → 개선 요청)는 닫힘과 열림이
+  // 같은 틱에 일어나 관찰자가 한 번에 보므로 칸이 흔들리지 않는다.
+  //
+  // 맨 위부터. 닫을 때는 각자의 닫기 버튼을 누른다 — 바뀐 점은 닫을 때 "본 것" 으로
+  // 적는 등 닫기마다 하는 일이 따로 있다.
+  const LAYERS = [
+    ['noteSheet', 'noteOk'], ['fbSheet', 'fbClose'], ['leaveSheet', 'lvClose'],
+    ['breakSheet', 'brClose'], ['daySheet', 'dayClose'], ['sheet', 'closeSheet'],
+    ['teamView', 'tmBack'],
+  ];
+  const openLayers = () => LAYERS.filter(([id]) => !$(id).hidden);
+  const closeTop = () => { const top = openLayers()[0]; if (top) $(top[1]).click(); };
+
+  // 다른 페이지(그룹웨어 결재 화면)에 갔다가 돌아오면 쌓아 둔 칸이 남아 있다.
+  if (history.state && history.state.ov) history.replaceState(null, '');
+  let stacked = false, skipPop = false;
+  function syncHistory() {
+    const n = openLayers().length;
+    if (n && !stacked) { history.pushState({ ov: 1 }, ''); stacked = true; }
+    else if (!n && stacked) { stacked = false; skipPop = true; history.back(); }
+  }
+  const watch = new MutationObserver(syncHistory);
+  for (const [id] of LAYERS) watch.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  window.addEventListener('popstate', () => {
+    if (skipPop) { skipPop = false; return; }
+    stacked = false;
+    closeTop();
+    syncHistory();   // 닫을 게 없었거나 아직 남았으면 칸을 다시 맞춘다
+  });
+
+  const visible = (el) => el && !el.disabled && !el.closest('[hidden]');
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (openLayers().length) { e.preventDefault(); closeTop(); }
+      return;
+    }
+    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 Enter 는 글자 확정이다
+    const t = e.target;
+    // 개선 요청은 여러 줄이라 Enter 는 줄바꿈이다. Ctrl/⌘+Enter 로 보낸다.
+    if (t.id === 'fbText') {
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); $('fbSend').click(); }
+      return;
+    }
+    if (t.tagName !== 'INPUT' || t.type === 'checkbox') return;
+    // 칸 옆에 붙은 버튼이 있으면 그것(코드 → 참여, 시간 → 적용), 아니면 시트의 첫 주 버튼.
+    // 휴가·휴게는 첫 주 버튼이 [확인] 이다 — Enter 로 신청서까지 만들지는 않는다.
+    const scope = t.closest('.erow') || t.closest('.sheetcard');
+    const btn = scope && [...scope.querySelectorAll('button.primary')].find(visible);
+    if (btn) { e.preventDefault(); btn.click(); }
+    else if (t.closest('#teamView')) t.blur();   // 누를 버튼이 없으면 폰 키보드만 닫는다
+  });
+
   // subPath 로 바로 열기. 아이폰 홈 화면에 /leave · /break 를 따로 추가하면
   // 두 번 탭에 신청서가 뜬다. nginx 가 모든 경로를 index.html 로 떨어뜨린다.
   //
