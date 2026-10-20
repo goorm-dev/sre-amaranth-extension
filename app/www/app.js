@@ -72,7 +72,8 @@
       if (viewMonth === T.monthKey(new Date())) {
         try { live = await GW.api.getComeLeave(T.toKey(new Date())); } catch (_) {}
       }
-      Object.assign(state, { rows, leaves, live, error: null, at: Date.now() });
+      Object.assign(state, { rows, leaves, live, error: null, at: Date.now(), liveAt: Date.now() });
+      sharePush();
     } catch (e) {
       state.error = e.message;
       if (e instanceof GW.api.AuthError) { await GW.auth.logout(); show('loginView'); $('loginMsg').textContent = e.message; }
@@ -215,10 +216,34 @@
     load();
     clearInterval(tick);
     // 경과 시간·퇴근 시각만 다시 그린다 (서버 호출 없음)
-    tick = setInterval(() => { if (!document.hidden) render(); }, 30000);
+    tick = setInterval(() => {
+      if (document.hidden) return;
+      render();
+      if (Date.now() - (state.liveAt || 0) > PUNCH_EVERY) refreshLive();
+    }, 30000);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && Date.now() - (state.at || 0) > 10 * 60 * 1000) load({ useCache: false });
+      if (document.hidden) return;
+      if (Date.now() - (state.at || 0) > 10 * 60 * 1000) load({ useCache: false });
+      else if (Date.now() - (state.liveAt || 0) > 60 * 1000) refreshLive();
     });
+  }
+
+  // 팀에 보이는 내 값은 내 화면이 켜져 있을 때만 갱신된다 — 서버는 그룹웨어에
+  // 접근하지 못한다. 그래서 팀 탭을 열지 않아도, 이 페이지가 떠 있는 동안
+  // 확장의 그룹웨어 패널처럼 올린다.
+  //
+  // 월 집계는 다음날 새벽 배치라 낮에 다시 불러도 그대로다. 바뀌는 건 오늘 타각뿐이라
+  // 그것만 본다. 퇴근을 찍은 뒤에는 더 볼 게 없다.
+  const PUNCH_EVERY = 5 * 60 * 1000;
+  async function refreshLive() {
+    if (viewMonth !== T.monthKey(new Date())) return;
+    if (state.live && state.live.outAt) return;
+    state.liveAt = Date.now();
+    try {
+      state.live = await GW.api.getComeLeave(T.toKey(new Date()));
+    } catch (_) { return; }
+    await render();
+    sharePush();
   }
 
   // ── 아마란스 화면 열기 ───────────────────────────────────────────────
@@ -706,7 +731,31 @@
     await tmRefresh();
   }
 
-  async function tmPayload() {
+  async function sharePush() {
+    // 지난 달을 보고 있으면 state 가 이번 달이 아니다
+    if (viewMonth !== T.monthKey(new Date()) || !state.rows.length) return;
+    try {
+      if (!teamCfg) teamCfg = await GW.store.getTeam();
+      if (!frCfg) frCfg = GW.team.migrateRooms(await GW.store.getFriends());
+      await tmDefaultOn();
+      const self = await tmSelf(teamCfg);
+      if (teamCfg && teamCfg.on && teamCfg.myName && sess().compSeq && sess().deptSeq) {
+        const ids = await GW.team.derive(sess());
+        await GW.team.ensure(ids, ids.root || teamCfg.teamName);
+        await GW.team.publish(ids, self, await tmPayload(teamCfg.myName));
+        lastPush.team = Date.now();
+      }
+      for (const r of (frCfg && frCfg.rooms) || []) {
+        if (!r.on || !frCfg.myName) continue;
+        const ids = await GW.team.room(r.code);
+        await GW.team.ensure(ids, '친구');
+        await GW.team.publish(ids, self, await tmPayload(frCfg.myName));
+      }
+      lastPush.friend = Date.now();
+    } catch (_) { /* 본 기능은 막지 않는다 — 다음 주기에 다시 올린다 */ }
+  }
+
+  async function tmPayload(name) {
     const settings = await GW.store.getSettings();
     const plans = await GW.store.getPlans();
     const now = new Date();
@@ -715,7 +764,7 @@
       settings, T.monthKey(now), now);
     const plan = GW.calc.todayPlan(s, settings, state.live, now);
     return GW.team.summarize(s, plan, {
-      name: (cfgOf() || {}).myName, dept: sess().deptName || '',
+      name: name || (cfgOf() || {}).myName, dept: sess().deptName || '',
     });
   }
 
@@ -761,6 +810,7 @@
         await GW.team.publish(ids, await tmSelf(cfg), await tmPayload());
       }
       tmRender((await GW.team.fetchTeam(ids)).members || [], await tmSelf(cfg));
+      tmFetchedAt = Date.now();
     } catch (e) {
       $('tmList').innerHTML = `<div class="dbad">${esc(e.message)}</div>`;
     }
@@ -769,13 +819,25 @@
   // 마지막으로 받은 목록. 시계가 흐르는 값은 받은 값이 아니라 지금 시각으로
   // 다시 계산하므로, 새로 받지 않아도 30초마다 다시 그려 준다.
   let tmLast = null;
+  let tmFetchedAt = 0;
   let tmTick = null;
 
   function tmStartTick() {
     clearInterval(tmTick);
-    tmTick = setInterval(() => {
-      if (!$('teamView').hidden && tmLast) tmRender(tmLast.members, tmLast.self);
-      else { clearInterval(tmTick); tmTick = null; }
+    tmTick = setInterval(async () => {
+      if ($('teamView').hidden || !tmLast) { clearInterval(tmTick); tmTick = null; return; }
+      if (document.hidden) return;
+      // 남이 올린 값은 열 때 한 번 받고 끝이었다. 켜 둔 동안 1분마다 다시 받는다.
+      if (Date.now() - tmFetchedAt > 60 * 1000) {
+        tmFetchedAt = Date.now();
+        const tab = tmTab;
+        try {
+          const ids = await tmIds();
+          const data = ids && await GW.team.fetchTeam(ids);
+          if (data && tab === tmTab && !$('teamView').hidden) tmLast.members = data.members || [];
+        } catch (_) { /* 다음 주기에 */ }
+      }
+      tmRender(tmLast.members, tmLast.self);
     }, 30 * 1000);
   }
 
