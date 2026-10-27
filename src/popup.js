@@ -25,7 +25,8 @@
   const esc = (v) => String(v == null ? '' : v)
     .replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  const short = (min) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+  // 반올림을 먼저 한다. 479.7분을 시·분으로 나눈 뒤 분만 반올림하면 7:60 이 된다.
+  const short = (v) => { const min = Math.round(v); return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`; };
 
   let selectedKey = null;
 

@@ -93,7 +93,8 @@
     }
   }
   const row = (l, v, cls) => `<div class="row"><span>${l}</span><b class="${cls || ''}">${v}</b></div>`;
-  const short = (m) => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+  // 반올림을 먼저 한다. 479.7분을 시·분으로 나눈 뒤 분만 반올림하면 7:60 이 된다.
+  const short = (v) => { const m = Math.round(v); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
   const shiftMonth = (m, d) => {
     const [y, mm] = m.split('-').map(Number);
     return T.monthKey(new Date(y, mm - 1 + d, 1));

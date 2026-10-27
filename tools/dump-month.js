@@ -21,7 +21,7 @@
   const plans = await GW.store.getPlans();
   const s = GW.calc.summarize({ rows, leaves, plans, holidays }, settings, mKey, new Date());
 
-  const h = (m) => `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, '0')}`;
+  const h = (v) => { const m = Math.round(v); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
   const WD = ['일', '월', '화', '수', '목', '금', '토'];
   const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
 

@@ -239,8 +239,9 @@
 
     const base = inMin + brk;
     const at = (workMin) => {
-      const t = base + workMin;
-      return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+      // 반올림을 먼저 한다 — 시·분으로 나눈 뒤 분만 반올림하면 17:60 이 된다.
+      const t = Math.round(base + workMin);
+      return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
     };
 
     const clock = now || new Date();
