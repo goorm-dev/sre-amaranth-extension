@@ -45,6 +45,7 @@ header span { flex: 1; text-align: center; font-size: 17px; }
 .topacts { display: flex; justify-content: flex-end; gap: 6px; padding: 10px 14px 0; }
 .pill { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px;
   border: 1px solid var(--softline); background: var(--soft); color: var(--blue); cursor: pointer; }
+a.pill { text-decoration: none; }
 .hero { text-align: center; padding: 4px 0 14px; }
 .hero .lbl { font-size: 13px; color: var(--dim); }
 .hero .val { font-size: 40px; font-weight: 800; letter-spacing: -1px; margin-top: 2px; }
