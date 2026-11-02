@@ -27,12 +27,12 @@
   //   오후반차 15:00~19:00(4시간 구간) → 인정 240분   ← 휴게 없음
   // 시작 시각만 사용자가 정한다. 구간 길이는 종류가 정한다.
   const TYPES = {
-    annual:    { atCd: '1101', name: '연차',           hours: 8, defStart: '0900', pad: 60, timeSetFg: 'ALL', full: true },
-    amHalf:    { atCd: '1102', name: '오전반차',       hours: 4, defStart: '0900', pad: 60, timeSetFg: 'AM' },
-    pmHalf:    { atCd: '1103', name: '오후반차',       hours: 4, defStart: '1500', pad: 0,  timeSetFg: 'PM' },
-    annualComp:{ atCd: '1105', name: '연차(보상)',     hours: 8, defStart: '0900', pad: 60, timeSetFg: 'ALL', full: true },
-    amHalfComp:{ atCd: '1106', name: '오전반차(보상)', hours: 4, defStart: '0900', pad: 60, timeSetFg: 'AM' },
-    pmHalfComp:{ atCd: '1107', name: '오후반차(보상)', hours: 4, defStart: '1500', pad: 0,  timeSetFg: 'PM' },
+    annual:    { atCd: '1101', link: '1010', name: '연차',           hours: 8, defStart: '0900', pad: 60, timeSetFg: 'ALL', full: true },
+    amHalf:    { atCd: '1102', link: '1010', name: '오전반차',       hours: 4, defStart: '0900', pad: 60, timeSetFg: 'AM' },
+    pmHalf:    { atCd: '1103', link: '1010', name: '오후반차',       hours: 4, defStart: '1500', pad: 0,  timeSetFg: 'PM' },
+    annualComp:{ atCd: '1105', link: '1070', name: '연차(보상)',     hours: 8, defStart: '0900', pad: 60, timeSetFg: 'ALL', full: true },
+    amHalfComp:{ atCd: '1106', link: '1070', name: '오전반차(보상)', hours: 4, defStart: '0900', pad: 60, timeSetFg: 'AM' },
+    pmHalfComp:{ atCd: '1107', link: '1070', name: '오후반차(보상)', hours: 4, defStart: '1500', pad: 0,  timeSetFg: 'PM' },
   };
 
   // "0900" + 300분 → "1400"
@@ -48,9 +48,30 @@
     const start = ((opts || {}).startTm || t.defStart).replace(':', '');
     return { start, end: addMin(start, t.hours * 60 + t.pad), hours: t.hours };
   }
-  const LINK_AT = '1010';   // 연차휴가 그룹
+  // link = linkAtCd (근태 항목 그룹). 서버는 이 그룹의 잔여에서 뺀다.
+  //   1010 연차휴가 / 1070 보상휴가
+  // 보상을 1010 으로 보내면 일반 연차 잔여로 검사해서, 일반 연차가 없는 사람은
+  // "Insufficient annual leave or minus annual leave usage is restricted." 로 막힌다.
+  // 1070 은 그룹웨어 화면에서 연차(보상)·오전반차(보상)를 신청하는 요청을 캡처해 확인했다
+  // (2026-11-02). 오후반차(보상)는 같은 그룹이라 보고 맞췄다.
 
   const api = () => GW.api;
+
+  // 그룹웨어가 영어 원문으로 거절하는 경우가 있다. 아는 문구는 한국어로 바꿔 보여 준다.
+  //   "Insufficient annual leave or minus annual leave usage is restricted."
+  //   — 잔여 연차보다 많이 신청했고, 회사 설정상 마이너스 연차를 쓸 수 없다는 뜻이다.
+  const KNOWN = [
+    [/insufficient annual leave|minus annual leave/i,
+      '잔여 연차가 부족해 신청할 수 없습니다. 마이너스 연차는 쓸 수 없게 되어 있습니다. 그룹웨어 근태 화면에서 남은 연차를 확인해 주세요.'],
+  ];
+  async function call(pathname, body, menuCode) {
+    try {
+      return await api().call(pathname, body, menuCode);
+    } catch (e) {
+      const hit = KNOWN.find(([re]) => re.test((e && e.message) || ''));
+      throw hit ? new Error(hit[1]) : e;
+    }
+  }
   const P_CALC = '/human/common/attendapplication/calculateApplicationDays';
   const P_VALID = '/human/attendapplication/validateNew';
   const P_SAVE = '/human/attendapplication/0hr00011';   // 신청완료 — 근태신청 레코드 저장
@@ -112,9 +133,9 @@
     const from = startKey;
     const to = endKey && endKey > startKey ? endKey : startKey;
     const sp = span(typeKey, opts);
-    const d = await api().call(P_CALC, {
+    const d = await call(P_CALC, {
       startDate: apiDate(from), endDate: apiDate(to),
-      startTime: sp.start, endTime: sp.end, atCd: t.atCd, linkAtCd: LINK_AT,
+      startTime: sp.start, endTime: sp.end, atCd: t.atCd, linkAtCd: t.link,
       empCd: undefined, appRmkDc: reason, calculateOption: 'HOLIDAY_EXCLUSION',
     }, MENU);
     if (!d) throw new Error('신청 계산에 실패했습니다.');
@@ -133,7 +154,7 @@
     return {
       detailSq: null, coCd: pv.coCd || sched.coCd, appDt: null, appSq: null,
       deptCd: pv.deptCd || sched.deptCd, empCd: pv.empCd,
-      linkAtCd: LINK_AT, atCd: t.atCd, atYm: null,
+      linkAtCd: t.link, atCd: t.atCd, atYm: null,
       // atDt 는 시작일이다 (캡처에서 확인: 09-21~09-22 신청의 atDt 가 20260921).
       atDt: apiDate(pv.startKey), baseAtDt: null,
       startDt: apiDate(pv.startKey), endDt: apiDate(pv.endKey),
@@ -161,7 +182,7 @@
   async function validate(pv, sched) {
     const item = buildItem(pv, sched);
     const emp = [{ empCd: pv.empCd, korNm: pv.empNm, deptCd: pv.deptCd, deptNm: pv.deptNm, divNm: '' }];
-    const v = await api().call(P_VALID, {
+    const v = await call(P_VALID, {
       checkRange: 'ALL', checkPoint: 'ADD', empCdList: [pv.empCd], alreadyAddedItems: [],
       newItem: Object.assign({}, item, {
         atNm: pv.type.name, timeSetFg: pv.type.timeSetFg,
@@ -196,10 +217,10 @@
     const emp = [{ empCd: pv.empCd, korNm: pv.empNm, deptCd: pv.deptCd, deptNm: pv.deptNm, divNm: '' }];
 
     // 신청 확정. 응답이 결재문서 제목이다 — 우리가 조립하지 않고 서버 값을 쓴다.
-    const saved = await api().call(P_SAVE, { applicationList: [item], employeeList: emp }, MENU);
+    const saved = await call(P_SAVE, { applicationList: [item], employeeList: emp }, MENU);
     const titleDc = typeof saved === 'string' && saved ? saved : title(pv);
 
-    const created = await api().call(P_CREATE, {
+    const created = await call(P_CREATE, {
       coCd: '', appDt: '', appEmpCd: pv.empCd, deptCd: '',
       titleDc, approLineId: '', calLinkKey: '', linkKey: '',
       approState: '', fileGroup: 0, version: 'v2',
@@ -213,19 +234,19 @@
 
     // approKey 는 우리가 만들지만 서버에 등록해야 쓸 수 있다.
     const approKey = `ERP_${uuid()}`;
-    const link = await api().call(P_GETLINKKEY,
+    const link = await call(P_GETLINKKEY,
       { menuCode: MENU, approKey, vPCoCd: coCd, coCd }, MENU);
     const linkKey = link && link.linkKey;
     if (!linkKey) throw new Error('연동 키를 발급받지 못했습니다.');
 
-    await api().call(P_SETENAGE, {
+    await call(P_SETENAGE, {
       approKey, formDTp: FORM.dTp, formId: FORM.id, linkKey, formNm: FORM.nm,
       docTitle: titleDc, contents: '',
       contentsApi: FORM.contentsApi, statusApi: FORM.statusApi,
       dummy1: '', link: '', vPCoCd: coCd, coCd,
     }, MENU);
 
-    await api().call(P_SAVELINK, { linkKey, appSq, coCd, appDt }, MENU);
+    await call(P_SAVELINK, { linkKey, appSq, coCd, appDt }, MENU);
 
     const q = new URLSearchParams({
       MicroModuleCode: 'eap', appLineId: '', appLineList: '[]',
