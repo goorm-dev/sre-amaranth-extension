@@ -185,8 +185,12 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const text = str(b.text, 1000).trim();
       if (!text) return send(res, 400, { error: '내용을 적어 주세요' });
+      const name = str(b.name, 24).trim();
+      // 이름이 없으면 로그인이 안 된 화면에서 보낸 것이다. 누군지 모르면 되물을 수 없다.
+      // 화면은 고치지 않는다 — 확장·웹앱 모두 서버의 error 문구를 그대로 띄운다.
+      if (!name) return send(res, 400, { error: '그룹웨어 로그인이 확인되지 않아 보낼 수 없습니다. gw.goorm.io 에 로그인한 뒤 다시 보내 주세요.' });
       const item = { at: Date.now(), text,
-        name: str(b.name, 24), dept: str(b.dept, 40), ver: str(b.ver, 16) };
+        name, dept: str(b.dept, 40), ver: str(b.ver, 16) };
       const n = store.addFeedback(item);
       notifySlack(item);          // 기다리지 않는다
       return send(res, 200, { ok: true, count: n });
