@@ -139,6 +139,35 @@
     }
   }
 
+  // 맨 위 큰 숫자. 기본은 남은 시간이고, [누적] 을 고르면 지금까지 일한 시간을 띄운다.
+  // 오늘 몫은 타각으로 메우므로 30초마다 다시 그릴 때 같이 올라간다.
+  let heroMode = 'left';
+  chrome.storage.local.get('heroMode').then(({ heroMode: m }) => {
+    if (m === 'done') { heroMode = 'done'; render(); }
+  }).catch(() => {});
+  function setHeroMode(m) {
+    heroMode = m;
+    chrome.storage.local.set({ heroMode: m }).catch(() => {});
+    render();
+  }
+  $('heroLeft').onclick = () => setHeroMode('left');
+  $('heroDone').onclick = () => setHeroMode('done');
+
+  function paintHero(s, plan, isCur) {
+    $('heroLeft').classList.toggle('on', heroMode === 'left');
+    $('heroDone').classList.toggle('on', heroMode === 'done');
+    if (heroMode === 'left') { $('heroLbl').textContent = '남은 근무시간'; return; }
+    const a = GW.calc.accrued(s, plan);
+    $('heroLbl').textContent = isCur ? '누적 근무시간 (지금 기준)' : '누적 근무시간';
+    $('remaining').textContent = T.fmtDuration(a.totalMin);
+    $('remaining').className = 'val';
+    $('feasibility').textContent = [
+      a.todayMin ? `어제까지 ${T.fmtDuration(a.beforeMin)} + 오늘 ${T.fmtDuration(a.todayMin)}` : '',
+      `월 소정 ${T.fmtDuration(s.requiredMin)}`,
+    ].filter(Boolean).join(' · ');
+    $('feasibility').className = 'sub';
+  }
+
   async function render() {
     const settings = await GW.store.getSettings();
     state.plans = await GW.store.getPlans();
@@ -169,6 +198,7 @@
 
     const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
     const isCurrent = viewMonth === T.monthKey(new Date());
+    paintHero(s, plan, isCurrent);
   // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
   const leftLabel = (min) => (min > 0 ? `${T.fmtDuration(min)} 남음` : '충족');
 

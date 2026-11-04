@@ -55,7 +55,9 @@
       <a id="guideOpen" class="pill" href="https://app.notion.com/p/goorm/4074e6997fb0801189dafae18c0c6037" target="_blank" rel="noopener">가이드</a>
     </div>
     <section class="hero">
-      <div class="lbl">남은 근무시간</div>
+      <!-- 남은 시간 / 지금까지 일한 시간. 고른 쪽을 기억한다 -->
+      <div class="heroseg"><button id="heroLeft" class="on">남은</button><button id="heroDone">누적</button></div>
+      <div class="lbl" id="heroLbl">남은 근무시간</div>
       <div class="val" id="remaining">—</div>
       <div class="sub" id="feasibility"></div>
     </section>

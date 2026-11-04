@@ -281,5 +281,18 @@
     };
   }
 
-  GW.calc = { summarize, todayPlan };
+  // 지금까지 일한 시간 (이번 달, 근무일만 — 인정근무와 같은 범위).
+  // 인정근무는 다음날 새벽 배치라 오늘 몫이 비어 있다. 그 자리를 오늘 타각으로 메운다 —
+  // 퇴근 전이면 경과, 퇴근했으면 그날 근무. 서버가 이미 오늘을 집계했으면 큰 쪽을 쓴다.
+  // 휴가 인정은 넣지 않는다. 일한 시간만 센다.
+  function accrued(s, plan) {
+    const row = s.todayRow;
+    const counted = row && row.standardMin > 0 ? (row.workedMin || 0) : 0;   // s.workedMin 에 이미 든 오늘 몫
+    const live = !plan || !s.isTodayWorkday ? 0 : plan.done ? plan.workedMin : plan.elapsedMin;
+    const todayMin = Math.max(counted, live);
+    const beforeMin = s.workedMin - counted;
+    return { totalMin: beforeMin + todayMin, beforeMin, todayMin };
+  }
+
+  GW.calc = { summarize, todayPlan, accrued };
 })(typeof window !== 'undefined' ? window : globalThis);
