@@ -127,6 +127,29 @@
     $('feasibility').className = 'sub';
   }
 
+  // 누적 과부족 줄. 하루 단위는 어제까지(마감된 날만), 실시간은 오늘을 지금까지 넣은 값이다.
+  // 이번 달을 볼 때만 고를 수 있다 — 지난 달엔 "오늘" 이 없어 둘이 같다.
+  let paceMode = 'day';
+  try { if (localStorage.getItem('paceMode') === 'live') paceMode = 'live'; } catch (_) {}
+  function paceRow(s, plan, isCur) {
+    const live = isCur && paceMode === 'live';
+    const v = live ? GW.calc.paceNow(s, plan) : s.paceMin;
+    const seg = !isCur ? '' : `<span class="paceseg">`
+      + `<button data-pace="day" class="${live ? '' : 'on'}">하루 단위</button>`
+      + `<button data-pace="live" class="${live ? 'on' : ''}">실시간</button></span>`;
+    return row(`${live ? '지금까지' : '어제까지'} 누적${seg}`,
+      `${v >= 0 ? '+' : ''}${T.fmtDuration(v)}`, v >= 0 ? 'ok' : 'bad');
+  }
+  function setPaceMode(m) {
+    paceMode = m;
+    try { localStorage.setItem('paceMode', m); } catch (_) {}
+    render();
+  }
+  $('rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pace]');
+    if (b) setPaceMode(b.dataset.pace);
+  });
+
   async function render() {
     const settings = await GW.store.getSettings();
     state.plans = await GW.store.getPlans();
@@ -142,6 +165,7 @@
     $('feasibility').textContent = v.t;
     $('feasibility').className = 'sub ' + v.c;
 
+    const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
     $('rows').innerHTML = [
       row('이번 달 인정근무', T.fmtDuration(s.workedMin)),
       s.creditMin ? row('휴가 인정 (예정)', T.fmtDuration(s.creditMin)) : '',
@@ -153,10 +177,9 @@
       row('하루 필요', s.avgNeededMin != null ? T.fmtDuration(s.avgNeededMin)
         : s.planBalanceMin == null ? '-'
         : `계획 ${s.planBalanceMin >= 0 ? '초과' : '부족'} ${T.fmtDuration(Math.abs(s.planBalanceMin))}`),
-      row('어제까지 누적', `${s.paceMin >= 0 ? '+' : ''}${T.fmtDuration(s.paceMin)}`, s.paceMin >= 0 ? 'ok' : 'bad'),
+      paceRow(s, plan, viewMonth === T.monthKey(new Date())),
     ].join('');
 
-    const plan = GW.calc.todayPlan(s, settings, state.live, new Date());
     paintHero(s, plan, viewMonth === T.monthKey(new Date()));
     // 퇴근 시각 옆에 붙는 "(2시간 12분 남음)". 이미 지났으면 "(충족)".
     const leftLabel = (min) => (min > 0 ? `${T.fmtDuration(min)} 남음` : '충족');

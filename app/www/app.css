@@ -78,6 +78,10 @@ a.pill { text-decoration: none; }
 .row span { color: var(--dim); font-size: 14px; }
 .row b { font-size: 15px; font-variant-numeric: tabular-nums; }
 .row b.ok { color: var(--green); } .row b.bad { color: var(--red); }
+.paceseg { display: inline-flex; gap: 1px; padding: 1px; margin-left: 6px; border-radius: 999px; background: var(--line); vertical-align: 1px; }
+.paceseg button { font: inherit; font-size: 11px; font-weight: 600; padding: 1px 8px; border: 0; border-radius: 999px;
+  background: none; color: var(--dim); cursor: pointer; }
+.paceseg button.on { background: var(--card); color: var(--blue); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 
 /* 달력 */
 .planner { margin: 18px 14px 0; }

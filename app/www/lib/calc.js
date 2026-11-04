@@ -294,5 +294,14 @@
     return { totalMin: beforeMin + todayMin, beforeMin, todayMin };
   }
 
-  GW.calc = { summarize, todayPlan, accrued };
+  // "어제까지 누적" 의 실시간판. 오늘 일한 만큼(+휴가 인정)을 더하고 오늘 소정을 뺀다 —
+  // 곧 "지금 퇴근하면" 남는 과부족이다. 그래서 출근 전에는 오늘 소정만큼 내려가 있다가
+  // 일할수록 올라가고, 정량을 채우는 순간 어제까지 누적과 같아진다.
+  function paceNow(s, plan) {
+    if (!s.isTodayWorkday) return s.paceMin;
+    const row = s.todayRow;
+    return s.paceMin + accrued(s, plan).todayMin + row.creditMin - row.standardMin;
+  }
+
+  GW.calc = { summarize, todayPlan, accrued, paceNow };
 })(typeof window !== 'undefined' ? window : globalThis);
