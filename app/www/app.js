@@ -109,8 +109,8 @@
     try { localStorage.setItem('heroMode', m); } catch (_) {}
     render();
   }
-  $('heroLeft').onclick = () => setHeroMode('left');
-  $('heroDone').onclick = () => setHeroMode('done');
+  // 토글이다 — 어느 쪽을 눌러도 다른 쪽으로 넘어간다.
+  $('heroLeft').onclick = $('heroDone').onclick = () => setHeroMode(heroMode === 'left' ? 'done' : 'left');
 
   function paintHero(s, plan, isCur) {
     $('heroLeft').classList.toggle('on', heroMode === 'left');
@@ -146,8 +146,8 @@
     render();
   }
   $('rows').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-pace]');
-    if (b) setPaceMode(b.dataset.pace);
+    // 토글이다 — 어느 쪽을 눌러도 다른 쪽으로 넘어간다.
+    if (e.target.closest('.paceseg')) setPaceMode(paceMode === 'live' ? 'day' : 'live');
   });
 
   async function render() {
