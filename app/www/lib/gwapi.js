@@ -143,6 +143,7 @@
       outAt: hhmm(r.appleaveTm) || hhmm(r.leaveTm),
       resultNm: r.attresultNm === '-' ? null : r.attresultNm,
       leaveNm: r.atNm || null,
+      atCd: r.atCd ? String(r.atCd) : null,           // 근태 항목 코드 (무급휴가 1303 등)
       // 휴가인지. atNm 만 보면 "휴게" 도 걸린다 — atCd 앞자리로 가른다
       // (1xxx 휴가 · 5xxx 휴게). 지난 휴가를 달력에 표시하려면 이게 필요하다.
       onLeave: String(r.atCd || '')[0] === '1',
@@ -164,7 +165,8 @@
     return getWorkTimeList(GW.time.eachDay(first, last).map(GW.time.toKey));
   }
 
-  const RE_LEAVE = /휴가|연차|월차|반차|반일|반휴|공가|경조|휴무|대휴/;
+  // 병가/휴직(병가(업무외) 1502 등)도 하루를 비우는 휴가다 (src/lib/gwapi.js 와 같게 둔다).
+  const RE_LEAVE = /휴가|연차|월차|반차|반일|반휴|공가|경조|휴무|대휴|무급|병가|휴직/;
   const RE_BREAK = /휴게|외출/;
   const RE_VOID = /반려|취소|취하|반송/;
   const kindOf = (n) => (RE_BREAK.test(n) ? 'break' : RE_LEAVE.test(n) ? 'leave' : null);
