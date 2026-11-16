@@ -28,6 +28,14 @@
 
   // 근태신청을 날짜별 인정 시간(분)으로 펼친다.
   // 하루에 오전반차 + 오후반차처럼 여러 건이 겹치면 합산하되 소정근로를 넘지 않게 한다.
+  // 무급 휴무·무급휴가. 서버가 인정근무에 넣지 않는 휴가다 (summarize 참고).
+  // 신청을 캡처해 확인한 값: 무급휴가 atCd 1303 · linkAtCd 1031, 연차 차감 0,
+  // 제목 "…무급휴가신청서" (2026-11-16). 이름이 바뀌어도 잡히게 코드로도 본다.
+  // 병가(업무외)·휴직도 같은 부류로 본다 — 승인 뒤 서버가 인정근무를 넣는지 확인하지 못했다.
+  // 그래서 채우되 서버가 넣은 만큼은 빼고 채운다 (두 번 세지 않는다).
+  const UNPAID = /무급|병가|휴직/;
+  const UNPAID_AT = new Set(['1303', '1502']);
+
   function leaveCreditsByDate(leaves, dailyMin, breakMin) {
     const out = {};
     for (const lv of leaves || []) {
@@ -89,9 +97,17 @@
       const isWorkday = settled ? r.standardMin > 0 : GW.holidays.isWorkday(r.key, settings, holidays);
       const standardMin = isWorkday ? dailyMin : 0;   // 근무일이면 무조건 8시간
       // 서버 행에 휴가명이 찍혀 있으면 이미 인정근무에 반영된 것이므로 더하지 않는다.
-      const serverApplied = !!r.leaveNm;
-      const c = (!serverApplied && credits[r.key]) || null;
-      const creditMin = c ? Math.min(c.min, standardMin) : 0;
+      //
+      // 무급 휴무는 예외다. 서버가 휴가명은 찍지만 인정근무에 8시간을 넣지 않는다 —
+      // 그대로 두면 배치가 돈 다음 날부터 그날이 8시간 부족으로 잡힌다. 유급처럼 우리가 채운다.
+      // 신청 목록에서 못 찾았으면(조회 실패 등) 하루치로 본다.
+      const unpaid = UNPAID.test(r.leaveNm || '') || UNPAID_AT.has(r.atCd);
+      const serverApplied = !!r.leaveNm && !unpaid;
+      const c = (!serverApplied && (credits[r.key]
+        || (unpaid ? { min: dailyMin, breakUsed: settings.breakMinutes || 0, names: [r.leaveNm] } : null))) || null;
+      // 무급류는 서버가 일부라도 넣었을 수 있다 — 그날 소정에서 남은 만큼만 채운다.
+      const room = unpaid ? Math.max(0, standardMin - (r.workedMin || 0)) : standardMin;
+      const creditMin = c ? Math.min(c.min, room) : 0;
       // 사용자가 "이 날은 N시간만 하겠다"고 정해둔 날. 마감 전이고 근무일일 때만 의미가 있다.
       const planned = (plans || {})[r.key];
       const planMin = (!settled && isWorkday && planned != null) ? planned : null;
