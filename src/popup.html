@@ -166,6 +166,30 @@
     </div>
   </div>
 
+  <!-- 휴일(주말)근무 신청. 결재 양식 244 를 새로 열고 본문만 채운다 (lib/weekend.js). -->
+  <div id="weekendSheet" class="lvsheet" hidden>
+    <div class="lvcard">
+      <b>주말근무 신청</b>
+      <input id="wkDate" type="date">
+      <select id="wkKind">
+        <option>내근(사무실 근무)</option>
+        <option>외근</option>
+        <option>출장</option>
+      </select>
+      <div class="daterow">
+        <input id="wkStart" type="time" step="3600">
+        <span>~</span>
+        <input id="wkEnd" type="time" step="3600">
+      </div>
+      <input id="wkRest" type="text" placeholder="휴게 시간 (예: 13:00 ~ 13:30)" maxlength="20">
+      <input id="wkPurpose" type="text" placeholder="근무목적 (예: 코딩테스트 행사 지원)" maxlength="100">
+      <div id="wkSpan" class="lvspan"></div>
+      <button id="wkGo" class="primary">신청서 열기</button>
+      <div id="wkMsg" class="lvmsg">결재 양식을 열고 내용을 채웁니다. 결재선을 확인하고 상신은 그 화면에서 누르세요.</div>
+      <button id="wkClose" class="lvx">닫기</button>
+    </div>
+  </div>
+
   <div id="fbSheet" class="lvsheet" hidden>
     <div class="lvcard">
       <b>개선 요청</b>
@@ -214,7 +238,7 @@
     <button id="mlOpen" class="go">식사 휴게</button>
     <button id="tmOpen" class="go">팀 공유</button>
     <button data-open="WORKTIME" class="go">근무시간</button>
-    <button id="fbOpen" class="go">개선 요청</button>
+    <button id="wkOpen" class="go">주말근무</button>
   </section>
 
   <div id="updateBar" class="updatebar" hidden></div>
@@ -224,6 +248,7 @@
     <button id="noteOpen" class="link">바뀐 점</button>
     <!-- 설치 가이드(노션) -->
     <a id="guideOpen" class="link" href="https://app.notion.com/p/goorm/4074e6997fb0801189dafae18c0c6037" target="_blank" rel="noopener">가이드</a>
+    <button id="fbOpen" class="link">개선 요청</button>
     <span id="stamp"></span>
   </footer>
 </div>
@@ -235,6 +260,7 @@
 <script src="lib/updater.js"></script>
 <script src="lib/leave.js"></script>
 <script src="lib/break.js"></script>
+<script src="lib/weekend.js"></script>
 <script src="lib/feedback.js"></script>
 <script src="lib/team.js"></script>
 <script src="popup.js"></script>

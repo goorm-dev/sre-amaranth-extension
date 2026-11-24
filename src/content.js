@@ -597,6 +597,28 @@
     panel.prepend(bar);
   }
 
+  // 휴일근무신청 새 양식 창이면 확장 팝업에서 넘긴 값으로 본문을 채운다 (lib/weekend.js).
+  // 패널을 띄우지 않는 창이라 아래 return 보다 먼저 둔다.
+  async function fillWeekendForm() {
+    let p;
+    try { ({ pendingWeekend: p } = await chrome.storage.local.get('pendingWeekend')); } catch (_) { return; }
+    if (!p || Date.now() - (p.at || 0) > GW.weekend.PENDING_TTL) return;
+    // 한 번만 쓴다 — 나중에 사용자가 직접 연 양식에 다시 들어가지 않게.
+    try { await chrome.storage.local.remove('pendingWeekend'); } catch (_) {}
+    const done = await GW.weekend.waitAndFill(window, p);
+    const ok = done && done.date && done.time && done.purpose;
+    const note = document.createElement('div');
+    note.textContent = ok
+      ? '구름 근무시간: 주말근무 내용을 채웠습니다. 결재선과 내용을 확인한 뒤 상신하세요.'
+      : '구름 근무시간: 양식 칸을 찾지 못해 채우지 못했습니다. 직접 입력해 주세요.';
+    note.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;'
+      + `padding:10px 16px;border-radius:8px;font:13px/1.4 sans-serif;color:#fff;background:${ok ? '#1e63d8' : '#dc2626'};`
+      + 'box-shadow:0 4px 14px rgba(0,0,0,.2);';
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 8000);
+  }
+  if (window.top === window && GW.weekend && GW.weekend.isNewForm(location.hash)) fillWeekendForm();
+
   // 근태신청서·결재 같은 별도 팝업 창에는 띄우지 않는다.
   // 아마란스가 window.open() 으로 여는 창이라 opener 가 잡힌다.
   // (Chrome 88+ 는 target="_blank" 에 noopener 를 기본 적용하므로, opener 가 있으면

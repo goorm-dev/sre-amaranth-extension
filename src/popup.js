@@ -608,6 +608,55 @@
   lv('brClose').onclick = () => { lv('breakSheet').hidden = true; };
   lv('breakSheet').onclick = (e) => { if (e.target === lv('breakSheet')) lv('breakSheet').hidden = true; };
 
+  // ── 주말(휴일)근무 신청 ─────────────────────────────────────────────
+  //
+  // 근태신청이 아니라 전자결재 양식 244 다. 결재선은 그룹웨어 기본값에 맡기고
+  // 본문만 채운다 — 값을 남겨 두고 새 양식 창을 열면 그 창의 content script 가 채운다.
+  const WK = GW.weekend;
+  let wkSettings = null;   // 회사 휴일 설정(추가 휴무·해제). 시트를 열 때 읽는다
+
+  function wkSync(touchRest) {
+    if (touchRest) lv('wkRest').value = WK.suggestRest(lv('wkStart').value, lv('wkEnd').value);
+    const dk = lv('wkDate').value;
+    const holiday = dk ? !GW.holidays.isWorkday(dk, wkSettings) : null;
+    const r = WK.check(wkValues(), holiday);
+    lv('wkSpan').innerHTML = r.error ? ''
+      : `근무 ${T.fmtDuration(r.workMin)}${r.warn.length ? `<br><span class="warn">${r.warn.map(esc).join('<br>')}</span>` : ''}`;
+  }
+  function wkValues() {
+    return { date: lv('wkDate').value, kind: lv('wkKind').value, start: lv('wkStart').value,
+      end: lv('wkEnd').value, rest: lv('wkRest').value.trim(), purpose: lv('wkPurpose').value.trim() };
+  }
+
+  lv('wkOpen').onclick = async () => {
+    lv('weekendSheet').hidden = false;
+    try { wkSettings = await GW.store.getSettings(); } catch (_) {}
+    lv('wkDate').value = WK.nextWeekend();
+    if (!lv('wkStart').value) lv('wkStart').value = '10:00';
+    if (!lv('wkEnd').value) lv('wkEnd').value = '15:00';
+    wkSync(true);
+  };
+  lv('wkDate').onchange = () => wkSync(false);
+  lv('wkStart').onchange = lv('wkEnd').onchange = () => wkSync(true);
+  lv('wkRest').oninput = lv('wkPurpose').oninput = () => wkSync(false);
+  lv('wkGo').onclick = async () => {
+    const v = wkValues();
+    const r = WK.check(v, null);
+    if (r.error) { lv('wkMsg').textContent = r.error; return; }
+    lv('wkGo').disabled = true;
+    try {
+      // 남겨 둔 값은 새 양식 창의 content script 가 한 번 읽고 지운다 (content.js).
+      await chrome.storage.local.set({ pendingWeekend: { ...v, at: Date.now() } });
+      await chrome.tabs.create({ url: GW.screens.ORIGIN + '/' + WK.formHash(crypto.randomUUID()) });
+      window.close();
+    } catch (e) {
+      lv('wkMsg').textContent = '실패: ' + (e.message || '');
+      lv('wkGo').disabled = false;
+    }
+  };
+  lv('wkClose').onclick = () => { lv('weekendSheet').hidden = true; };
+  lv('weekendSheet').onclick = (e) => { if (e.target === lv('weekendSheet')) lv('weekendSheet').hidden = true; };
+
   $('prevM').onclick = () => { viewMonth = shiftMonth(viewMonth, -1); selectedKey = null; load(); };
   $('nextM').onclick = () => { viewMonth = shiftMonth(viewMonth, 1); selectedKey = null; load(); };
   // 새로고침은 근태 데이터와 버전 확인을 같이 강제한다. TTL 때문에 새 버전이
